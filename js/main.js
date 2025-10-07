@@ -7115,6 +7115,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                     showNotification(`Added ${newPhotos.length} new photos`, 'success');
                 }
                 
+                // 保存照片數據到 IndexedDB
+                if (newPhotos.length > 0) {
+                    window.logger.log('Add photos: Saving photo data to storage...');
+                    await saveDataToStorage();
+                    window.logger.log('Add photos: Photo data saved successfully');
+                }
+                
             } catch (error) {
                 window.logger.error('Error adding photos:', error);
                 showNotification(`Error adding photos: ${error.message}`, 'error');
