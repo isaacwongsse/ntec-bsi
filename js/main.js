@@ -4265,6 +4265,17 @@ async function loadDataFromStorage() {
             if (!alreadyLoadedPhotos && allPhotos && allPhotos.length > 0) {
                 // 檢查是否有 dataURL 可以渲染照片
                 const photosWithDataURL = allPhotos.filter(photo => photo.dataURL && photo.dataURL.trim() !== '');
+                window.logger.log('DEBUG: Photo restoration check:', {
+                    totalPhotos: allPhotos.length,
+                    photosWithDataURL: photosWithDataURL.length,
+                    samplePhoto: allPhotos[0] ? {
+                        name: allPhotos[0].name,
+                        hasDataURL: !!allPhotos[0].dataURL,
+                        dataURLLength: allPhotos[0].dataURL ? allPhotos[0].dataURL.length : 0,
+                        dataURLStart: allPhotos[0].dataURL ? allPhotos[0].dataURL.substring(0, 50) : 'none'
+                    } : 'no photos'
+                });
+                
                 if (photosWithDataURL.length > 0) {
                     window.logger.log('Rendering photos from storage with dataURL:', photosWithDataURL.length);
                     // 渲染照片
@@ -8689,14 +8700,25 @@ window.saveDataToStorage = async function() {
             defectEntries: window.defectEntries || []
         },
         // 新增：保存照片元資料（包含 dataURL 以便恢復顯示）
-        photoMetadata: (window.allPhotos || []).map(file => ({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            lastModified: file.lastModified || Date.now(),
-            webkitRelativePath: file.webkitRelativePath || '',
-            dataURL: file.dataURL || '' // 保存 dataURL 以便恢復照片顯示
-        })),
+        photoMetadata: (() => {
+            const photos = window.allPhotos || [];
+            window.logger.log('DEBUG: Saving photo metadata:', {
+                totalPhotos: photos.length,
+                samplePhoto: photos[0] ? {
+                    name: photos[0].name,
+                    hasDataURL: !!photos[0].dataURL,
+                    dataURLLength: photos[0].dataURL ? photos[0].dataURL.length : 0
+                } : 'no photos'
+            });
+            return photos.map(file => ({
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                lastModified: file.lastModified || Date.now(),
+                webkitRelativePath: file.webkitRelativePath || '',
+                dataURL: file.dataURL || '' // 保存 dataURL 以便恢復照片顯示
+            }));
+        })(),
         // 新增：保存樓層平面圖數據
         floorPlanLabels: (typeof window.labels !== 'undefined') ? window.labels : [],
         floorPlanDefectMarks: (typeof window.defectMarks !== 'undefined') ? window.defectMarks : [],
