@@ -6694,6 +6694,8 @@ function updateDuplicateStatus(inputElement, inspectionNo, excludeIndex = -1) {
 
 
 document.addEventListener('DOMContentLoaded', async function() {
+    window.logger.log('DOMContentLoaded: First event listener started');
+    
     // Initialize storage adapter first
     try {
         await window.storageAdapter.init();
@@ -7021,9 +7023,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Add photos button click handler
+    window.logger.log('Initializing Add Photos button...');
     addPhotosBtn = document.getElementById('addPhotosBtn');
     addPhotosFileInput = document.getElementById('addPhotosFileInput');
+    window.logger.log('Add Photos elements found:', {
+        button: !!addPhotosBtn,
+        input: !!addPhotosFileInput,
+        buttonElement: addPhotosBtn,
+        inputElement: addPhotosFileInput
+    });
+    
     if (addPhotosBtn && addPhotosFileInput) {
+        window.logger.log('Setting up Add Photos event listeners...');
         addPhotosBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation(); // Prevent global click handler interference
@@ -7194,7 +7205,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Clear the input
             e.target.value = '';
         });
+        window.logger.log('Add Photos event listeners set up successfully');
+    } else {
+        window.logger.error('Add Photos elements not found - button:', !!addPhotosBtn, 'input:', !!addPhotosFileInput);
     }
+    
+    window.logger.log('DOMContentLoaded: First event listener completed');
 });
 
 // Clean up invalid folder data on page load
