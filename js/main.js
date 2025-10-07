@@ -4147,28 +4147,56 @@ async function loadDataFromStorage() {
             // window.skipDefectMarksLoad = true;
             // window.logger.log('Page reload: Set skipDefectMarksLoad flag to prevent defect marks reload');
             
-            // 載入照片分配資料
-            if (parsedData.assignedPhotos) {
-                Object.keys(parsedData.assignedPhotos).forEach(categoryId => {
-                    if (assignedPhotos[categoryId]) {
-                        assignedPhotos[categoryId] = new Set(parsedData.assignedPhotos[categoryId]);
-                    }
-                });
-                window.logger.log('Page reload: Loaded assigned photos from storage');
+            // 優先：從聚合結構 photoAssignments 還原；回退：從頂層欄位還原（向後相容）
+            if (parsedData.photoAssignments) {
+                const pa = parsedData.photoAssignments;
+                if (pa.assignedPhotos) {
+                    Object.keys(pa.assignedPhotos).forEach(categoryId => {
+                        if (assignedPhotos[categoryId]) {
+                            assignedPhotos[categoryId] = new Set(pa.assignedPhotos[categoryId] || []);
+                        }
+                    });
+                    window.logger.log('Page reload: Loaded assigned photos from photoAssignments');
+                }
+                if (pa.categoryNumbers) {
+                    Object.keys(pa.categoryNumbers).forEach(categoryId => {
+                        if (categoryNumbers[categoryId]) {
+                            categoryNumbers[categoryId] = [...(pa.categoryNumbers[categoryId] || [])];
+                        }
+                    });
+                    window.logger.log('Page reload: Loaded category numbers from photoAssignments');
+                }
+                // 若尚未載入 defectEntries，且 photoAssignments 提供，則還原
+                if ((window.defectEntries?.length || 0) === 0 && Array.isArray(pa.defectEntries)) {
+                    window.defectEntries = [...pa.defectEntries];
+                    window.logger.log('Page reload: Loaded defect entries from photoAssignments');
+                }
+            } else {
+                // 回退：讀取頂層 assignedPhotos
+                if (parsedData.assignedPhotos) {
+                    Object.keys(parsedData.assignedPhotos).forEach(categoryId => {
+                        if (assignedPhotos[categoryId]) {
+                            assignedPhotos[categoryId] = new Set(parsedData.assignedPhotos[categoryId]);
+                        }
+                    });
+                    window.logger.log('Page reload: Loaded assigned photos from storage');
+                }
+                // 回退：讀取頂層 categoryNumbers
+                if (parsedData.categoryNumbers) {
+                    Object.keys(parsedData.categoryNumbers).forEach(categoryId => {
+                        if (categoryNumbers[categoryId]) {
+                            categoryNumbers[categoryId] = [...parsedData.categoryNumbers[categoryId]];
+                        }
+                    });
+                    window.logger.log('Page reload: Loaded category numbers from storage');
+                }
             }
             
-            // 載入分類內容資料
-            if (parsedData.categoryNumbers) {
-                Object.keys(parsedData.categoryNumbers).forEach(categoryId => {
-                    if (categoryNumbers[categoryId]) {
-                        categoryNumbers[categoryId] = [...parsedData.categoryNumbers[categoryId]];
-                    }
-                });
-                window.logger.log('Page reload: Loaded category numbers from storage');
-            }
-            
-            // 載入照片元資料
-            if (parsedData.photoMetadata) {
+            // 若已用 FSA handle 載入照片，避免覆寫 allPhotos 與已渲染預覽
+            const alreadyLoadedPhotos = Array.isArray(allPhotos) && allPhotos.length > 0 && window.loadedFromHandles === true;
+
+            // 載入照片元資料（僅在尚未從 handle 載入時）
+            if (!alreadyLoadedPhotos && parsedData.photoMetadata) {
                 window.logger.log('Loading photo metadata from localStorage:', parsedData.photoMetadata.length);
                 // 從元資料重建照片物件
                 allPhotos = parsedData.photoMetadata.map(metadata => ({
@@ -4177,7 +4205,7 @@ async function loadDataFromStorage() {
                     type: metadata.type || 'image/jpeg',
                     lastModified: metadata.lastModified || Date.now()
                 }));
-            } else if (parsedData.allPhotoFilenames) {
+            } else if (!alreadyLoadedPhotos && parsedData.allPhotoFilenames) {
                 // 向後相容：載入舊版本的照片檔案名稱
                 window.logger.log('Loading allPhotoFilenames (legacy):', parsedData.allPhotoFilenames);
                 allPhotos = parsedData.allPhotoFilenames.map(filename => ({
@@ -4232,7 +4260,7 @@ async function loadDataFromStorage() {
             }
             
             // 恢復照片分配狀態
-            if (allPhotos && allPhotos.length > 0) {
+            if (!alreadyLoadedPhotos && allPhotos && allPhotos.length > 0) {
                 setTimeout(() => {
                     restorePhotoAssignmentStatus();
                     // 驗證照片狀態是否與當前標籤數據一致
@@ -4253,7 +4281,7 @@ async function loadDataFromStorage() {
                 showReselectMessage();
             } else {
                 // 如果沒有提交的資料，顯示正常空狀態
-                if (submittedData.length === 0) {
+                if (submittedData.length === 0 && !(Array.isArray(allPhotos) && allPhotos.length > 0 && window.loadedFromHandles === true)) {
                     photoGrid.innerHTML = `
                         <div class="empty-preview">
                             <i class="fas fa-images fa-4x"></i>
@@ -4294,6 +4322,7 @@ async function loadDataFromStorage() {
         }
     } else {
         // 沒有保存的資料，顯示正常空狀態
+        if (!(Array.isArray(allPhotos) && allPhotos.length > 0 && window.loadedFromHandles === true)) {
         photoGrid.innerHTML = `
             <div class="empty-preview">
                 <i class="fas fa-images fa-4x"></i>
@@ -4302,7 +4331,7 @@ async function loadDataFromStorage() {
                     <i class="fas fa-folder-open"></i> Select Photo Folder
                 </button>
             </div>
-        `;
+        `;}
         
         // 更新 Add photos 按鈕可見性
         updateAddPhotosButtonVisibility();
@@ -4655,6 +4684,36 @@ async function selectPhotoFolder() {
     showNotification('Please select a photo folder...', 'info', 2000);
     
     // Check if webkitdirectory is supported
+    if (window.showDirectoryPicker) {
+        // Preferred: File System Access API
+        try {
+            const dirHandle = await window.showDirectoryPicker();
+            // Persist handle
+            try { await window.storageAdapter.setItem('pne_photos_dir_handle', dirHandle); } catch (e) {}
+            folderNameDisplay.textContent = dirHandle.name || 'Selected Folder';
+            // Iterate files
+            const imageFiles = [];
+            for await (const [name, handle] of dirHandle.entries()) {
+                if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                    const file = await handle.getFile();
+                    imageFiles.push(file);
+                }
+            }
+            if (imageFiles.length === 0) {
+                showNotification('No valid image files found in the selected folder!', 'error');
+                return;
+            }
+            allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+            const lazyObserver = initLazyLoading();
+            await renderPhotos(allPhotos, lazyObserver);
+            updateFolderDisplay();
+            updateAddPhotosButtonVisibility();
+            showNotification('Photos loaded from folder!', 'success');
+            return;
+        } catch (e) {
+            // fallback to input method
+        }
+    }
     if (isWebkitDirectorySupported()) {
         // Chrome/Edge - use folder selection
         const input = document.createElement('input');
@@ -6640,6 +6699,185 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize header checkboxes
     initHeaderCheckboxes();
     
+    // 啟動詢問：若偵測到已保存資料，顯示恢復會話彈窗
+    try {
+        const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
+        const modal = document.getElementById('sessionRestoreModal');
+        if (saved && modal) {
+            // 僅在尚未載入任何資料時顯示
+            modal.style.display = 'flex';
+            const restoreBtn = document.getElementById('restoreSessionBtn');
+            const startFreshBtn = document.getElementById('startFreshBtn');
+            if (restoreBtn) {
+                restoreBtn.onclick = async () => {
+                    modal.style.display = 'none';
+                    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
+                    let loadedWithHandles = false;
+                    try {
+                        // PDF
+                        const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
+                        if (pdfHandle && pdfHandle.kind === 'file') {
+                            const p = await pdfHandle.queryPermission?.();
+                            if (p === 'granted' || (await pdfHandle.requestPermission?.()) === 'granted') {
+                                const file = await pdfHandle.getFile();
+                                const arrayBuffer = await file.arrayBuffer();
+                                await loadPDFFromArrayBuffer(arrayBuffer, file.name);
+                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                                const floorPlanViewer = document.getElementById('floorPlanViewer');
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                if (floorPlanUploadArea && floorPlanViewer) {
+                                    floorPlanUploadArea.style.display = 'none';
+                                    floorPlanViewer.style.display = 'flex';
+                                }
+                                loadedWithHandles = true;
+                            }
+                        }
+                        // Photos folder
+                        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+                        if (dirHandle && dirHandle.kind === 'directory') {
+                            const p = await dirHandle.queryPermission?.({mode: 'read'});
+                            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
+                                const imageFiles = [];
+                                for await (const [name, handle] of dirHandle.entries()) {
+                                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                                        const f = await handle.getFile();
+                                        imageFiles.push(f);
+                                    }
+                                }
+                                if (imageFiles.length > 0) {
+                                    window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
+                                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                                    const lazyObserver = initLazyLoading();
+                                    await renderPhotos(allPhotos, lazyObserver);
+                                    updateFolderDisplay();
+                                    updateAddPhotosButtonVisibility();
+                                    loadedWithHandles = true;
+                                }
+                            }
+                        }
+                    } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
+
+                    // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
+                    await loadDataFromStorage();
+
+                    // 若未能用 handle 載入 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                    try {
+                        if (!loadedWithHandles) {
+                            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                            if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        }
+                    } catch (e) { /* noop */ }
+                };
+            }
+            if (startFreshBtn) {
+                startFreshBtn.onclick = async () => {
+                    modal.style.display = 'none';
+                    // 1) 先清空 IndexedDB（包含先前儲存的 FSA handles 與資料）
+                    try {
+                        await window.storageAdapter.clear();
+                    } catch (e) { /* 忽略清除錯誤 */ }
+                    // 也同步清空 localStorage（保險移除殘留鍵）
+                    try { localStorage.clear(); } catch (e) { /* noop */ }
+                    // 2) 重置前端狀態，提供完全空白的開始
+                    try {
+                        submittedData = [];
+                        submittedDefectEntries = [];
+                        photoFolders = [];
+                        submittedFilenames = new Set();
+                        rowIdCounter = 0;
+                        categories.forEach(category => {
+                            categoryNumbers[category.id] = [];
+                            assignedPhotos[category.id] = new Set();
+                        });
+                        // 重置樓層平面圖與缺陷標記
+                        if (typeof window.labels !== 'undefined') window.labels = [];
+                        if (typeof window.defectMarks !== 'undefined') window.defectMarks = [];
+                        if (typeof window.redrawLabels === 'function') window.redrawLabels();
+                        if (typeof window.redrawDefectMarks === 'function') window.redrawDefectMarks();
+                        // 關閉並重置繪圖模式與 PDF 檢視
+                        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                        const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                        const floorPlanViewer = document.getElementById('floorPlanViewer');
+                        const floorPlanCanvas = document.getElementById('floorPlanCanvas');
+                        const labelLayer = document.getElementById('labelLayer');
+                        const floorplanThumb = document.getElementById('floorplanThumb');
+                        const floorplanThumbImg = document.getElementById('floorplanThumbImg');
+                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'none';
+                        if (floorPlanViewer) floorPlanViewer.style.display = 'none';
+                        if (floorPlanUploadArea) floorPlanUploadArea.style.display = 'block';
+                        if (labelLayer) labelLayer.innerHTML = '';
+                        if (floorPlanCanvas) {
+                            try { const ctx = floorPlanCanvas.getContext('2d'); ctx && ctx.clearRect(0,0,floorPlanCanvas.width,floorPlanCanvas.height); } catch (e) { /* noop */ }
+                        }
+                        // 關閉 PDF 縮圖
+                        if (floorplanThumb) floorplanThumb.style.display = 'none';
+                        if (floorplanThumbImg) floorplanThumbImg.src = '';
+                        // 重置資料夾名稱與狀態
+                        if (folderNameDisplay) folderNameDisplay.textContent = '';
+                        window.loadedFromHandles = false;
+                        // 更新 UI
+                        updateCategoryDisplay('j');
+                        updateFolderDisplay();
+                        if (photoGrid) {
+                            photoGrid.innerHTML = `
+                                <div class="empty-preview">
+                                    <i class="fas fa-images fa-4x"></i>
+                                    <p>Select a folder to preview photos</p>
+                                    <button id="centerFolderBtn" class="center-folder-btn" onclick="selectPhotoFolder()">
+                                        <i class="fas fa-folder-open"></i> Select Photo Folder
+                                    </button>
+                                </div>
+                            `;
+                        }
+                        showNotification('All saved data cleared. Starting fresh.', 'success');
+                    } catch (e) { /* noop */ }
+                };
+            }
+        }
+    } catch (e) { /* 忽略初始化詢問錯誤 */ }
+
+    // 若已儲存 FSA handle 且具授權，開頁自動載入 PDF 與相簿
+    try {
+        // PDF handle
+        const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
+        if (pdfHandle && pdfHandle.kind === 'file') {
+            const p = await pdfHandle.queryPermission?.();
+            if (p === 'granted' || (await pdfHandle.requestPermission?.()) === 'granted') {
+                const file = await pdfHandle.getFile();
+                const arrayBuffer = await file.arrayBuffer();
+                await loadPDFFromArrayBuffer(arrayBuffer, file.name);
+                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                const floorPlanViewer = document.getElementById('floorPlanViewer');
+                if (floorPlanUploadArea && floorPlanViewer) {
+                    floorPlanUploadArea.style.display = 'none';
+                    floorPlanViewer.style.display = 'flex';
+                }
+            }
+        }
+        // Photos folder handle
+        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+        if (dirHandle && dirHandle.kind === 'directory') {
+            const p = await dirHandle.queryPermission?.({mode: 'read'});
+            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
+                const imageFiles = [];
+                for await (const [name, handle] of dirHandle.entries()) {
+                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                        const file = await handle.getFile();
+                        imageFiles.push(file);
+                    }
+                }
+                if (imageFiles.length > 0) {
+                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                    const lazyObserver = initLazyLoading();
+                    await renderPhotos(allPhotos, lazyObserver);
+                    updateFolderDisplay();
+                    updateAddPhotosButtonVisibility();
+                }
+            }
+        }
+    } catch (e) { /* 忽略自動載入錯誤 */ }
+
     // Initialize Add photos button visibility with delay to ensure DOM is ready
     setTimeout(() => {
         updateAddPhotosButtonVisibility();
@@ -8414,7 +8652,19 @@ window.saveDataToStorage = async function() {
         defectEntries: window.defectEntries || [],
         submittedDefectEntries: window.submittedDefectEntries || [],
         allPhotoFilenames: (window.allPhotos || []).map(file => file.name), // Save photo filenames
-        // 注意：照片分配資料不保存到存儲，避免頁面重新載入後仍顯示已分配狀態
+        // 與 .pne 檔一致：保存照片分配與分類內容資料
+        assignedPhotos: Object.fromEntries(
+            Object.entries(assignedPhotos || {}).map(([key, value]) => [key, Array.from(value || [])])
+        ),
+        categoryNumbers: categoryNumbers || {},
+        // 同時提供聚合結構，與 .pne 匯出一致
+        photoAssignments: {
+            categoryNumbers: categoryNumbers || {},
+            assignedPhotos: Object.fromEntries(
+                Object.entries(assignedPhotos || {}).map(([key, value]) => [key, Array.from(value || [])])
+            ),
+            defectEntries: window.defectEntries || []
+        },
         // 新增：保存照片元資料
         photoMetadata: (window.allPhotos || []).map(file => ({
             name: file.name,
@@ -8422,7 +8672,6 @@ window.saveDataToStorage = async function() {
             type: file.type,
             lastModified: file.lastModified || Date.now()
         })),
-        // 注意：分類內容資料不保存到存儲，避免頁面重新載入後仍顯示已分配狀態
         // 新增：保存樓層平面圖數據
         floorPlanLabels: (typeof window.labels !== 'undefined') ? window.labels : [],
         floorPlanDefectMarks: (typeof window.defectMarks !== 'undefined') ? window.defectMarks : [],
@@ -12512,9 +12761,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             e.preventDefault();
             e.stopPropagation(); // Prevent global click handler interference
             window.logger.log('Upload floor plan button clicked in Chrome');
-            window.logger.log('File input element:', floorPlanFileInput);
-            window.logger.log('File input display style:', window.getComputedStyle(floorPlanFileInput).display);
-            floorPlanFileInput.click();
+            // Preferred: File System Access API
+            if (window.showOpenFilePicker) {
+                (async () => {
+                    try {
+                        const [handle] = await window.showOpenFilePicker({
+                            types: [{description: 'PDF', accept: {'application/pdf': ['.pdf']}}]
+                        });
+                        if (handle) {
+                            try { await window.storageAdapter.setItem('pne_pdf_file_handle', handle); } catch (e) {}
+                            const file = await handle.getFile();
+                            uploadFloorPlanBtn.textContent = 'Loading...';
+                            uploadFloorPlanBtn.disabled = true;
+                            const arrayBuffer = await file.arrayBuffer();
+                            await loadPDFFromArrayBuffer(arrayBuffer, file.name);
+                            uploadFloorPlanBtn.textContent = 'Choose File';
+                            uploadFloorPlanBtn.disabled = false;
+                            floorPlanUploadArea.style.display = 'none';
+                            floorPlanViewer.style.display = 'flex';
+                        }
+                    } catch (err) {
+                        // fallback to input
+                        floorPlanFileInput.click();
+                    }
+                })();
+            } else {
+                floorPlanFileInput.click();
+            }
         });
     }
 
@@ -15939,35 +16212,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
                     e.stopPropagation();
                     return;
                 } else if (action === 'clear-all-labels') {
-                    if (window.labels.length > 0) {
-                        if (confirm('Are you sure you want to clear all labels? This action cannot be undone.')) {
-                            window.labels = [];
-                            if (typeof window.saveLabelsToStorage === 'function') {
-                    window.saveLabelsToStorage();
-                }
-                            if (typeof window.redrawLabels === 'function') {
-                                window.redrawLabels();
-                            }
-                            
-                            // 更新所有缺陷/標籤詳細表格容器
-                            if (typeof updateDefectSummaryTable === 'function') {
-                                if (typeof window.updateDefectSummaryTable === 'function') {
-    window.updateDefectSummaryTable();
-}
-                                window.logger.log('Defect summary table updated after clearing all labels');
-                            }
-                            if (typeof updateCategoryTablesFromInspectionRecords === 'function') {
-                                if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
-    window.updateCategoryTablesFromInspectionRecords();
-}
-                                window.logger.log('Category tables updated after clearing all labels');
-                            }
-                            
-                            showNotification('All labels cleared successfully!', 'success');
-                        }
-                    } else {
-                        showNotification('No labels to clear.', 'info');
-                    }
+                    // 使用新的綜合清除函數，按照指定順序執行
+                    clearAllLabelsDetailTableRecords();
                 } else if (action === 'clear-all-defect-marks') {
                     if (window.defectMarks.length > 0) {
                         if (confirm('Are you sure you want to clear all defect marks? This action cannot be undone.')) {
@@ -17920,6 +18166,116 @@ function formatPhotoNumbersString(photoNumbers) {
     }
     
     return ranges.join(', ');
+}
+
+// 清除所有標籤詳細表格記錄的函數 - 按照指定順序執行
+function clearAllLabelsDetailTableRecords() {
+    window.logger.log('Starting comprehensive clear all labels detail table records process');
+    
+    if (window.labels.length === 0) {
+        showNotification('No labels to clear.', 'info');
+        return;
+    }
+    
+    // 確認刪除
+    if (!confirm('Are you sure you want to clear all labels? This action will delete all defect items first, then update all tables and floor plan, and finally delete all label records. This action cannot be undone.')) {
+        return;
+    }
+    
+    window.logger.log('Step 1: Collecting all defect numbers from labels');
+    
+    // Step 1: 收集所有標籤中的缺陷編號
+    const allDefectNumbers = new Set();
+    window.labels.forEach(label => {
+        if (label.defectNo) {
+            allDefectNumbers.add(label.defectNo);
+        }
+    });
+    
+    window.logger.log('Found defect numbers to delete:', Array.from(allDefectNumbers));
+    
+    // Step 2: 首先刪除所有缺陷項目
+    window.logger.log('Step 2: Deleting all defect items first');
+    allDefectNumbers.forEach(defectNo => {
+        // 使用統一的缺陷記錄刪除函數
+        deleteDefectRecordComprehensive(defectNo, 'labels detail table clear all');
+    });
+    
+    // Step 3: 更新所有缺陷詳細表格容器和樓層平面圖內容
+    window.logger.log('Step 3: Updating all defects detail-table-container and floor-plan-content');
+    
+    // 更新缺陷摘要表格
+    if (typeof window.updateDefectSummaryTable === 'function') {
+        window.updateDefectSummaryTable();
+        window.logger.log('Defect summary table updated');
+    }
+    
+    // 更新分類表格
+    if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+        window.updateCategoryTablesFromInspectionRecords();
+        window.logger.log('Category tables updated');
+    }
+    
+    // 更新樓層平面圖內容
+    if (typeof window.redrawDefectMarks === 'function') {
+        window.redrawDefectMarks();
+        window.logger.log('Floor plan defect marks redrawn');
+    }
+    
+    if (typeof window.redrawLabels === 'function') {
+        window.redrawLabels();
+        window.logger.log('Floor plan labels redrawn');
+    }
+    
+    // 更新檢查記錄表格
+    if (typeof window.syncLabelsToInspectionRecords === 'function') {
+        window.syncLabelsToInspectionRecords();
+        window.logger.log('Inspection records table updated');
+    }
+    
+    // 更新照片狀態
+    if (typeof updatePhotoStatusFromLabels === 'function') {
+        updatePhotoStatusFromLabels();
+        window.logger.log('Photo status updated');
+    }
+    
+    // Step 4: 最後刪除所有標籤詳細表格容器的記錄
+    window.logger.log('Step 4: Deleting all labels detail-table-container records');
+    
+    // 清空標籤數組
+    window.labels = [];
+    
+    // 保存標籤到本地存儲
+    if (typeof window.saveLabelsToStorage === 'function') {
+        window.saveLabelsToStorage();
+        window.logger.log('Labels saved to storage');
+    }
+    
+    // 重新渲染標籤（清空狀態）
+    if (typeof window.redrawLabels === 'function') {
+        window.redrawLabels();
+        window.logger.log('Labels redrawn (empty state)');
+    }
+    
+    // 最終更新所有表格
+    if (typeof window.updateDefectSummaryTable === 'function') {
+        window.updateDefectSummaryTable();
+        window.logger.log('Final defect summary table update');
+    }
+    
+    if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+        window.updateCategoryTablesFromInspectionRecords();
+        window.logger.log('Final category tables update');
+    }
+    
+    // 同步更新檢查記錄表格
+    if (typeof window.syncLabelsToInspectionRecords === 'function') {
+        window.syncLabelsToInspectionRecords();
+        window.logger.log('Final inspection records table update');
+    }
+    
+    window.logger.log('Comprehensive clear all labels detail table records process completed');
+    showNotification('All labels cleared successfully! All defect items deleted first, then all tables and floor plan updated, and finally all label records deleted.', 'success');
 }
 
 // 統一的缺陷記錄刪除函數 - 處理雙向同步刪除

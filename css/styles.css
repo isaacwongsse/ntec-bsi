@@ -3821,6 +3821,74 @@ input:checked + .slider:before {
     overflow: auto;
 }
 
+/* Session Restore Modal */
+.session-restore-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 11000;
+}
+
+.session-restore-container {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    width: 92%;
+    max-width: 560px;
+    overflow: hidden;
+}
+
+.session-restore-header {
+    background: var(--primary);
+    color: #fff;
+    padding: 18px 24px;
+}
+
+.session-restore-body {
+    padding: 20px 24px;
+    color: var(--text);
+}
+
+.session-restore-list {
+    margin: 10px 0 0 0;
+    padding-left: 18px;
+    color: #666;
+}
+
+.session-restore-footer {
+    padding: 16px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.session-primary-btn, .session-secondary-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-primary-btn {
+    background: var(--primary);
+    color: #fff;
+}
+
+.session-secondary-btn {
+    background: #e0e0e0;
+    color: #333;
+}
+
 .detail-table-container {
     overflow-x: auto;
     border-radius: 8px;

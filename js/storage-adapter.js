@@ -16,6 +16,9 @@ class StorageAdapter {
             'pne_floorplan_base64': 'pdfData',
             'pne_floorplan_data': 'pdfData',
             'pne_floorplan_filename': 'pdfData',
+            // File System Access API handles
+            'pne_pdf_file_handle': 'pdfData',
+            'pne_photos_dir_handle': 'photoMetadata',
             'pne_floorplan_view_state': 'viewState',
             'pne_current_view_state': 'viewState',
             'selectedLanguage': 'userSettings',
