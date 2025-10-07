@@ -102,11 +102,13 @@ class IndexedDBManager {
             // 確保 key 是有效的字符串或數字
             const validKey = key !== null && key !== undefined ? String(key) : 'default';
             
-            const request = store.put({ 
-                id: validKey, 
-                data: value, 
-                timestamp: Date.now() 
-            });
+            // 依據 object store 的 keyPath 建立正確的主鍵欄位
+            // 大多數 store 使用 { keyPath: 'id' }，唯獨 userSettings 使用 { keyPath: 'key' }
+            const record = (storeName === this.stores.USER_SETTINGS)
+                ? { key: validKey, data: value, timestamp: Date.now() }
+                : { id: validKey, data: value, timestamp: Date.now() };
+
+            const request = store.put(record);
 
             request.onsuccess = () => {
                 console.log(`數據已保存到 ${storeName}:`, validKey);
