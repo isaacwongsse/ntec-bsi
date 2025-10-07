@@ -4198,12 +4198,14 @@ async function loadDataFromStorage() {
             // 載入照片元資料（僅在尚未從 handle 載入時）
             if (!alreadyLoadedPhotos && parsedData.photoMetadata) {
                 window.logger.log('Loading photo metadata from localStorage:', parsedData.photoMetadata.length);
-                // 從元資料重建照片物件
+                // 從元資料重建照片物件（包含 dataURL）
                 allPhotos = parsedData.photoMetadata.map(metadata => ({
                     name: metadata.name,
                     size: metadata.size || 0,
                     type: metadata.type || 'image/jpeg',
-                    lastModified: metadata.lastModified || Date.now()
+                    lastModified: metadata.lastModified || Date.now(),
+                    webkitRelativePath: metadata.webkitRelativePath || '',
+                    dataURL: metadata.dataURL || '' // 恢復 dataURL 以便顯示照片
                 }));
             } else if (!alreadyLoadedPhotos && parsedData.allPhotoFilenames) {
                 // 向後相容：載入舊版本的照片檔案名稱
@@ -4259,8 +4261,22 @@ async function loadDataFromStorage() {
                 window.updateDefectSummaryTable();
             }
             
-            // 恢復照片分配狀態
+            // 恢復照片分配狀態並渲染照片
             if (!alreadyLoadedPhotos && allPhotos && allPhotos.length > 0) {
+                // 檢查是否有 dataURL 可以渲染照片
+                const photosWithDataURL = allPhotos.filter(photo => photo.dataURL && photo.dataURL.trim() !== '');
+                if (photosWithDataURL.length > 0) {
+                    window.logger.log('Rendering photos from storage with dataURL:', photosWithDataURL.length);
+                    // 渲染照片
+                    const lazyObserver = initLazyLoading();
+                    renderPhotos(allPhotos, lazyObserver);
+                    updateFolderDisplay();
+                    updateAddPhotosButtonVisibility();
+                } else {
+                    window.logger.log('No photos with dataURL found, showing reselect message');
+                    showReselectMessage();
+                }
+                
                 setTimeout(() => {
                     restorePhotoAssignmentStatus();
                     // 驗證照片狀態是否與當前標籤數據一致
@@ -8672,12 +8688,14 @@ window.saveDataToStorage = async function() {
             ),
             defectEntries: window.defectEntries || []
         },
-        // 新增：保存照片元資料
+        // 新增：保存照片元資料（包含 dataURL 以便恢復顯示）
         photoMetadata: (window.allPhotos || []).map(file => ({
             name: file.name,
             size: file.size,
             type: file.type,
-            lastModified: file.lastModified || Date.now()
+            lastModified: file.lastModified || Date.now(),
+            webkitRelativePath: file.webkitRelativePath || '',
+            dataURL: file.dataURL || '' // 保存 dataURL 以便恢復照片顯示
         })),
         // 新增：保存樓層平面圖數據
         floorPlanLabels: (typeof window.labels !== 'undefined') ? window.labels : [],
