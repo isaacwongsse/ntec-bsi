@@ -121,8 +121,9 @@ class ErrorHandler {
                 userMessage = '發生未知錯誤';
         }
         
-        // 使用Toast顯示錯誤
-        if (window.toast) {
+        // 使用Toast顯示錯誤（可由設定關閉資源類型的提示）
+        const shouldShowToast = (errorInfo.type !== 'resource') || CONFIG.errors?.showResourceToasts;
+        if (shouldShowToast && window.toast) {
             window.toast.show(userMessage, toastType, 6000, {
                 onClick: () => {
                     this.showErrorDetails(errorInfo);
