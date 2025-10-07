@@ -6874,6 +6874,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     } catch (e) { /* 忽略初始化詢問錯誤 */ }
 
+    // 自動載入照片數據（如果沒有通過會話恢復載入）
+    try {
+        const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
+        if (saved && (!allPhotos || allPhotos.length === 0)) {
+            window.logger.log('Auto-loading photo data from storage...');
+            await loadDataFromStorage();
+        }
+    } catch (e) { 
+        window.logger.error('Failed to auto-load photo data:', e);
+    }
+
     // 若已儲存 FSA handle 且具授權，開頁自動載入 PDF 與相簿
     try {
         // PDF handle
