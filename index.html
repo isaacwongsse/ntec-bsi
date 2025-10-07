@@ -28,9 +28,15 @@
     <!-- PWA Manifest (僅在 HTTPS 或 localhost 環境下載入) -->
     <script>
         if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            // 強制清理舊的 manifest
+            const oldManifest = document.querySelector('link[rel="manifest"]');
+            if (oldManifest) {
+                oldManifest.remove();
+            }
+            
             const manifestLink = document.createElement('link');
             manifestLink.rel = 'manifest';
-            manifestLink.href = './manifest.json?v=6.1.2';
+            manifestLink.href = './manifest.json?v=' + Date.now();
             document.head.appendChild(manifestLink);
         }
     </script>
