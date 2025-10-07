@@ -1,4 +1,4 @@
-# Photo Number Extractor V6.1.1
+# PlanPNE-V1
 
 一個用於檢查數據管理的照片號碼提取器應用程式，可以從照片中提取號碼並分配到不同類別。
 
