@@ -4104,7 +4104,9 @@ function restorePhotoAssignmentStatus() {
 
 // Load data from storage
 async function loadDataFromStorage() {
+    window.logger.log('loadDataFromStorage: Starting to load data from storage...');
     const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
+    window.logger.log('loadDataFromStorage: Retrieved data from storage:', savedData ? 'data exists' : 'no data');
     if (savedData) {
         try {
             const parsedData = savedData;
@@ -6622,7 +6624,15 @@ function clearTable() {
 // Initialize the page
 initCategories();
 initCustomSelect();
-loadDataFromStorage();
+// 異步載入數據，避免阻塞頁面初始化
+(async () => {
+    try {
+        await loadDataFromStorage();
+        window.logger.log('Page initialization: Data loaded from storage');
+    } catch (error) {
+        window.logger.error('Page initialization: Failed to load data from storage:', error);
+    }
+})();
 updateTableCount();
 updateFolderDisplay();
 
