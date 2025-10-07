@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB 測試頁面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>IndexedDB 遷移測試</h1>
+    
+    <div class="test-section">
+        <h2>存儲系統狀態</h2>
+        <button onclick="checkStorageStatus()">檢查存儲狀態</button>
+        <div id="storageStatus" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>基本功能測試</h2>
+        <button onclick="testBasicOperations()">測試基本操作</button>
+        <div id="basicTest" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>數據遷移測試</h2>
+        <button onclick="testMigration()">測試數據遷移</button>
+        <div id="migrationTest" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>錯誤處理測試</h2>
+        <button onclick="testErrorHandling()">測試錯誤處理</button>
+        <div id="errorTest" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>性能測試</h2>
+        <button onclick="testPerformance()">測試性能</button>
+        <div id="performanceTest" class="result"></div>
+    </div>
+
+    <!-- 載入必要的腳本 -->
+    <script src="js/indexeddb-manager.js"></script>
+    <script src="js/storage-error-handler.js"></script>
+    <script src="js/storage-adapter.js"></script>
+    <script src="js/storage-migration-tool.js"></script>
+    
+    <script>
+        // 初始化存儲系統
+        async function initStorage() {
+            try {
+                await window.storageAdapter.init();
+                console.log('存儲系統初始化成功');
+            } catch (error) {
+                console.error('存儲系統初始化失敗:', error);
+            }
+        }
+        
+        // 檢查存儲狀態
+        async function checkStorageStatus() {
+            const statusDiv = document.getElementById('storageStatus');
+            statusDiv.innerHTML = '檢查中...';
+            
+            try {
+                const storageType = window.storageAdapter.getStorageType();
+                const isFallback = window.storageErrorHandler ? window.storageErrorHandler.isInFallbackMode() : false;
+                const errorStats = window.storageErrorHandler ? window.storageErrorHandler.getErrorStats() : null;
+                
+                let status = `
+                    <strong>存儲類型:</strong> ${storageType}<br>
+                    <strong>回退模式:</strong> ${isFallback ? '是' : '否'}<br>
+                `;
+                
+                if (errorStats) {
+                    status += `
+                        <strong>錯誤次數:</strong> ${errorStats.errorCount}/${errorStats.maxErrors}<br>
+                        <strong>錯誤窗口:</strong> ${errorStats.errorWindow}ms<br>
+                    `;
+                }
+                
+                status += `<strong>IndexedDB 支持:</strong> ${IndexedDBManager.isSupported() ? '是' : '否'}<br>`;
+                status += `<strong>localStorage 支持:</strong> ${typeof Storage !== 'undefined' ? '是' : '否'}`;
+                
+                statusDiv.innerHTML = status;
+                statusDiv.className = 'result success';
+            } catch (error) {
+                statusDiv.innerHTML = `錯誤: ${error.message}`;
+                statusDiv.className = 'result error';
+            }
+        }
+        
+        // 測試基本操作
+        async function testBasicOperations() {
+            const testDiv = document.getElementById('basicTest');
+            testDiv.innerHTML = '測試中...';
+            
+            try {
+                const testData = {
+                    test: 'data',
+                    timestamp: Date.now(),
+                    array: [1, 2, 3],
+                    object: { nested: true }
+                };
+                
+                // 測試寫入
+                await window.storageAdapter.setItem('testKey', testData);
+                
+                // 測試讀取
+                const retrievedData = await window.storageAdapter.getItem('testKey');
+                
+                // 測試刪除
+                await window.storageAdapter.removeItem('testKey');
+                
+                // 驗證刪除
+                const deletedData = await window.storageAdapter.getItem('testKey');
+                
+                const result = `
+                    <strong>寫入測試:</strong> 成功<br>
+                    <strong>讀取測試:</strong> ${JSON.stringify(retrievedData) === JSON.stringify(testData) ? '成功' : '失敗'}<br>
+                    <strong>刪除測試:</strong> ${deletedData === null ? '成功' : '失敗'}<br>
+                `;
+                
+                testDiv.innerHTML = result;
+                testDiv.className = 'result success';
+            } catch (error) {
+                testDiv.innerHTML = `測試失敗: ${error.message}`;
+                testDiv.className = 'result error';
+            }
+        }
+        
+        // 測試數據遷移
+        async function testMigration() {
+            const testDiv = document.getElementById('migrationTest');
+            testDiv.innerHTML = '測試中...';
+            
+            try {
+                // 創建一些測試數據
+                localStorage.setItem('testMigrationKey', JSON.stringify({ test: 'migration data' }));
+                
+                // 運行遷移測試
+                const migrationResults = await window.storageMigrationTool.migrateData();
+                
+                // 驗證遷移結果
+                const verificationResults = await window.storageMigrationTool.verifyMigration();
+                
+                const result = `
+                    <strong>遷移總數:</strong> ${migrationResults.total}<br>
+                    <strong>遷移成功:</strong> ${migrationResults.migrated}<br>
+                    <strong>遷移失敗:</strong> ${migrationResults.failed}<br>
+                    <strong>驗證成功:</strong> ${verificationResults.verified}<br>
+                    <strong>驗證失敗:</strong> ${verificationResults.failed}<br>
+                `;
+                
+                testDiv.innerHTML = result;
+                testDiv.className = 'result success';
+            } catch (error) {
+                testDiv.innerHTML = `遷移測試失敗: ${error.message}`;
+                testDiv.className = 'result error';
+            }
+        }
+        
+        // 測試錯誤處理
+        async function testErrorHandling() {
+            const testDiv = document.getElementById('errorTest');
+            testDiv.innerHTML = '測試中...';
+            
+            try {
+                // 重置錯誤計數器
+                window.storageErrorHandler.reset();
+                
+                // 模擬一些錯誤（如果可能）
+                const errorStats = window.storageErrorHandler.getErrorStats();
+                
+                const result = `
+                    <strong>錯誤計數器:</strong> ${errorStats.errorCount}<br>
+                    <strong>最大錯誤數:</strong> ${errorStats.maxErrors}<br>
+                    <strong>回退模式:</strong> ${errorStats.fallbackMode ? '是' : '否'}<br>
+                    <strong>錯誤窗口:</strong> ${errorStats.errorWindow}ms<br>
+                `;
+                
+                testDiv.innerHTML = result;
+                testDiv.className = 'result success';
+            } catch (error) {
+                testDiv.innerHTML = `錯誤處理測試失敗: ${error.message}`;
+                testDiv.className = 'result error';
+            }
+        }
+        
+        // 測試性能
+        async function testPerformance() {
+            const testDiv = document.getElementById('performanceTest');
+            testDiv.innerHTML = '測試中...';
+            
+            try {
+                const iterations = 100;
+                const testData = { data: 'performance test', timestamp: Date.now() };
+                
+                // 測試寫入性能
+                const writeStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    await window.storageAdapter.setItem(`perfTest${i}`, testData);
+                }
+                const writeEnd = performance.now();
+                const writeTime = writeEnd - writeStart;
+                
+                // 測試讀取性能
+                const readStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    await window.storageAdapter.getItem(`perfTest${i}`);
+                }
+                const readEnd = performance.now();
+                const readTime = readEnd - readStart;
+                
+                // 清理測試數據
+                for (let i = 0; i < iterations; i++) {
+                    await window.storageAdapter.removeItem(`perfTest${i}`);
+                }
+                
+                const result = `
+                    <strong>寫入 ${iterations} 次:</strong> ${writeTime.toFixed(2)}ms (平均: ${(writeTime/iterations).toFixed(2)}ms)<br>
+                    <strong>讀取 ${iterations} 次:</strong> ${readTime.toFixed(2)}ms (平均: ${(readTime/iterations).toFixed(2)}ms)<br>
+                    <strong>總時間:</strong> ${(writeTime + readTime).toFixed(2)}ms<br>
+                `;
+                
+                testDiv.innerHTML = result;
+                testDiv.className = 'result success';
+            } catch (error) {
+                testDiv.innerHTML = `性能測試失敗: ${error.message}`;
+                testDiv.className = 'result error';
+            }
+        }
+        
+        // 頁面載入時初始化
+        document.addEventListener('DOMContentLoaded', initStorage);
+    </script>
+</body>
+</html>
