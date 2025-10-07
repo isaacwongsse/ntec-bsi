@@ -1,8 +1,8 @@
 // Service Worker for Photo Number Extractor
-const CACHE_NAME = 'photo-number-extractor-v1.0.1';
-const STATIC_CACHE = 'static-v1.0.1';
-const DYNAMIC_CACHE = 'dynamic-v1.0.1';
-const IMAGES_CACHE = 'images-v1.0.1';
+const CACHE_NAME = 'photo-number-extractor-v1.0.2';
+const STATIC_CACHE = 'static-v1.0.2';
+const DYNAMIC_CACHE = 'dynamic-v1.0.2';
+const IMAGES_CACHE = 'images-v1.0.2';
 
 // 需要緩存的靜態資源
 const STATIC_ASSETS = [

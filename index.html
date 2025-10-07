@@ -34,6 +34,15 @@
                 oldManifest.remove();
             }
             
+            // 清理 Service Worker 緩存
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(registration => {
+                        registration.unregister();
+                    });
+                });
+            }
+            
             const manifestLink = document.createElement('link');
             manifestLink.rel = 'manifest';
             manifestLink.href = './manifest.json?v=' + Date.now();

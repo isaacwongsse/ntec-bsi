@@ -39,12 +39,12 @@ class ServiceWorkerManager {
                 scope: './'
             });
             
-            window.logger.log('Service Worker registered successfully');
+            window.logger?.log('Service Worker registered successfully');
             
             // 監聽Service Worker狀態變化
             this.registration.addEventListener('updatefound', () => {
                 const newWorker = this.registration.installing;
-                window.logger.log('Service Worker update found');
+                window.logger?.log('Service Worker update found');
                 
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed') {
@@ -86,7 +86,7 @@ class ServiceWorkerManager {
         
         // 監聽控制器變化
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.logger.log('Service Worker controller changed');
+            window.logger?.log('Service Worker controller changed');
             window.location.reload();
         });
     }
@@ -96,7 +96,7 @@ class ServiceWorkerManager {
         
         switch (type) {
             case 'CACHE_UPDATED':
-                window.logger.log('Cache updated:', payload);
+                window.logger?.log('Cache updated:', payload);
                 break;
                 
             case 'OFFLINE_READY':
@@ -104,7 +104,7 @@ class ServiceWorkerManager {
                 break;
                 
             default:
-                window.logger.log('Service Worker message:', data);
+                window.logger?.log('Service Worker message:', data);
         }
     }
     
@@ -259,7 +259,7 @@ class ServiceWorkerManager {
         
         try {
             await this.registration.sync.register(tag);
-            window.logger.log('Background sync registered:', tag);
+            window.logger?.log('Background sync registered:', tag);
             return true;
         } catch (error) {
             console.error('Failed to register background sync:', error);
@@ -335,7 +335,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     window.deferredPrompt = e;
     
-    window.logger.log('PWA install prompt available');
+    window.logger?.log('PWA install prompt available');
     
     // 可以在這裡顯示自定義安裝按鈕
     if (window.toast) {
@@ -349,7 +349,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // PWA安裝完成
 window.addEventListener('appinstalled', () => {
-    window.logger.log('PWA installed successfully');
+    window.logger?.log('PWA installed successfully');
     window.deferredPrompt = null;
     
     if (window.toast) {
