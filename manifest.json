@@ -3,12 +3,12 @@
   "short_name": "PNE",
   "description": "Extract numbers from photos and assign to categories for inspection data management",
   "version": "6.1.1",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#a67c52",
   "background_color": "#f6f1eb",
-  "scope": "/",
+  "scope": "./",
   "lang": "zh-TW",
   "dir": "ltr",
   "categories": ["productivity", "utilities", "business"],
@@ -17,7 +17,7 @@
       "name": "選擇照片文件夾",
       "short_name": "選擇照片",
       "description": "快速選擇照片文件夾開始工作",
-      "url": "/?action=select-folder",
+      "url": "./?action=select-folder",
       "icons": [
         {
           "src": "./assets/images/shortcut-folder.png",
@@ -30,7 +30,7 @@
       "name": "開啟PNE文件",
       "short_name": "開啟文件",
       "description": "開啟現有的PNE項目文件",
-      "url": "/?action=open-file",
+      "url": "./?action=open-file",
       "icons": [
         {
           "src": "./assets/images/shortcut-open.png",
@@ -43,7 +43,7 @@
       "name": "繪圖模式",
       "short_name": "繪圖",
       "description": "開啟樓層平面圖繪圖模式",
-      "url": "/?action=drawing-mode",
+      "url": "./?action=drawing-mode",
       "icons": [
         {
           "src": "./assets/images/shortcut-drawing.png",
@@ -133,7 +133,7 @@
   ],
   "file_handlers": [
     {
-      "action": "/",
+      "action": "./",
       "accept": {
         "application/json": [".pne"],
         "text/csv": [".csv"],
@@ -144,11 +144,11 @@
   "protocol_handlers": [
     {
       "protocol": "web+pne",
-      "url": "/?protocol=%s"
+      "url": "./?protocol=%s"
     }
   ],
   "share_target": {
-    "action": "/",
+    "action": "./",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
