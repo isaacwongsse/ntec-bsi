@@ -6694,14 +6694,14 @@ function updateDuplicateStatus(inputElement, inspectionNo, excludeIndex = -1) {
 
 
 document.addEventListener('DOMContentLoaded', async function() {
-    window.logger.log('DOMContentLoaded: First event listener started');
+    console.log('DOMContentLoaded: First event listener started');
     
     // Initialize storage adapter first
     try {
         await window.storageAdapter.init();
-        window.logger.log('Storage adapter initialized successfully');
+        console.log('Storage adapter initialized successfully');
     } catch (error) {
-        window.logger.error('Failed to initialize storage adapter:', error);
+        console.error('Failed to initialize storage adapter:', error);
     }
     
     // Initialize language system
@@ -7023,10 +7023,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Add photos button click handler
-    window.logger.log('Initializing Add Photos button...');
+    console.log('Initializing Add Photos button...');
     addPhotosBtn = document.getElementById('addPhotosBtn');
     addPhotosFileInput = document.getElementById('addPhotosFileInput');
-    window.logger.log('Add Photos elements found:', {
+    console.log('Add Photos elements found:', {
         button: !!addPhotosBtn,
         input: !!addPhotosFileInput,
         buttonElement: addPhotosBtn,
@@ -7034,7 +7034,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     if (addPhotosBtn && addPhotosFileInput) {
-        window.logger.log('Setting up Add Photos event listeners...');
+        console.log('Setting up Add Photos event listeners...');
         addPhotosBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation(); // Prevent global click handler interference
@@ -7205,12 +7205,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Clear the input
             e.target.value = '';
         });
-        window.logger.log('Add Photos event listeners set up successfully');
+        console.log('Add Photos event listeners set up successfully');
     } else {
-        window.logger.error('Add Photos elements not found - button:', !!addPhotosBtn, 'input:', !!addPhotosFileInput);
+        console.error('Add Photos elements not found - button:', !!addPhotosBtn, 'input:', !!addPhotosFileInput);
     }
     
-    window.logger.log('DOMContentLoaded: First event listener completed');
+    console.log('DOMContentLoaded: First event listener completed');
 });
 
 // Clean up invalid folder data on page load
