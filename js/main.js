@@ -7043,20 +7043,25 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Add photos file input change handler
         addPhotosFileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files);
-            window.logger.log('Add photos: Files selected:', files.length);
-            window.logger.log('DEBUG: defectEntries before photo upload:', window.defectEntries ? window.defectEntries.length : 'undefined');
-            
-            if (files.length === 0) {
-                showNotification('No files selected', 'warning');
-                return;
-            }
-            
-            // Show processing notification
-            showNotification('Processing additional photos...', 'info', 1000);
-            
             try {
+                const files = Array.from(e.target.files);
+                window.logger.log('Add photos: Files selected:', files.length);
+                window.logger.log('DEBUG: defectEntries before photo upload:', window.defectEntries ? window.defectEntries.length : 'undefined');
+                window.logger.log('DEBUG: allPhotos before processing:', allPhotos ? allPhotos.length : 'undefined');
+                
+                if (files.length === 0) {
+                    showNotification('No files selected', 'warning');
+                    return;
+                }
+                
+                // Show processing notification
+                showNotification('Processing additional photos...', 'info', 1000);
                 // Check for duplicate photos by name and photo number
+                window.logger.log('DEBUG: allPhotos type:', typeof allPhotos, 'length:', allPhotos ? allPhotos.length : 'undefined');
+                if (!allPhotos || !Array.isArray(allPhotos)) {
+                    window.logger.error('allPhotos is not properly initialized:', allPhotos);
+                    allPhotos = [];
+                }
                 const existingPhotoNames = new Set(allPhotos.map(photo => photo.name));
                 const existingPhotoNumbers = new Set(allPhotos.map(photo => {
                     const numberMatch = photo.name.match(/\d+/);
