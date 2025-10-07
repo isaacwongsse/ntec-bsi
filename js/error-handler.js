@@ -5,6 +5,14 @@ class ErrorHandler {
         this.maxErrors = 50;
         this.isInitialized = false;
         
+        // 可忽略的資源錯誤（白名單樣式的忽略規則）
+        // 符合任一規則時，將不顯示使用者提示，避免干擾
+        this.resourceIgnorePatterns = [
+            /\/assets\/images\/icon-144x144\.png$/i, // 舊 manifest 圖示殘留
+            /\/manifest\.json(\?.*)?$/i,             // 重新載入 manifest 過程
+            /https?:\/\/isaacwongsse\.github\.io\/ntec-bsi\/?$/i // 根目錄占位請求
+        ];
+        
         this.init();
     }
     
@@ -37,10 +45,16 @@ class ErrorHandler {
         // 捕獲資源載入錯誤
         window.addEventListener('error', (event) => {
             if (event.target !== window) {
+                const failedUrl = event.target.src || event.target.href || '';
+                // 忽略已知無害的資源錯誤
+                if (failedUrl && this.resourceIgnorePatterns.some((re) => re.test(failedUrl))) {
+                    return;
+                }
                 this.handleError({
                     type: 'resource',
-                    message: `Failed to load resource: ${event.target.src || event.target.href}`,
+                    message: `Failed to load resource: ${failedUrl}`,
                     element: event.target.tagName,
+                    url: failedUrl,
                     timestamp: new Date().toISOString()
                 });
             }
@@ -97,7 +111,10 @@ class ErrorHandler {
                 userMessage = '操作失敗，請重試';
                 break;
             case 'resource':
-                userMessage = '資源載入失敗，請檢查網路連線';
+                // 附上失敗 URL（若有），以利快速定位問題
+                userMessage = errorInfo.url
+                    ? `資源載入失敗：${errorInfo.url}`
+                    : '資源載入失敗，請檢查網路連線';
                 toastType = 'warning';
                 break;
             default:
