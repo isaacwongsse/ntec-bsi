@@ -91,7 +91,7 @@ class WebWorkerManager {
             
             workerInfo.instances.push(instance);
             
-            window.logger.log(`Worker instance created: ${instance.id}`);
+            window.logger?.log(`Worker instance created: ${instance.id}`);
             return instance;
         } catch (error) {
             console.error(`Failed to create worker ${workerName}:`, error);
@@ -103,7 +103,7 @@ class WebWorkerManager {
         const { id, type, data: result } = data;
         
         if (type === 'ready') {
-            window.logger.log(`Worker ${workerName} (${instanceId}) ready:`, result);
+            window.logger?.log(`Worker ${workerName} (${instanceId}) ready:`, result);
             return;
         }
         
@@ -342,7 +342,7 @@ class WebWorkerManager {
         // 清理
         this.workers.delete(workerName);
         
-        window.logger.log(`Worker ${workerName} terminated`);
+        window.logger?.log(`Worker ${workerName} terminated`);
         return true;
     }
     
@@ -353,7 +353,7 @@ class WebWorkerManager {
         }
         
         this.taskQueue.clear();
-        window.logger.log('All workers terminated');
+        window.logger?.log('All workers terminated');
     }
     
     // 清理空閒實例
@@ -370,7 +370,7 @@ class WebWorkerManager {
                 if (index !== -1) {
                     instance.worker.terminate();
                     workerInfo.instances.splice(index, 1);
-                    window.logger.log(`Cleaned up idle worker instance: ${instance.id}`);
+                    window.logger?.log(`Cleaned up idle worker instance: ${instance.id}`);
                 }
             });
         }

@@ -30,7 +30,7 @@
         if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
             const manifestLink = document.createElement('link');
             manifestLink.rel = 'manifest';
-            manifestLink.href = 'manifest.json';
+            manifestLink.href = './manifest.json?v=6.1.2';
             document.head.appendChild(manifestLink);
         }
     </script>
@@ -50,8 +50,9 @@
     <link rel="apple-touch-icon" sizes="180x180" href="assets/images/icon-180x180.png"> -->
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="icon" type="image/png" href="favicon.ico">
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=6.1.2">
+    <link rel="icon" type="image/png" href="./favicon.ico?v=6.1.2">
+    <link rel="shortcut icon" href="./favicon.ico?v=6.1.2">
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
