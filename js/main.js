@@ -6696,6 +6696,12 @@ function updateDuplicateStatus(inputElement, inspectionNo, excludeIndex = -1) {
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOMContentLoaded: First event listener started');
     
+    // Check if storageAdapter is available
+    if (!window.storageAdapter) {
+        console.error('window.storageAdapter is not available yet');
+        return;
+    }
+    
     // Initialize storage adapter first
     try {
         await window.storageAdapter.init();
@@ -6705,7 +6711,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Initialize language system
-    initializeLanguageSystem();
+    if (typeof initializeLanguageSystem === 'function') {
+        initializeLanguageSystem();
+    } else {
+        console.warn('initializeLanguageSystem function not available');
+    }
     
     // Initialize zoom slider
     zoomSlider = document.getElementById('zoomSlider');
@@ -6718,7 +6728,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
     
     // Setup defect assign button
-    setupDefectAssignButton();
+    if (typeof setupDefectAssignButton === 'function') {
+        setupDefectAssignButton();
+    } else {
+        console.warn('setupDefectAssignButton function not available');
+    }
     
     const inspectionNoField = document.getElementById('defectInspectionNo');
     if (inspectionNoField) {
@@ -6736,7 +6750,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Initialize header checkboxes
-    initHeaderCheckboxes();
+    if (typeof initHeaderCheckboxes === 'function') {
+        initHeaderCheckboxes();
+    } else {
+        console.warn('initHeaderCheckboxes function not available');
+    }
     
     // 啟動詢問：若偵測到已保存資料，顯示恢復會話彈窗
     try {
