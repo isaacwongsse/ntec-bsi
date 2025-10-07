@@ -7016,9 +7016,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         addPhotosBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation(); // Prevent global click handler interference
-            window.logger.log('Add photos button clicked in Chrome');
+            window.logger.log('Add photos button clicked');
             window.logger.log('File input element:', addPhotosFileInput);
             window.logger.log('File input display style:', window.getComputedStyle(addPhotosFileInput).display);
+            window.logger.log('Current allPhotos count:', allPhotos.length);
             
             // Show loading indicator
             showNotification('Please select additional photos...', 'info', 2000);
@@ -7155,8 +7156,18 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // 保存照片數據到 IndexedDB
                 if (newPhotos.length > 0) {
                     window.logger.log('Add photos: Saving photo data to storage...');
+                    window.logger.log('Add photos: DEBUG - allPhotos before save:', {
+                        totalPhotos: allPhotos.length,
+                        samplePhoto: allPhotos[allPhotos.length - 1] ? {
+                            name: allPhotos[allPhotos.length - 1].name,
+                            hasDataURL: !!allPhotos[allPhotos.length - 1].dataURL,
+                            dataURLLength: allPhotos[allPhotos.length - 1].dataURL ? allPhotos[allPhotos.length - 1].dataURL.length : 0
+                        } : 'no photos'
+                    });
                     await saveDataToStorage();
                     window.logger.log('Add photos: Photo data saved successfully');
+                } else {
+                    window.logger.log('Add photos: No new photos to save');
                 }
                 
             } catch (error) {
