@@ -6,22 +6,22 @@ const IMAGES_CACHE = 'images-v1.0.0';
 
 // 需要緩存的靜態資源
 const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/css/styles.css',
-    '/js/config.js',
-    '/js/utils.js',
-    '/js/performance.js',
-    '/js/data-validator.js',
-    '/js/image-optimizer.js',
-    '/js/lazy-loading.js',
-    '/js/loading-manager.js',
-    '/js/toast-notifications.js',
-    '/js/error-handler.js',
-    '/js/keyboard-navigation.js',
-    '/js/virtual-scroll-enhanced.js',
-    '/js/main.js',
-    '/js/optimization-patch.js'
+    './',
+    './index.html',
+    './css/styles.css',
+    './js/config.js',
+    './js/utils.js',
+    './js/performance.js',
+    './js/data-validator.js',
+    './js/image-optimizer.js',
+    './js/lazy-loading.js',
+    './js/loading-manager.js',
+    './js/toast-notifications.js',
+    './js/error-handler.js',
+    './js/keyboard-navigation.js',
+    './js/virtual-scroll-enhanced.js',
+    './js/main.js',
+    './js/optimization-patch.js'
 ];
 
 // CDN資源

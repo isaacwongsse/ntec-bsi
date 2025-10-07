@@ -27,14 +27,16 @@ class ServiceWorkerManager {
             this.checkForUpdates();
         } catch (error) {
             console.error('Service Worker initialization failed:', error);
-            window.errorHandler?.report(error, { context: 'service_worker_init' });
+            if (window.errorHandler && typeof window.errorHandler.report === 'function') {
+                window.errorHandler.report(error, { context: 'service_worker_init' });
+            }
         }
     }
     
     async register() {
         try {
-            this.registration = await navigator.serviceWorker.register('/sw.js', {
-                scope: '/'
+            this.registration = await navigator.serviceWorker.register('./sw.js', {
+                scope: './'
             });
             
             window.logger.log('Service Worker registered successfully');

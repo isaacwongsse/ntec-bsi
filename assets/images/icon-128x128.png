@@ -1,0 +1,35 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a67c52;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5a3c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景圓形 -->
+  <circle cx="64" cy="64" r="60" fill="url(#grad1)" stroke="#6d4428" stroke-width="2"/>
+  
+  <!-- 相機圖標 -->
+  <g transform="translate(64, 64)">
+    <!-- 相機主體 -->
+    <rect x="-19" y="-10" width="38" height="25" rx="4" fill="#f6f1eb" stroke="#6d4428" stroke-width="1"/>
+    
+    <!-- 鏡頭 -->
+    <circle cx="0" cy="-2" r="8" fill="#2c2c2c" stroke="#6d4428" stroke-width="0"/>
+    <circle cx="0" cy="-2" r="6" fill="#4a4a4a"/>
+    <circle cx="0" cy="-2" r="3" fill="#6d4428"/>
+    
+    <!-- 閃光燈 -->
+    <rect x="12" y="-15" width="5" height="3" rx="0" fill="#f6f1eb" stroke="#6d4428" stroke-width="0"/>
+    
+    <!-- 數字標籤 -->
+    <rect x="-5" y="5" width="10" height="6" rx="1" fill="#a67c52" stroke="#6d4428" stroke-width="0"/>
+    <text x="0" y="9" text-anchor="middle" font-family="Arial, sans-serif" font-size="4" font-weight="bold" fill="#f6f1eb">#123</text>
+  </g>
+  
+  <!-- 裝飾性元素 -->
+  <circle cx="25" cy="25" r="2" fill="#f6f1eb" opacity="0.6"/>
+  <circle cx="102" cy="25" r="2" fill="#f6f1eb" opacity="0.6"/>
+  <circle cx="25" cy="102" r="2" fill="#f6f1eb" opacity="0.6"/>
+  <circle cx="102" cy="102" r="2" fill="#f6f1eb" opacity="0.6"/>
+</svg>
