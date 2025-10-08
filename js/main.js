@@ -2163,7 +2163,7 @@ window.setupZoomAndPanEvents = function() {
                 distance: lastTouchDistance
             });
         }
-    });
+    }, { passive: false });
     
     // 觸控移動事件
     floorPlanViewer.addEventListener('touchmove', function(event) {
@@ -2277,7 +2277,7 @@ window.setupZoomAndPanEvents = function() {
             lastTouchCenterX = currentTouchCenterX;
             lastTouchCenterY = currentTouchCenterY;
         }
-    });
+    }, { passive: false });
     
     // 觸控結束事件
     floorPlanViewer.addEventListener('touchend', function(event) {
@@ -2286,7 +2286,7 @@ window.setupZoomAndPanEvents = function() {
             lastTouchDistance = 0;
             window.logger.log('Two finger touch end');
         }
-    });
+    }, { passive: true });
     
     // 設置初始游標樣式
     const quickLabelSwitch = document.getElementById('quickLabelSwitch');

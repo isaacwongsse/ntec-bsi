@@ -27,8 +27,11 @@ class IndexedDBManager {
      */
     async init() {
         if (this.isInitialized) {
+            console.log('IndexedDB 已經初始化，跳過重複初始化');
             return Promise.resolve();
         }
+
+        console.log('開始初始化 IndexedDB...');
 
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);

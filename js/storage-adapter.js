@@ -32,8 +32,11 @@ class StorageAdapter {
      */
     async init() {
         if (this.initialized) {
+            console.log('存儲適配器已經初始化，跳過重複初始化');
             return;
         }
+
+        console.log('開始初始化存儲適配器...');
 
         if (this.useIndexedDB) {
             try {
@@ -45,6 +48,8 @@ class StorageAdapter {
                 if (hasLocalStorageData) {
                     console.log('檢測到 localStorage 數據，開始遷移...');
                     await this.indexedDBManager.migrateFromLocalStorage();
+                } else {
+                    console.log('沒有檢測到 localStorage 數據，跳過遷移');
                 }
                 
                 console.log('存儲適配器初始化完成 - 使用 IndexedDB');
@@ -57,6 +62,7 @@ class StorageAdapter {
         }
         
         this.initialized = true;
+        console.log('存儲適配器初始化狀態:', this.initialized);
     }
 
     /**
