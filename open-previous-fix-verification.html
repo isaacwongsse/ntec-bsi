@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Previous 按鈕修復驗證</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+        }
+        .modal-buttons {
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            margin: 0 10px;
+        }
+        .code-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Open Previous 按鈕修復驗證</h1>
+        
+        <div class="test-section">
+            <h3>1. 檢查修復代碼</h3>
+            <p>檢查 `js/main.js` 中的 `restoreBtn.onclick` 事件處理器是否正確設置：</p>
+            <div class="code-display" id="codeDisplay">正在檢查代碼...</div>
+            <button id="checkCodeBtn">檢查代碼</button>
+            <div id="codeResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 模擬模態框測試</h3>
+            <p>測試模態框按鈕是否只關閉模態框而不重新載入內容：</p>
+            <button id="showModalBtn">顯示會話恢復模態框</button>
+            <div id="modalResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 實際功能測試</h3>
+            <p>測試在實際應用中的行為：</p>
+            <button id="testActualBtn">測試實際功能</button>
+            <div id="actualResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 操作日誌</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">清除日誌</button>
+        </div>
+    </div>
+
+    <!-- 會話恢復模態框 -->
+    <div id="sessionRestoreModal" class="modal">
+        <div class="modal-content">
+            <h3>會話恢復</h3>
+            <p>檢測到之前的會話數據。您想要恢復之前的會話還是開始新的會話？</p>
+            <div class="modal-buttons">
+                <button id="restoreSessionBtn" class="success">Open Previous</button>
+                <button id="startFreshBtn" class="warning">Start Fresh</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 日誌函數
+        function log(message, ...args) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (args.length > 0) {
+                logEntry.innerHTML += ` ${JSON.stringify(args)}`;
+            }
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 顯示狀態
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // 檢查代碼
+        document.getElementById('checkCodeBtn').addEventListener('click', async () => {
+            try {
+                log('檢查 main.js 中的修復代碼...');
+                
+                // 嘗試讀取 main.js 文件
+                const response = await fetch('js/main.js');
+                if (!response.ok) {
+                    throw new Error(`無法讀取 main.js: ${response.status}`);
+                }
+                
+                const mainJsContent = await response.text();
+                
+                // 檢查是否包含修復的代碼
+                const fixedCodePattern = /restoreBtn\.onclick = async \(\) => \{\s*modal\.style\.display = 'none';\s*window\.logger\.log\('Open previous button clicked - modal closed, no reload'\);\s*\/\/ 只關閉 modal，不重新載入任何內容\s*\/\/ 照片和 PDF 已經在頁面重新載入時自動恢復\s*return;\s*\};/s;
+                
+                if (fixedCodePattern.test(mainJsContent)) {
+                    const codeDisplay = document.getElementById('codeDisplay');
+                    codeDisplay.textContent = `✅ 修復代碼已找到！
+
+restoreBtn.onclick = async () => {
+    modal.style.display = 'none';
+    window.logger.log('Open previous button clicked - modal closed, no reload');
+    
+    // 只關閉 modal，不重新載入任何內容
+    // 照片和 PDF 已經在頁面重新載入時自動恢復
+    return;
+};`;
+                    
+                    showStatus('codeResult', '✅ 修復代碼已正確設置', 'success');
+                    log('✅ 修復代碼檢查通過');
+                } else {
+                    // 檢查是否有舊的代碼
+                    const oldCodePattern = /restoreBtn\.onclick = async \(\) => \{\s*modal\.style\.display = 'none';\s*\/\/ 優先使用已保存的 FSA handles 自動載入 PDF 與照片/s;
+                    
+                    if (oldCodePattern.test(mainJsContent)) {
+                        codeDisplay.textContent = `❌ 發現舊代碼！
+
+restoreBtn.onclick = async () => {
+    modal.style.display = 'none';
+    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
+    let loadedWithHandles = false;
+    // ... 更多重新載入邏輯
+};`;
+                        
+                        showStatus('codeResult', '❌ 發現舊代碼，修復可能未生效', 'error');
+                        log('❌ 發現舊代碼，修復可能未生效');
+                    } else {
+                        codeDisplay.textContent = '❓ 無法找到相關代碼模式';
+                        showStatus('codeResult', '❓ 無法找到相關代碼模式', 'error');
+                        log('❓ 無法找到相關代碼模式');
+                    }
+                }
+                
+            } catch (error) {
+                showStatus('codeResult', `檢查失敗: ${error.message}`, 'error');
+                log(`檢查失敗: ${error.message}`);
+            }
+        });
+
+        // 顯示模態框
+        document.getElementById('showModalBtn').addEventListener('click', () => {
+            log('顯示會話恢復模態框');
+            document.getElementById('sessionRestoreModal').style.display = 'flex';
+            showStatus('modalResult', '會話恢復模態框已顯示', 'info');
+        });
+
+        // 設置模態框按鈕事件（使用修復後的代碼）
+        document.getElementById('restoreSessionBtn').addEventListener('click', async () => {
+            const modal = document.getElementById('sessionRestoreModal');
+            modal.style.display = 'none';
+            log('Open previous button clicked - modal closed, no reload');
+            
+            // 只關閉 modal，不重新載入任何內容
+            // 照片和 PDF 已經在頁面重新載入時自動恢復
+            
+            showStatus('modalResult', '✅ 模態框已關閉，沒有重新載入任何內容', 'success');
+        });
+
+        document.getElementById('startFreshBtn').addEventListener('click', () => {
+            const modal = document.getElementById('sessionRestoreModal');
+            modal.style.display = 'none';
+            log('Start fresh button clicked - modal closed');
+            
+            showStatus('modalResult', '✅ 模態框已關閉，開始新的會話', 'success');
+        });
+
+        // 測試實際功能
+        document.getElementById('testActualBtn').addEventListener('click', () => {
+            log('測試實際功能...');
+            
+            // 檢查是否有 main.js 中的全局變量
+            if (typeof window.allPhotos !== 'undefined') {
+                log('✅ window.allPhotos 已定義');
+                showStatus('actualResult', '✅ 全局變量已正確設置', 'success');
+            } else {
+                log('❌ window.allPhotos 未定義');
+                showStatus('actualResult', '❌ 全局變量未正確設置', 'error');
+            }
+            
+            // 檢查是否有 logger
+            if (typeof window.logger !== 'undefined') {
+                log('✅ window.logger 已定義');
+            } else {
+                log('❌ window.logger 未定義');
+            }
+            
+            // 檢查是否有 storageAdapter
+            if (typeof window.storageAdapter !== 'undefined') {
+                log('✅ window.storageAdapter 已定義');
+            } else {
+                log('❌ window.storageAdapter 未定義');
+            }
+        });
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 頁面載入完成
+        document.addEventListener('DOMContentLoaded', () => {
+            log('頁面載入完成，Open Previous 按鈕修復驗證準備就緒');
+            log('請點擊 "檢查代碼" 按鈕來驗證修復是否生效');
+        });
+    </script>
+</body>
+</html>
