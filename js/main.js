@@ -19093,13 +19093,36 @@ async function autoSaveAllPhotosToIndexedDB() {
         }
 
         window.logger.log('Auto-saving all photos to IndexedDB:', window.allPhotos.length);
+        window.logger.log('DEBUG: allPhotos details:', window.allPhotos.map(photo => ({
+            name: photo.name,
+            isNewlyAdded: photo.isNewlyAdded,
+            hasDataURL: !!photo.dataURL
+        })));
         
         // 檢查哪些照片還沒有保存到 IndexedDB
         const existingPhotos = await loadPhotosFromIndexedDB();
         const existingPhotoNames = new Set(existingPhotos.map(photo => photo.name));
+        window.logger.log('DEBUG: existing photos in IndexedDB:', existingPhotoNames);
         
-        // 找出需要保存的新照片
-        const newPhotos = window.allPhotos.filter(photo => !existingPhotoNames.has(photo.name));
+        // 找出需要保存的新照片（包括新添加的照片）
+        const newPhotos = window.allPhotos.filter(photo => {
+            // 檢查是否是新添加的照片
+            if (photo.isNewlyAdded) {
+                return true;
+            }
+            // 檢查是否在 IndexedDB 中不存在
+            return !existingPhotoNames.has(photo.name);
+        });
+        
+        // 清除 isNewlyAdded 標記，避免重複保存
+        newPhotos.forEach(photo => {
+            photo.isNewlyAdded = false;
+        });
+        
+        window.logger.log('DEBUG: new photos to save:', newPhotos.map(photo => ({
+            name: photo.name,
+            hasDataURL: !!photo.dataURL
+        })));
         
         if (newPhotos.length > 0) {
             window.logger.log(`Found ${newPhotos.length} new photos to save to IndexedDB`);
@@ -19197,12 +19220,17 @@ async function loadPhotosFromIndexedDB() {
             request.onsuccess = () => {
                 const photos = request.result || [];
                 window.logger.log('Successfully loaded photos from IndexedDB:', photos.length);
+                window.logger.log('DEBUG: Raw photos from IndexedDB:', photos.map(p => ({
+                    id: p.id,
+                    hasData: !!p.data,
+                    dataKeys: p.data ? Object.keys(p.data) : []
+                })));
                 
                 // 轉換為 allPhotos 格式
                 const formattedPhotos = photos.map(photoData => {
                     // IndexedDBManager 將數據包裝在 { id, data, timestamp } 結構中
                     const photo = photoData.data || photoData; // 兼容不同的數據結構
-                    return {
+                    const formattedPhoto = {
                         name: photo.name,
                         size: photo.size,
                         type: photo.type,
@@ -19211,8 +19239,15 @@ async function loadPhotosFromIndexedDB() {
                         dataURL: photo.dataURL,
                         isNewlyAdded: photo.isNewlyAdded || false
                     };
+                    window.logger.log('DEBUG: Formatted photo:', {
+                        name: formattedPhoto.name,
+                        hasDataURL: !!formattedPhoto.dataURL,
+                        dataURLLength: formattedPhoto.dataURL ? formattedPhoto.dataURL.length : 0
+                    });
+                    return formattedPhoto;
                 });
                 
+                window.logger.log('DEBUG: Final formatted photos count:', formattedPhotos.length);
                 resolve(formattedPhotos);
             };
             
