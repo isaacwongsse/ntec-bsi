@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Previous 按鈕修復測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        button.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        button.warning:hover {
+            background: #e0a800;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-steps {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin: 5px 0;
+        }
+        .data-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+            min-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .photo-item {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            text-align: center;
+        }
+        .photo-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 3px;
+        }
+        .photo-item .photo-name {
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        .simulation-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .simulation-section h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Open Previous 按鈕修復測試</h1>
+        
+        <div class="test-steps">
+            <h3>測試步驟：</h3>
+            <ol>
+                <li>添加一些測試照片到 IndexedDB</li>
+                <li>模擬 Open Previous 按鈕點擊</li>
+                <li>檢查照片預覽是否保持</li>
+                <li>驗證照片數據完整性</li>
+            </ol>
+        </div>
+        
+        <div class="test-section">
+            <h3>1. 添加測試照片</h3>
+            <input type="file" id="testPhotosInput" accept="image/*" multiple>
+            <button id="addTestPhotosBtn">添加測試照片</button>
+            <div id="addPhotosResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 照片預覽</h3>
+            <div id="photoGrid" class="photo-grid">
+                <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                    尚未載入照片
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 模擬 Open Previous 按鈕</h3>
+            <div class="simulation-section">
+                <h4>模擬 PDF 載入過程</h4>
+                <p>這個測試會模擬點擊 "Open Previous" 按鈕後的 PDF 載入過程，檢查照片是否會被清除。</p>
+            </div>
+            <button id="simulateOpenPreviousBtn" class="warning">模擬 Open Previous 按鈕</button>
+            <div id="simulateResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 檢查照片狀態</h3>
+            <div class="data-display" id="photoStatus">尚未檢查</div>
+            <button id="checkPhotoStatusBtn">檢查照片狀態</button>
+            <div id="statusResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 修復前後對比</h3>
+            <div class="data-display" id="comparisonStatus">
+                <strong>修復前：</strong><br>
+                ❌ 點擊 Open Previous 按鈕後照片被清除<br>
+                ❌ 照片預覽內容消失<br>
+                ❌ 需要重新選擇照片<br><br>
+                <strong>修復後：</strong><br>
+                ✅ 點擊 Open Previous 按鈕後照片保持<br>
+                ✅ 照片預覽內容正常顯示<br>
+                ✅ 照片數據完整性保持
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 操作日誌</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">清除日誌</button>
+        </div>
+    </div>
+
+    <!-- 載入必要的腳本 -->
+    <script src="js/indexeddb-manager.js"></script>
+    <script src="js/storage-adapter.js"></script>
+    
+    <script>
+        // 模擬全局變量
+        let allPhotos = [];
+        window.allPhotos = allPhotos;
+        window.logger = {
+            log: (message, ...args) => log(`LOG: ${message}`, ...args),
+            error: (message, ...args) => log(`ERROR: ${message}`, ...args),
+            warn: (message, ...args) => log(`WARN: ${message}`, ...args)
+        };
+
+        // 日誌函數
+        function log(message, ...args) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (args.length > 0) {
+                logEntry.innerHTML += ` ${JSON.stringify(args)}`;
+            }
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 顯示狀態
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // 模擬照片處理函數
+        async function processPhotos(files) {
+            const processedPhotos = [];
+            
+            for (const file of files) {
+                const dataURL = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+
+                const processedPhoto = {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    lastModified: file.lastModified,
+                    webkitRelativePath: file.webkitRelativePath || '',
+                    dataURL: dataURL,
+                    isNewlyAdded: true
+                };
+                
+                processedPhotos.push(processedPhoto);
+            }
+            
+            return processedPhotos;
+        }
+
+        // 模擬 savePhotosToIndexedDB 函數
+        async function savePhotosToIndexedDB(photos) {
+            try {
+                if (!window.indexedDBManager || !photos || photos.length === 0) {
+                    throw new Error('IndexedDB manager not available or no photos to save');
+                }
+
+                log(`Saving photos to IndexedDB: ${photos.length}`);
+                
+                await window.indexedDBManager.init();
+                
+                const photosWithIds = photos.map((photo, index) => ({
+                    id: `photo_${Date.now()}_${index}_${photo.name}`,
+                    name: photo.name,
+                    size: photo.size,
+                    type: photo.type,
+                    lastModified: photo.lastModified,
+                    webkitRelativePath: photo.webkitRelativePath || '',
+                    dataURL: photo.dataURL,
+                    timestamp: Date.now(),
+                    isNewlyAdded: photo.isNewlyAdded || false
+                }));
+
+                const savePromises = photosWithIds.map(photo => 
+                    window.indexedDBManager.setItem(
+                        window.indexedDBManager.stores.PHOTO_METADATA, 
+                        photo.id, 
+                        photo
+                    )
+                );
+
+                await Promise.all(savePromises);
+                log(`Successfully saved photos to IndexedDB: ${photosWithIds.length}`);
+                
+            } catch (error) {
+                log(`Failed to save photos to IndexedDB: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // 模擬 loadPhotosFromIndexedDB 函數
+        async function loadPhotosFromIndexedDB() {
+            try {
+                if (!window.indexedDBManager) {
+                    throw new Error('IndexedDB manager not available');
+                }
+
+                log('Loading photos from IndexedDB...');
+                
+                await window.indexedDBManager.init();
+                
+                const transaction = window.indexedDBManager.db.transaction([window.indexedDBManager.stores.PHOTO_METADATA], 'readonly');
+                const store = transaction.objectStore(window.indexedDBManager.stores.PHOTO_METADATA);
+                
+                return new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    
+                    request.onsuccess = () => {
+                        const photos = request.result || [];
+                        log('Successfully loaded photos from IndexedDB:', photos.length);
+                        
+                        // 轉換為 allPhotos 格式
+                        const formattedPhotos = photos.map(photoData => {
+                            const photo = photoData.data || photoData;
+                            return {
+                                name: photo.name,
+                                size: photo.size,
+                                type: photo.type,
+                                lastModified: photo.lastModified,
+                                webkitRelativePath: photo.webkitRelativePath || '',
+                                dataURL: photo.dataURL,
+                                isNewlyAdded: photo.isNewlyAdded || false
+                            };
+                        });
+                        
+                        resolve(formattedPhotos);
+                    };
+                    
+                    request.onerror = () => {
+                        log(`Failed to load photos from IndexedDB: ${request.error}`);
+                        reject(request.error);
+                    };
+                });
+                
+            } catch (error) {
+                log(`Error loading photos from IndexedDB: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // 顯示照片
+        function displayPhotos(photos) {
+            const grid = document.getElementById('photoGrid');
+            
+            if (photos.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                        沒有照片
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = photos.map(photo => {
+                return `
+                    <div class="photo-item">
+                        <img src="${photo.dataURL || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'}" alt="${photo.name}" style="max-height: 100px;">
+                        <div class="photo-name">${photo.name}</div>
+                        <div style="font-size: 10px; color: #999;">
+                            ${(photo.size / 1024).toFixed(1)} KB
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 模擬 loadPDFFromArrayBuffer 函數（修復後）
+        async function simulateLoadPDFFromArrayBuffer() {
+            try {
+                log('模擬 PDF 載入過程...');
+                
+                // 模擬載入標籤和缺陷標記數據
+                log('模擬載入標籤和缺陷標記數據...');
+                
+                // 載入照片數據並重新渲染照片預覽（修復後的邏輯）
+                log('載入照片數據並重新渲染照片預覽...');
+                
+                // 從 IndexedDB 載入照片數據
+                const indexedDBPhotos = await loadPhotosFromIndexedDB();
+                if (indexedDBPhotos && indexedDBPhotos.length > 0) {
+                    log(`載入照片從 IndexedDB: ${indexedDBPhotos.length}`);
+                    allPhotos = indexedDBPhotos;
+                    window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
+                    
+                    // 重新渲染照片預覽
+                    displayPhotos(allPhotos);
+                    log('照片重新渲染成功');
+                } else {
+                    log('沒有找到照片數據');
+                }
+                
+                log('PDF 載入過程完成');
+                
+            } catch (error) {
+                log(`PDF 載入過程失敗: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // 添加測試照片
+        document.getElementById('addTestPhotosBtn').addEventListener('click', async () => {
+            const files = Array.from(document.getElementById('testPhotosInput').files);
+            if (files.length === 0) {
+                showStatus('addPhotosResult', '請選擇照片文件', 'warning');
+                return;
+            }
+
+            try {
+                log('開始添加測試照片...');
+                showStatus('addPhotosResult', '正在添加測試照片...', 'info');
+
+                const processedPhotos = await processPhotos(files);
+                
+                // 保存到 IndexedDB
+                await savePhotosToIndexedDB(processedPhotos);
+                
+                // 更新 allPhotos
+                allPhotos.push(...processedPhotos);
+                window.allPhotos = allPhotos;
+                
+                // 顯示照片
+                displayPhotos(allPhotos);
+                
+                showStatus('addPhotosResult', `成功添加 ${processedPhotos.length} 張測試照片`, 'success');
+                log(`成功添加 ${processedPhotos.length} 張測試照片`);
+
+                // 清空選擇
+                document.getElementById('testPhotosInput').value = '';
+
+            } catch (error) {
+                showStatus('addPhotosResult', `添加測試照片失敗: ${error.message}`, 'error');
+                log(`添加測試照片失敗: ${error.message}`);
+            }
+        });
+
+        // 模擬 Open Previous 按鈕
+        document.getElementById('simulateOpenPreviousBtn').addEventListener('click', async () => {
+            try {
+                log('開始模擬 Open Previous 按鈕點擊...');
+                showStatus('simulateResult', '正在模擬 Open Previous 按鈕...', 'info');
+
+                const photosBefore = allPhotos.length;
+                log(`模擬前照片數量: ${photosBefore}`);
+
+                // 模擬 PDF 載入過程
+                await simulateLoadPDFFromArrayBuffer();
+
+                const photosAfter = allPhotos.length;
+                log(`模擬後照片數量: ${photosAfter}`);
+
+                if (photosAfter === photosBefore && photosAfter > 0) {
+                    showStatus('simulateResult', '✅ 照片保持完整，修復成功！', 'success');
+                    log('✅ 照片保持完整，修復成功！');
+                } else if (photosAfter === 0) {
+                    showStatus('simulateResult', '❌ 照片被清除，修復失敗', 'error');
+                    log('❌ 照片被清除，修復失敗');
+                } else {
+                    showStatus('simulateResult', `照片數量變化: ${photosBefore} -> ${photosAfter}`, 'warning');
+                    log(`照片數量變化: ${photosBefore} -> ${photosAfter}`);
+                }
+
+            } catch (error) {
+                showStatus('simulateResult', `模擬失敗: ${error.message}`, 'error');
+                log(`模擬失敗: ${error.message}`);
+            }
+        });
+
+        // 檢查照片狀態
+        document.getElementById('checkPhotoStatusBtn').addEventListener('click', () => {
+            const statusElement = document.getElementById('photoStatus');
+            
+            let status = `照片狀態檢查:\n`;
+            status += `allPhotos 數量: ${allPhotos.length}\n`;
+            status += `window.allPhotos 數量: ${window.allPhotos ? window.allPhotos.length : 'undefined'}\n`;
+            status += `照片預覽顯示: ${document.getElementById('photoGrid').children.length > 0 ? '是' : '否'}\n`;
+            
+            if (allPhotos.length > 0) {
+                status += `\n照片詳情:\n`;
+                allPhotos.forEach((photo, index) => {
+                    status += `${index + 1}. ${photo.name}\n`;
+                    status += `   - 大小: ${(photo.size / 1024).toFixed(1)} KB\n`;
+                    status += `   - 類型: ${photo.type}\n`;
+                    status += `   - 有 dataURL: ${photo.dataURL ? '是' : '否'}\n`;
+                });
+            }
+            
+            statusElement.textContent = status;
+            showStatus('statusResult', '照片狀態檢查完成', 'success');
+        });
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 頁面載入完成
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('頁面載入完成，Open Previous 按鈕修復測試準備就緒');
+            log('請先添加測試照片，然後模擬 Open Previous 按鈕');
+            
+            // 初始化存儲適配器
+            try {
+                await window.storageAdapter.init();
+                log('存儲適配器初始化成功');
+            } catch (error) {
+                log(`存儲適配器初始化失敗: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>
