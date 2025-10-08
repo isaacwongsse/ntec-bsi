@@ -4982,10 +4982,9 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
             window.logger.log(`New photo ${file.name}: isNewlyAdded=${file.isNewlyAdded}, newIconHtml=${newIconHtml ? 'added' : 'not added'}`);
             
             photoItem.innerHTML = `
-                <img src="${resizedImageURL}" alt="${file.name}" onerror="this.style.display='none'; this.parentElement.querySelector('.photo-error').style.display='flex';">
+                <img src="${resizedImageURL}" alt="${file.name}">
                 <div class="photo-number">${number}</div>
                 <div class="photo-status" id="status-${index}"></div>
-                <div class="photo-error" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(255,0,0,0.8); color:white; padding:5px; border-radius:3px; font-size:12px;">Error</div>
                 ${newIconHtml}
             `;
             
@@ -5167,14 +5166,8 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 // Check if file already has a valid dataURL, or generate one for new photos
                 let resizedImageURL;
                 if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '') {
-                    // 檢查 dataURL 是否有效
-                    if (file.dataURL.startsWith('data:image/') && file.dataURL.length > 100) {
-                        resizedImageURL = file.dataURL;
-                        window.logger.log(`Using existing dataURL for: ${file.name}`);
-                    } else {
-                        window.logger.warn(`Invalid dataURL for ${file.name}, will show error placeholder`);
-                        resizedImageURL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmMDAwMCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkRhdGEgRXJyb3I8L3RleHQ+PC9zdmc+';
-                    }
+                    resizedImageURL = file.dataURL;
+                    window.logger.log(`Using existing dataURL for: ${file.name}`);
                 } else if (file instanceof File) {
                     // For new uploaded photos, generate dataURL
                     window.logger.log(`Generating dataURL for new photo: ${file.name}`);
@@ -5231,10 +5224,9 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 window.logger.log(`Photo ${file.name}: isNewlyAdded=${file.isNewlyAdded}, newIconHtml=${newIconHtml ? 'added' : 'not added'}`);
                 
                 photoItem.innerHTML = `
-                    <img src="${resizedImageURL}" alt="${file.name}" onerror="this.style.display='none'; this.parentElement.querySelector('.photo-error').style.display='flex';">
+                    <img src="${resizedImageURL}" alt="${file.name}">
                     <div class="photo-number">${number}</div>
                     <div class="photo-status" id="status-${index}"></div>
-                    <div class="photo-error" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(255,0,0,0.8); color:white; padding:5px; border-radius:3px; font-size:12px;">Error</div>
                     ${newIconHtml}
                 `;
                 
@@ -6875,26 +6867,75 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
         const modal = document.getElementById('sessionRestoreModal');
-        window.logger.log('Session restore check:', {
-            hasSavedData: !!saved,
-            hasModal: !!modal,
-            modalId: modal ? modal.id : 'not found'
-        });
-        
         if (saved && modal) {
             // 僅在尚未載入任何資料時顯示
-            window.logger.log('Showing session restore modal');
             modal.style.display = 'flex';
             const restoreBtn = document.getElementById('restoreSessionBtn');
             const startFreshBtn = document.getElementById('startFreshBtn');
             if (restoreBtn) {
                 restoreBtn.onclick = async () => {
                     modal.style.display = 'none';
-                    window.logger.log('Open previous button clicked - modal closed, no reload');
-                    
-                    // 只關閉 modal，不重新載入任何內容
-                    // 照片和 PDF 已經在頁面重新載入時自動恢復
-                    return;
+                    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
+                    let loadedWithHandles = false;
+                    try {
+                        // PDF
+                        const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
+                        if (pdfHandle && pdfHandle.kind === 'file') {
+                            const p = await pdfHandle.queryPermission?.();
+                            if (p === 'granted' || (await pdfHandle.requestPermission?.()) === 'granted') {
+                                const file = await pdfHandle.getFile();
+                                const arrayBuffer = await file.arrayBuffer();
+                                await loadPDFFromArrayBuffer(arrayBuffer, file.name);
+                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                                const floorPlanViewer = document.getElementById('floorPlanViewer');
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                if (floorPlanUploadArea && floorPlanViewer) {
+                                    floorPlanUploadArea.style.display = 'none';
+                                    floorPlanViewer.style.display = 'flex';
+                                }
+                                loadedWithHandles = true;
+                            }
+                        }
+                        // Photos folder
+                        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+                        if (dirHandle && dirHandle.kind === 'directory') {
+                            const p = await dirHandle.queryPermission?.({mode: 'read'});
+                            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
+                                const imageFiles = [];
+                                for await (const [name, handle] of dirHandle.entries()) {
+                                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                                        const f = await handle.getFile();
+                                        imageFiles.push(f);
+                                    }
+                                }
+                                if (imageFiles.length > 0) {
+                                    window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
+                                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                                    const lazyObserver = initLazyLoading();
+                                    await renderPhotos(allPhotos, lazyObserver);
+                                    updateFolderDisplay();
+                                    updateAddPhotosButtonVisibility();
+                                    
+                                    // Auto-save photos to IndexedDB
+                                    await autoSaveAllPhotosToIndexedDB();
+                                    
+                                    loadedWithHandles = true;
+                                }
+                            }
+                        }
+                    } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
+
+                    // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
+                    await loadDataFromStorage();
+
+                    // 若未能用 handle 載入 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                    try {
+                        if (!loadedWithHandles) {
+                            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                            if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        }
+                    } catch (e) { /* noop */ }
                 };
             }
             if (startFreshBtn) {
@@ -7321,18 +7362,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                         }
                         // Photo is new and unique
                         else {
-                            window.logger.log('Add photos: Adding new photo:', file.name, 'Number:', photoNumber);
+                            window.logger.log('Add photos: Resizing new photo:', file.name, 'Number:', photoNumber);
+                            const resizedDataURL = await resizeImage(file);
+                            window.logger.log('Add photos: Resize completed for:', file.name);
                             
-                            // 直接使用 File 對象，不預先生成 dataURL
-                            // dataURL 將在 renderPhotos() 中生成
-                            const newPhoto = {
+                            // Create a new file object with the resized data
+                            const resizedFile = {
                                 name: file.name,
                                 size: file.size,
                                 type: file.type,
                                 lastModified: file.lastModified || Date.now(),
-                                isNewlyAdded: true
+                                dataURL: resizedDataURL
                             };
-                            newPhotos.push(newPhoto);
+                            newPhotos.push(resizedFile);
                         }
                     } else {
                         window.logger.log('Add photos: Skipping non-image file:', file.name);
@@ -10599,50 +10641,6 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
     if (typeof redrawDefectMarks === 'function') {
         redrawDefectMarks();
         window.logger.log('PDF upload: Defect marks redrawn');
-    }
-    
-    // 載入照片數據並重新渲染照片預覽
-    try {
-        window.logger.log('PDF upload: Loading photos from storage...');
-        
-        // 從 IndexedDB 載入照片數據
-        const indexedDBPhotos = await loadPhotosFromIndexedDB();
-        if (indexedDBPhotos && indexedDBPhotos.length > 0) {
-            window.logger.log('PDF upload: Loaded photos from IndexedDB:', indexedDBPhotos.length);
-            allPhotos = indexedDBPhotos;
-            window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
-            
-            // 重新渲染照片預覽
-            const lazyObserver = initLazyLoading();
-            await renderPhotos(allPhotos, lazyObserver);
-            window.logger.log('PDF upload: Photos re-rendered successfully');
-        } else {
-            // 嘗試從 localStorage 載入照片元數據
-            const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
-            if (savedData && savedData.photoMetadata && savedData.photoMetadata.length > 0) {
-                window.logger.log('PDF upload: Loading photo metadata from localStorage:', savedData.photoMetadata.length);
-                
-                // 創建照片物件（沒有 dataURL）
-                allPhotos = savedData.photoMetadata.map(metadata => ({
-                    name: metadata.name,
-                    size: metadata.size || 0,
-                    type: metadata.type || 'image/jpeg',
-                    lastModified: metadata.lastModified || Date.now(),
-                    webkitRelativePath: metadata.webkitRelativePath || '',
-                    dataURL: '' // 沒有 dataURL
-                }));
-                window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
-                
-                // 重新渲染照片預覽
-                const lazyObserver = initLazyLoading();
-                await renderPhotos(allPhotos, lazyObserver);
-                window.logger.log('PDF upload: Photo metadata re-rendered successfully');
-            } else {
-                window.logger.log('PDF upload: No photos found in storage');
-            }
-        }
-    } catch (error) {
-        window.logger.error('PDF upload: Error loading photos from storage:', error);
     }
     
     window.logger.log('PDF loaded successfully from base64 data');
