@@ -10651,7 +10651,16 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
         const indexedDBPhotos = await loadPhotosFromIndexedDB();
         if (indexedDBPhotos && indexedDBPhotos.length > 0) {
             window.logger.log('PDF upload: Loaded photos from IndexedDB:', indexedDBPhotos.length);
-            allPhotos = indexedDBPhotos;
+            
+            // 合併現有照片和 IndexedDB 中的照片，避免覆蓋當前會話的照片
+            const existingPhotoNames = new Set(allPhotos.map(photo => photo.name));
+            const newPhotosFromIndexedDB = indexedDBPhotos.filter(photo => !existingPhotoNames.has(photo.name));
+            
+            if (newPhotosFromIndexedDB.length > 0) {
+                window.logger.log('PDF upload: Adding new photos from IndexedDB:', newPhotosFromIndexedDB.length);
+                allPhotos.push(...newPhotosFromIndexedDB);
+            }
+            
             window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
             
             // 重新渲染照片預覽
@@ -10664,15 +10673,24 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
             if (savedData && savedData.photoMetadata && savedData.photoMetadata.length > 0) {
                 window.logger.log('PDF upload: Loading photo metadata from localStorage:', savedData.photoMetadata.length);
                 
-                // 創建照片物件（沒有 dataURL）
-                allPhotos = savedData.photoMetadata.map(metadata => ({
-                    name: metadata.name,
-                    size: metadata.size || 0,
-                    type: metadata.type || 'image/jpeg',
-                    lastModified: metadata.lastModified || Date.now(),
-                    webkitRelativePath: metadata.webkitRelativePath || '',
-                    dataURL: '' // 沒有 dataURL
-                }));
+                // 合併現有照片和 localStorage 中的照片元數據，避免覆蓋當前會話的照片
+                const existingPhotoNames = new Set(allPhotos.map(photo => photo.name));
+                const newPhotosFromLocalStorage = savedData.photoMetadata
+                    .filter(metadata => !existingPhotoNames.has(metadata.name))
+                    .map(metadata => ({
+                        name: metadata.name,
+                        size: metadata.size || 0,
+                        type: metadata.type || 'image/jpeg',
+                        lastModified: metadata.lastModified || Date.now(),
+                        webkitRelativePath: metadata.webkitRelativePath || '',
+                        dataURL: '' // 沒有 dataURL
+                    }));
+                
+                if (newPhotosFromLocalStorage.length > 0) {
+                    window.logger.log('PDF upload: Adding new photos from localStorage:', newPhotosFromLocalStorage.length);
+                    allPhotos.push(...newPhotosFromLocalStorage);
+                }
+                
                 window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
                 
                 // 重新渲染照片預覽
