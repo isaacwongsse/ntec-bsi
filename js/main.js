@@ -7325,7 +7325,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                             
                             // 直接使用 File 對象，不預先生成 dataURL
                             // dataURL 將在 renderPhotos() 中生成
-                            newPhotos.push(file);
+                            const newPhoto = {
+                                name: file.name,
+                                size: file.size,
+                                type: file.type,
+                                lastModified: file.lastModified || Date.now(),
+                                isNewlyAdded: true
+                            };
+                            newPhotos.push(newPhoto);
                         }
                     } else {
                         window.logger.log('Add photos: Skipping non-image file:', file.name);
@@ -7347,11 +7354,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                     window.allPhotos = allPhotos;
                     window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
                     
-                    // 使用 renderPhotos() 渲染所有照片，包括新添加的照片
-                    window.logger.log('Add photos: Starting renderPhotos for all photos...');
+                    // Update photo grid with new photos only (don't re-render existing ones)
+                    window.logger.log('Add photos: Starting renderNewPhotosOnly...');
                     const lazyObserver = initLazyLoading();
-                    await renderPhotos(allPhotos, lazyObserver);
-                    window.logger.log('Add photos: renderPhotos completed');
+                    await renderNewPhotosOnly(newPhotos, lazyObserver);
+                    window.logger.log('Add photos: renderNewPhotosOnly completed');
                     
                     // Update folder display
                     updateFolderDisplay();
