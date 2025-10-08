@@ -238,3 +238,19 @@ if (typeof module !== 'undefined' && module.exports) {
         errorBoundary
     };
 }
+
+// 將工具函數添加到 window 對象供瀏覽器使用
+window.utils = {
+    debounce,
+    throttle,
+    smartDebounce,
+    rafThrottle,
+    batchDOMOperations,
+    compressImage,
+    VirtualScroll,
+    Validator,
+    delegateEvent,
+    batchEventHandlers,
+    performanceMonitor,
+    errorBoundary
+};

@@ -2534,6 +2534,8 @@ let selectedPhotos = [];
 let autoCreateDefectMarkMode = false;
 
 let allPhotos = [];
+// 確保 window.allPhotos 與 allPhotos 同步
+window.allPhotos = allPhotos;
 
 // Store folders for export
 let photoFolders = [];
@@ -6776,11 +6778,36 @@ function updateDuplicateStatus(inputElement, inspectionNo, excludeIndex = -1) {
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('DOMContentLoaded: First event listener started');
     
-    // Check if storageAdapter is available
-    if (!window.storageAdapter) {
-        console.error('window.storageAdapter is not available yet');
+    // Wait for all required dependencies to be available
+    let retryCount = 0;
+    const maxRetries = 50; // 5 seconds max wait
+    
+    while (retryCount < maxRetries) {
+        const missingDeps = [];
+        if (!window.storageAdapter) missingDeps.push('storageAdapter');
+        if (!window.indexedDBManager) missingDeps.push('indexedDBManager');
+        if (!window.logger) missingDeps.push('logger');
+        
+        if (missingDeps.length === 0) {
+            console.log('All dependencies are now available');
+            break;
+        }
+        
+        console.log(`Waiting for dependencies: ${missingDeps.join(', ')}... (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retryCount++;
+    }
+    
+    if (!window.storageAdapter || !window.indexedDBManager || !window.logger) {
+        console.error('Required dependencies not available after waiting:', {
+            storageAdapter: !!window.storageAdapter,
+            indexedDBManager: !!window.indexedDBManager,
+            logger: !!window.logger
+        });
         return;
     }
+    
+    console.log('All dependencies are available');
     
     // Initialize storage adapter first
     try {

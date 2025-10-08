@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>腳本載入驗證</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>腳本載入驗證</h1>
+        
+        <div id="status" class="status info">正在檢查腳本載入狀態...</div>
+        
+        <div id="log" class="log"></div>
+        
+        <button id="testBtn">測試 Add Photos 功能</button>
+        <button id="clearLogBtn">清除日誌</button>
+    </div>
+
+    <!-- 載入腳本 - 模擬 index.html 的載入順序 -->
+    <script src="js/config.js" defer></script>
+    <script src="js/indexeddb-manager.js" defer></script>
+    <script src="js/storage-adapter.js" defer></script>
+    <script src="js/utils.js" defer></script>
+    <script src="js/main.js" defer></script>
+    
+    <script>
+        // 日誌函數
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 更新狀態
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+        }
+
+        // 檢查腳本載入狀態
+        function checkScriptLoading() {
+            log('開始檢查腳本載入狀態...');
+            
+            const checks = [
+                { name: 'config.js', check: () => !!window.logger },
+                { name: 'indexeddb-manager.js', check: () => !!window.indexedDBManager },
+                { name: 'storage-adapter.js', check: () => !!window.storageAdapter },
+                { name: 'utils.js', check: () => !!window.utils },
+                { name: 'main.js', check: () => typeof window.allPhotos !== 'undefined' }
+            ];
+
+            let allLoaded = true;
+            checks.forEach(({ name, check }) => {
+                const loaded = check();
+                log(`${name}: ${loaded ? '✅ 已載入' : '❌ 未載入'}`);
+                if (!loaded) allLoaded = false;
+            });
+
+            if (allLoaded) {
+                updateStatus('✅ 所有腳本已正確載入', 'success');
+                log('所有腳本載入檢查完成');
+            } else {
+                updateStatus('❌ 部分腳本載入失敗', 'error');
+                log('腳本載入檢查完成，發現問題');
+            }
+
+            return allLoaded;
+        }
+
+        // 測試 Add Photos 功能
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            try {
+                log('開始測試 Add Photos 功能...');
+                
+                // 檢查依賴項
+                if (!window.storageAdapter || !window.indexedDBManager || !window.logger) {
+                    throw new Error('依賴項不可用');
+                }
+
+                // 檢查 allPhotos 變量
+                if (typeof window.allPhotos === 'undefined') {
+                    window.allPhotos = [];
+                }
+
+                // 模擬添加照片
+                const testPhoto = {
+                    name: 'test-photo.jpg',
+                    size: 1024,
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                    dataURL: 'data:image/jpeg;base64,test',
+                    isNewlyAdded: true
+                };
+
+                window.allPhotos.push(testPhoto);
+                log(`Add Photos: 添加了測試照片，總共 ${window.allPhotos.length} 張`);
+
+                // 測試 IndexedDB 連接
+                if (window.indexedDBManager.isInitialized) {
+                    log('IndexedDB 已初始化，連接正常');
+                } else {
+                    log('IndexedDB 未初始化，嘗試初始化...');
+                    await window.indexedDBManager.init();
+                    log('IndexedDB 初始化完成');
+                }
+
+                updateStatus('✅ Add Photos 功能測試成功', 'success');
+                log('Add Photos 功能測試完成');
+
+            } catch (error) {
+                updateStatus(`❌ Add Photos 功能測試失敗: ${error.message}`, 'error');
+                log(`Add Photos 功能測試失敗: ${error.message}`);
+            }
+        });
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 頁面載入完成後檢查
+        document.addEventListener('DOMContentLoaded', () => {
+            log('頁面載入完成，開始檢查腳本載入狀態');
+            
+            // 等待一段時間讓所有腳本載入
+            setTimeout(() => {
+                checkScriptLoading();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
