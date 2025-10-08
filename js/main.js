@@ -4106,7 +4106,16 @@ function restorePhotoAssignmentStatus() {
 
 // Load data from storage
 let isLoadingData = false; // 防止重複載入的標誌
+let loadDataPromise = null; // 存儲載入 Promise，防止重複調用
 async function loadDataFromStorage() {
+    window.logger.log('loadDataFromStorage: Called, isLoadingData =', isLoadingData);
+    
+    // 如果已經有載入 Promise，直接返回它
+    if (loadDataPromise) {
+        window.logger.log('loadDataFromStorage: Already loading data, returning existing promise');
+        return loadDataPromise;
+    }
+    
     if (isLoadingData) {
         window.logger.log('loadDataFromStorage: Already loading data, skipping duplicate call');
         return;
@@ -4114,6 +4123,9 @@ async function loadDataFromStorage() {
     
     isLoadingData = true;
     window.logger.log('loadDataFromStorage: Starting to load data from storage...');
+    
+    // 創建載入 Promise
+    loadDataPromise = (async () => {
     const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
     window.logger.log('loadDataFromStorage: Retrieved data from storage:', savedData ? 'data exists' : 'no data');
     if (savedData) {
@@ -4464,11 +4476,15 @@ async function loadDataFromStorage() {
         updateAddPhotosButtonVisibility();
     }
     
-    // 注意：不再清除分類內容，因為現在會從 localStorage 載入
-    window.logger.log('Data loading completed. Categories content preserved from localStorage');
+        // 注意：不再清除分類內容，因為現在會從 localStorage 載入
+        window.logger.log('Data loading completed. Categories content preserved from localStorage');
+        
+        // 重置載入狀態
+        isLoadingData = false;
+        loadDataPromise = null;
+    })();
     
-    // 重置載入狀態
-    isLoadingData = false;
+    return loadDataPromise;
 }
 
 // Clear all categories content on page reload
