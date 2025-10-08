@@ -4105,27 +4105,8 @@ function restorePhotoAssignmentStatus() {
 }
 
 // Load data from storage
-let isLoadingData = false; // 防止重複載入的標誌
-let loadDataPromise = null; // 存儲載入 Promise，防止重複調用
 async function loadDataFromStorage() {
-    window.logger.log('loadDataFromStorage: Called, isLoadingData =', isLoadingData);
-    
-    // 如果已經有載入 Promise，直接返回它
-    if (loadDataPromise) {
-        window.logger.log('loadDataFromStorage: Already loading data, returning existing promise');
-        return loadDataPromise;
-    }
-    
-    if (isLoadingData) {
-        window.logger.log('loadDataFromStorage: Already loading data, skipping duplicate call');
-        return;
-    }
-    
-    isLoadingData = true;
     window.logger.log('loadDataFromStorage: Starting to load data from storage...');
-    
-    // 創建載入 Promise
-    loadDataPromise = (async () => {
     const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
     window.logger.log('loadDataFromStorage: Retrieved data from storage:', savedData ? 'data exists' : 'no data');
     if (savedData) {
@@ -4353,28 +4334,6 @@ async function loadDataFromStorage() {
             
             // 恢復照片分配狀態並渲染照片
             if (!alreadyLoadedPhotos && allPhotos && allPhotos.length > 0) {
-                // 去重照片（基於文件名）
-                const uniquePhotos = [];
-                const seenNames = new Set();
-                
-                for (const photo of allPhotos) {
-                    if (!seenNames.has(photo.name)) {
-                        seenNames.add(photo.name);
-                        uniquePhotos.push(photo);
-                    } else {
-                        window.logger.log('Removing duplicate photo:', photo.name);
-                    }
-                }
-                
-                allPhotos = uniquePhotos;
-                window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
-                
-                window.logger.log('DEBUG: Photo deduplication:', {
-                    originalCount: allPhotos.length + (allPhotos.length - uniquePhotos.length),
-                    uniqueCount: uniquePhotos.length,
-                    duplicatesRemoved: allPhotos.length - uniquePhotos.length
-                });
-                
                 // 檢查是否有 dataURL 可以渲染照片
                 const photosWithDataURL = allPhotos.filter(photo => photo.dataURL && photo.dataURL.trim() !== '');
                 window.logger.log('DEBUG: Photo restoration check:', {
@@ -4476,15 +4435,8 @@ async function loadDataFromStorage() {
         updateAddPhotosButtonVisibility();
     }
     
-        // 注意：不再清除分類內容，因為現在會從 localStorage 載入
-        window.logger.log('Data loading completed. Categories content preserved from localStorage');
-        
-        // 重置載入狀態
-        isLoadingData = false;
-        loadDataPromise = null;
-    })();
-    
-    return loadDataPromise;
+    // 注意：不再清除分類內容，因為現在會從 localStorage 載入
+    window.logger.log('Data loading completed. Categories content preserved from localStorage');
 }
 
 // Clear all categories content on page reload
@@ -7140,11 +7092,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 自動載入照片數據（如果沒有通過會話恢復載入）
     try {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
-        if (saved && (!allPhotos || allPhotos.length === 0) && !isLoadingData) {
+        if (saved && (!allPhotos || allPhotos.length === 0)) {
             window.logger.log('Auto-loading photo data from storage...');
             await loadDataFromStorage();
-        } else if (isLoadingData) {
-            window.logger.log('Data is already being loaded, skipping auto-load');
         }
     } catch (e) { 
         window.logger.error('Failed to auto-load photo data:', e);
@@ -7373,15 +7323,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                         else {
                             window.logger.log('Add photos: Adding new photo:', file.name, 'Number:', photoNumber);
                             
-                            // Create a new file object (same as Upload Photos Folder - dataURL will be generated in renderPhotos)
-                            const newFile = {
-                                name: file.name,
-                                size: file.size,
-                                type: file.type,
-                                lastModified: file.lastModified || Date.now(),
-                                dataURL: '' // Will be generated in renderPhotos() like Upload Photos Folder
-                            };
-                            newPhotos.push(newFile);
+                            // 直接使用 File 對象，不預先生成 dataURL
+                            // dataURL 將在 renderPhotos() 中生成
+                            newPhotos.push(file);
                         }
                     } else {
                         window.logger.log('Add photos: Skipping non-image file:', file.name);
@@ -7403,8 +7347,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     window.allPhotos = allPhotos;
                     window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
                     
-                    // Update photo grid with all photos (same as Upload Photos Folder)
-                    window.logger.log('Add photos: Starting renderPhotos...');
+                    // 使用 renderPhotos() 渲染所有照片，包括新添加的照片
+                    window.logger.log('Add photos: Starting renderPhotos for all photos...');
                     const lazyObserver = initLazyLoading();
                     await renderPhotos(allPhotos, lazyObserver);
                     window.logger.log('Add photos: renderPhotos completed');

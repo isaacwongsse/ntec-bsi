@@ -176,15 +176,9 @@ class PhotoOptimizer {
                 return photo; // 返回原始照片，不進行壓縮
             }
             
-            // 檢查 dataURL 格式是否有效
-            if (!photo.dataURL.startsWith('data:image/') || photo.dataURL.length < 100) {
-                window.logger.warn(`Photo ${photo.name} has invalid dataURL format, skipping compression`);
-                return photo; // 返回原始照片，不進行壓縮
-            }
-            
             // 如果照片需要壓縮
             if (photo.size > CONFIG.photo.maxSize) {
-                const compressedUrl = await this.compressImage(photo.dataURL);
+                const compressedUrl = await this.compressImage(photo);
                 // 創建一個新的 File 對象，保留所有原始屬性
                 const compressedFile = new File([photo], photo.name, {
                     type: photo.type,
