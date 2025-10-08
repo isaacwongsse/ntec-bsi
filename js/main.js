@@ -10643,6 +10643,50 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
         window.logger.log('PDF upload: Defect marks redrawn');
     }
     
+    // 載入照片數據並重新渲染照片預覽
+    try {
+        window.logger.log('PDF upload: Loading photos from storage...');
+        
+        // 從 IndexedDB 載入照片數據
+        const indexedDBPhotos = await loadPhotosFromIndexedDB();
+        if (indexedDBPhotos && indexedDBPhotos.length > 0) {
+            window.logger.log('PDF upload: Loaded photos from IndexedDB:', indexedDBPhotos.length);
+            allPhotos = indexedDBPhotos;
+            window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
+            
+            // 重新渲染照片預覽
+            const lazyObserver = initLazyLoading();
+            await renderPhotos(allPhotos, lazyObserver);
+            window.logger.log('PDF upload: Photos re-rendered successfully');
+        } else {
+            // 嘗試從 localStorage 載入照片元數據
+            const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
+            if (savedData && savedData.photoMetadata && savedData.photoMetadata.length > 0) {
+                window.logger.log('PDF upload: Loading photo metadata from localStorage:', savedData.photoMetadata.length);
+                
+                // 創建照片物件（沒有 dataURL）
+                allPhotos = savedData.photoMetadata.map(metadata => ({
+                    name: metadata.name,
+                    size: metadata.size || 0,
+                    type: metadata.type || 'image/jpeg',
+                    lastModified: metadata.lastModified || Date.now(),
+                    webkitRelativePath: metadata.webkitRelativePath || '',
+                    dataURL: '' // 沒有 dataURL
+                }));
+                window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
+                
+                // 重新渲染照片預覽
+                const lazyObserver = initLazyLoading();
+                await renderPhotos(allPhotos, lazyObserver);
+                window.logger.log('PDF upload: Photo metadata re-rendered successfully');
+            } else {
+                window.logger.log('PDF upload: No photos found in storage');
+            }
+        }
+    } catch (error) {
+        window.logger.error('PDF upload: Error loading photos from storage:', error);
+    }
+    
     window.logger.log('PDF loaded successfully from base64 data');
 }
 
