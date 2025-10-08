@@ -4105,7 +4105,14 @@ function restorePhotoAssignmentStatus() {
 }
 
 // Load data from storage
+let isLoadingData = false; // 防止重複載入的標誌
 async function loadDataFromStorage() {
+    if (isLoadingData) {
+        window.logger.log('loadDataFromStorage: Already loading data, skipping duplicate call');
+        return;
+    }
+    
+    isLoadingData = true;
     window.logger.log('loadDataFromStorage: Starting to load data from storage...');
     const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
     window.logger.log('loadDataFromStorage: Retrieved data from storage:', savedData ? 'data exists' : 'no data');
@@ -4334,6 +4341,28 @@ async function loadDataFromStorage() {
             
             // 恢復照片分配狀態並渲染照片
             if (!alreadyLoadedPhotos && allPhotos && allPhotos.length > 0) {
+                // 去重照片（基於文件名）
+                const uniquePhotos = [];
+                const seenNames = new Set();
+                
+                for (const photo of allPhotos) {
+                    if (!seenNames.has(photo.name)) {
+                        seenNames.add(photo.name);
+                        uniquePhotos.push(photo);
+                    } else {
+                        window.logger.log('Removing duplicate photo:', photo.name);
+                    }
+                }
+                
+                allPhotos = uniquePhotos;
+                window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
+                
+                window.logger.log('DEBUG: Photo deduplication:', {
+                    originalCount: allPhotos.length + (allPhotos.length - uniquePhotos.length),
+                    uniqueCount: uniquePhotos.length,
+                    duplicatesRemoved: allPhotos.length - uniquePhotos.length
+                });
+                
                 // 檢查是否有 dataURL 可以渲染照片
                 const photosWithDataURL = allPhotos.filter(photo => photo.dataURL && photo.dataURL.trim() !== '');
                 window.logger.log('DEBUG: Photo restoration check:', {
@@ -4437,6 +4466,9 @@ async function loadDataFromStorage() {
     
     // 注意：不再清除分類內容，因為現在會從 localStorage 載入
     window.logger.log('Data loading completed. Categories content preserved from localStorage');
+    
+    // 重置載入狀態
+    isLoadingData = false;
 }
 
 // Clear all categories content on page reload
@@ -7092,9 +7124,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 自動載入照片數據（如果沒有通過會話恢復載入）
     try {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
-        if (saved && (!allPhotos || allPhotos.length === 0)) {
+        if (saved && (!allPhotos || allPhotos.length === 0) && !isLoadingData) {
             window.logger.log('Auto-loading photo data from storage...');
             await loadDataFromStorage();
+        } else if (isLoadingData) {
+            window.logger.log('Data is already being loaded, skipping auto-load');
         }
     } catch (e) { 
         window.logger.error('Failed to auto-load photo data:', e);

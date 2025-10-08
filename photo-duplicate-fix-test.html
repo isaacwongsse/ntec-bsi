@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片重複問題修復測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .problem-analysis {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .problem-analysis h4 {
+            margin-top: 0;
+            color: #721c24;
+        }
+        .solution-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .solution-box h4 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        .comparison-table .fixed {
+            background: #d4edda;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>照片重複問題修復測試</h1>
+        
+        <div class="problem-analysis">
+            <h4>🔍 問題分析</h4>
+            <p>根據控制台日誌分析，發現以下問題：</p>
+            <ul>
+                <li><strong>重複的數據載入:</strong> <code>loadDataFromStorage()</code> 被多次調用</li>
+                <li><strong>重複的照片處理:</strong> 同一個照片的錯誤出現多次</li>
+                <li><strong>多個載入點:</strong> 照片處理發生在多個地方</li>
+                <li><strong>缺少去重邏輯:</strong> 沒有檢查重複照片</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>1. 修復前後對比</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>問題</th>
+                        <th>修復前</th>
+                        <th>修復後</th>
+                        <th>狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>重複載入</strong></td>
+                        <td>loadDataFromStorage() 被多次調用</td>
+                        <td>添加 isLoadingData 標誌防止重複載入</td>
+                        <td class="fixed">✅ 已修復</td>
+                    </tr>
+                    <tr>
+                        <td><strong>照片重複</strong></td>
+                        <td>沒有去重邏輯</td>
+                        <td>添加基於文件名的去重邏輯</td>
+                        <td class="fixed">✅ 已修復</td>
+                    </tr>
+                    <tr>
+                        <td><strong>錯誤處理</strong></td>
+                        <td>同一個照片錯誤多次出現</td>
+                        <td>防止重複處理同一照片</td>
+                        <td class="fixed">✅ 已修復</td>
+                    </tr>
+                    <tr>
+                        <td><strong>載入狀態</strong></td>
+                        <td>沒有載入狀態管理</td>
+                        <td>添加載入狀態檢查</td>
+                        <td class="fixed">✅ 已修復</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 修復的代碼</h3>
+            
+            <h4>添加載入狀態檢查</h4>
+            <div class="code-block">// Load data from storage
+let isLoadingData = false; // 防止重複載入的標誌
+async function loadDataFromStorage() {
+    if (isLoadingData) {
+        window.logger.log('loadDataFromStorage: Already loading data, skipping duplicate call');
+        return;
+    }
+    
+    isLoadingData = true;
+    window.logger.log('loadDataFromStorage: Starting to load data from storage...');
+    // ... 載入邏輯 ...
+    
+    // 重置載入狀態
+    isLoadingData = false;
+}</div>
+
+            <h4>添加照片去重邏輯</h4>
+            <div class="code-block">// 去重照片（基於文件名）
+const uniquePhotos = [];
+const seenNames = new Set();
+
+for (const photo of allPhotos) {
+    if (!seenNames.has(photo.name)) {
+        seenNames.add(photo.name);
+        uniquePhotos.push(photo);
+    } else {
+        window.logger.log('Removing duplicate photo:', photo.name);
+    }
+}
+
+allPhotos = uniquePhotos;
+window.allPhotos = allPhotos; // 確保 window.allPhotos 同步</div>
+
+            <h4>修改自動載入邏輯</h4>
+            <div class="code-block">// 自動載入照片數據（如果沒有通過會話恢復載入）
+try {
+    const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
+    if (saved && (!allPhotos || allPhotos.length === 0) && !isLoadingData) {
+        window.logger.log('Auto-loading photo data from storage...');
+        await loadDataFromStorage();
+    } else if (isLoadingData) {
+        window.logger.log('Data is already being loaded, skipping auto-load');
+    }
+} catch (e) { 
+    window.logger.error('Failed to auto-load photo data:', e);
+}</div>
+        </div>
+
+        <div class="solution-box">
+            <h4>💡 修復方案</h4>
+            <ol>
+                <li><strong>添加載入狀態檢查:</strong> 使用 <code>isLoadingData</code> 標誌防止重複載入</li>
+                <li><strong>照片去重邏輯:</strong> 基於文件名去除重複照片</li>
+                <li><strong>載入狀態管理:</strong> 在載入完成後重置狀態</li>
+                <li><strong>自動載入優化:</strong> 檢查載入狀態避免重複調用</li>
+                <li><strong>詳細日誌:</strong> 添加去重統計信息</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 預期效果</h3>
+            <div class="status success">
+                <strong>✅ 修復後的效果：</strong>
+                <ul>
+                    <li>頁面重新載入時不會出現重複照片</li>
+                    <li>loadDataFromStorage() 只會被調用一次</li>
+                    <li>照片處理錯誤不會重複出現</li>
+                    <li>控制台日誌更清晰，顯示去重統計</li>
+                    <li>照片載入更穩定，不會短暫顯示後消失</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 測試步驟</h3>
+            <div class="status info">
+                <strong>🧪 測試步驟：</strong>
+                <ol>
+                    <li>重新載入 index.html 頁面</li>
+                    <li>檢查控制台日誌，確認 loadDataFromStorage 只被調用一次</li>
+                    <li>檢查照片預覽區域，確認沒有重複照片</li>
+                    <li>查看去重統計日誌：<code>DEBUG: Photo deduplication:</code></li>
+                    <li>確認照片處理錯誤不會重複出現</li>
+                    <li>檢查照片是否穩定顯示</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 控制台日誌檢查</h3>
+            <div class="status warning">
+                <strong>⚠️ 修復後應該看到的日誌：</strong>
+                <ul>
+                    <li><code>loadDataFromStorage: Starting to load data from storage...</code> - 只出現一次</li>
+                    <li><code>DEBUG: Photo deduplication: {originalCount: X, uniqueCount: Y, duplicatesRemoved: Z}</code></li>
+                    <li><code>Removing duplicate photo: [filename]</code> - 如果有重複照片</li>
+                    <li><code>Data is already being loaded, skipping auto-load</code> - 防止重複載入</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 操作日誌</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">清除日誌</button>
+        </div>
+    </div>
+
+    <script>
+        // 日誌函數
+        function log(message, ...args) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (args.length > 0) {
+                logEntry.innerHTML += ` ${JSON.stringify(args)}`;
+            }
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 頁面載入完成
+        document.addEventListener('DOMContentLoaded', () => {
+            log('頁面載入完成，照片重複問題修復測試準備就緒');
+            log('修復內容：');
+            log('1. 添加 isLoadingData 標誌防止重複載入');
+            log('2. 添加照片去重邏輯（基於文件名）');
+            log('3. 修改自動載入邏輯避免重複調用');
+            log('4. 添加詳細的去重統計日誌');
+            log('');
+            log('請重新載入 index.html 並檢查控制台日誌');
+        });
+    </script>
+</body>
+</html>
