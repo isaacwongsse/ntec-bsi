@@ -6875,11 +6875,67 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (restoreBtn) {
                 restoreBtn.onclick = async () => {
                     modal.style.display = 'none';
-                    window.logger.log('Open previous button clicked - modal closed, no reload');
-                    
-                    // 只關閉 modal，不重新載入任何內容
-                    // 照片和 PDF 已經在頁面重新載入時自動恢復
-                    return;
+                    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
+                    let loadedWithHandles = false;
+                    try {
+                        // PDF
+                        const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
+                        if (pdfHandle && pdfHandle.kind === 'file') {
+                            const p = await pdfHandle.queryPermission?.();
+                            if (p === 'granted' || (await pdfHandle.requestPermission?.()) === 'granted') {
+                                const file = await pdfHandle.getFile();
+                                const arrayBuffer = await file.arrayBuffer();
+                                await loadPDFFromArrayBuffer(arrayBuffer, file.name);
+                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                                const floorPlanViewer = document.getElementById('floorPlanViewer');
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                if (floorPlanUploadArea && floorPlanViewer) {
+                                    floorPlanUploadArea.style.display = 'none';
+                                    floorPlanViewer.style.display = 'flex';
+                                }
+                                loadedWithHandles = true;
+                            }
+                        }
+                        // Photos folder
+                        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+                        if (dirHandle && dirHandle.kind === 'directory') {
+                            const p = await dirHandle.queryPermission?.({mode: 'read'});
+                            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
+                                const imageFiles = [];
+                                for await (const [name, handle] of dirHandle.entries()) {
+                                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                                        const f = await handle.getFile();
+                                        imageFiles.push(f);
+                                    }
+                                }
+                                if (imageFiles.length > 0) {
+                                    window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
+                                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                                    const lazyObserver = initLazyLoading();
+                                    await renderPhotos(allPhotos, lazyObserver);
+                                    updateFolderDisplay();
+                                    updateAddPhotosButtonVisibility();
+                                    
+                                    // Auto-save photos to IndexedDB
+                                    await autoSaveAllPhotosToIndexedDB();
+                                    
+                                    loadedWithHandles = true;
+                                }
+                            }
+                        }
+                    } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
+
+                    // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
+                    await loadDataFromStorage();
+
+                    // 若未能用 handle 載入 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                    try {
+                        if (!loadedWithHandles) {
+                            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                            if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        }
+                    } catch (e) { /* noop */ }
                 };
             }
             if (startFreshBtn) {
@@ -10595,16 +10651,7 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
         const indexedDBPhotos = await loadPhotosFromIndexedDB();
         if (indexedDBPhotos && indexedDBPhotos.length > 0) {
             window.logger.log('PDF upload: Loaded photos from IndexedDB:', indexedDBPhotos.length);
-            
-            // 合併現有照片和 IndexedDB 中的照片，避免覆蓋當前會話的照片
-            const existingPhotoNames = new Set(allPhotos.map(photo => photo.name));
-            const newPhotosFromIndexedDB = indexedDBPhotos.filter(photo => !existingPhotoNames.has(photo.name));
-            
-            if (newPhotosFromIndexedDB.length > 0) {
-                window.logger.log('PDF upload: Adding new photos from IndexedDB:', newPhotosFromIndexedDB.length);
-                allPhotos.push(...newPhotosFromIndexedDB);
-            }
-            
+            allPhotos = indexedDBPhotos;
             window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
             
             // 重新渲染照片預覽
@@ -10617,24 +10664,15 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
             if (savedData && savedData.photoMetadata && savedData.photoMetadata.length > 0) {
                 window.logger.log('PDF upload: Loading photo metadata from localStorage:', savedData.photoMetadata.length);
                 
-                // 合併現有照片和 localStorage 中的照片元數據，避免覆蓋當前會話的照片
-                const existingPhotoNames = new Set(allPhotos.map(photo => photo.name));
-                const newPhotosFromLocalStorage = savedData.photoMetadata
-                    .filter(metadata => !existingPhotoNames.has(metadata.name))
-                    .map(metadata => ({
-                        name: metadata.name,
-                        size: metadata.size || 0,
-                        type: metadata.type || 'image/jpeg',
-                        lastModified: metadata.lastModified || Date.now(),
-                        webkitRelativePath: metadata.webkitRelativePath || '',
-                        dataURL: '' // 沒有 dataURL
-                    }));
-                
-                if (newPhotosFromLocalStorage.length > 0) {
-                    window.logger.log('PDF upload: Adding new photos from localStorage:', newPhotosFromLocalStorage.length);
-                    allPhotos.push(...newPhotosFromLocalStorage);
-                }
-                
+                // 創建照片物件（沒有 dataURL）
+                allPhotos = savedData.photoMetadata.map(metadata => ({
+                    name: metadata.name,
+                    size: metadata.size || 0,
+                    type: metadata.type || 'image/jpeg',
+                    lastModified: metadata.lastModified || Date.now(),
+                    webkitRelativePath: metadata.webkitRelativePath || '',
+                    dataURL: '' // 沒有 dataURL
+                }));
                 window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
                 
                 // 重新渲染照片預覽
