@@ -6867,8 +6867,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
         const modal = document.getElementById('sessionRestoreModal');
+        window.logger.log('Session restore check:', {
+            hasSavedData: !!saved,
+            hasModal: !!modal,
+            modalId: modal ? modal.id : 'not found'
+        });
+        
         if (saved && modal) {
             // 僅在尚未載入任何資料時顯示
+            window.logger.log('Showing session restore modal');
             modal.style.display = 'flex';
             const restoreBtn = document.getElementById('restoreSessionBtn');
             const startFreshBtn = document.getElementById('startFreshBtn');
