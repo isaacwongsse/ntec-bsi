@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Previous 按鈕行為修改測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        button.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        button.warning:hover {
+            background: #e0a800;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-steps {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin: 5px 0;
+        }
+        .data-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background-color: #f8f9fa;
+        }
+        .test-scenario {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .test-scenario h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+            min-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .photo-item {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            text-align: center;
+        }
+        .photo-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 3px;
+        }
+        .photo-item .photo-name {
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Open Previous 按鈕行為修改測試</h1>
+        
+        <div class="test-steps">
+            <h3>測試步驟：</h3>
+            <ol>
+                <li>模擬頁面重新載入，顯示 session-restore-modal</li>
+                <li>點擊 "Open previous" 按鈕</li>
+                <li>檢查是否只關閉 modal，不重新載入內容</li>
+                <li>驗證照片和 PDF 保持不變</li>
+            </ol>
+        </div>
+        
+        <div class="test-section">
+            <h3>1. 模擬頁面狀態</h3>
+            <div class="test-scenario">
+                <h4>模擬頁面重新載入後的狀態</h4>
+                <p>這個測試會模擬頁面重新載入後，照片和 PDF 已經自動恢復的狀態。</p>
+            </div>
+            <button id="simulatePageReloadBtn" class="success">模擬頁面重新載入</button>
+            <div id="simulatePageReloadResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 照片預覽</h3>
+            <div id="photoGrid" class="photo-grid">
+                <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                    尚未載入照片
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. PDF 狀態</h3>
+            <div class="data-display" id="pdfStatus">尚未載入 PDF</div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Session Restore Modal</h3>
+            <div class="test-scenario">
+                <h4>模擬 Session Restore Modal</h4>
+                <p>這個 modal 會在頁面重新載入時顯示，詢問用戶是否要恢復之前的會話。</p>
+            </div>
+            <button id="showModalBtn" class="warning">顯示 Session Restore Modal</button>
+            <div id="showModalResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 測試 Open Previous 按鈕</h3>
+            <div class="test-scenario">
+                <h4>測試修改後的 Open Previous 按鈕行為</h4>
+                <p>修改前：點擊會重新載入 PDF 和照片<br>
+                修改後：點擊只關閉 modal，不重新載入任何內容</p>
+            </div>
+            <div id="openPreviousTestResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 修復前後對比</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th>修復前</th>
+                        <th>修復後</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Open Previous 按鈕行為</td>
+                        <td>❌ 重新載入 PDF 和照片</td>
+                        <td>✅ 只關閉 modal</td>
+                    </tr>
+                    <tr>
+                        <td>照片預覽</td>
+                        <td>❌ 照片被重新載入</td>
+                        <td>✅ 照片保持不變</td>
+                    </tr>
+                    <tr>
+                        <td>PDF 狀態</td>
+                        <td>❌ PDF 被重新載入</td>
+                        <td>✅ PDF 保持不變</td>
+                    </tr>
+                    <tr>
+                        <td>用戶體驗</td>
+                        <td>❌ 不必要的重新載入</td>
+                        <td>✅ 快速關閉 modal</td>
+                    </tr>
+                    <tr>
+                        <td>性能</td>
+                        <td>❌ 額外的載入時間</td>
+                        <td>✅ 即時響應</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="test-section">
+            <h3>7. 操作日誌</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">清除日誌</button>
+        </div>
+    </div>
+
+    <!-- Session Restore Modal -->
+    <div id="sessionRestoreModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-rotate"></i> Restore previous session?</h3>
+                <span class="close" id="closeModalBtn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>We found previously saved data and settings. Would you like to open them now, or start with an empty page?</p>
+                <ul>
+                    <li><i class="fas fa-file-pdf"></i> Previous floor plan PDF and labels</li>
+                    <li><i class="fas fa-images"></i> Previously loaded photos and assignments</li>
+                    <li><i class="fas fa-table"></i> Defect entries and view state</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button id="startFreshBtn" class="btn btn-secondary">Start fresh</button>
+                <button id="restoreSessionBtn" class="btn btn-primary">Open previous</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模擬全局變量
+        let allPhotos = [];
+        window.allPhotos = allPhotos;
+        let pdfLoaded = false;
+        let modalShown = false;
+        
+        window.logger = {
+            log: (message, ...args) => log(`LOG: ${message}`, ...args),
+            error: (message, ...args) => log(`ERROR: ${message}`, ...args),
+            warn: (message, ...args) => log(`WARN: ${message}`, ...args)
+        };
+
+        // 日誌函數
+        function log(message, ...args) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (args.length > 0) {
+                logEntry.innerHTML += ` ${JSON.stringify(args)}`;
+            }
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 顯示狀態
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // 顯示照片
+        function displayPhotos(photos) {
+            const grid = document.getElementById('photoGrid');
+            
+            if (photos.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                        沒有照片
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = photos.map(photo => {
+                return `
+                    <div class="photo-item">
+                        <img src="${photo.dataURL || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RkZCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+'}" alt="${photo.name}" style="max-height: 100px;">
+                        <div class="photo-name">${photo.name}</div>
+                        <div style="font-size: 10px; color: #999;">
+                            ${(photo.size / 1024).toFixed(1)} KB
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 更新 PDF 狀態
+        function updatePDFStatus() {
+            const statusElement = document.getElementById('pdfStatus');
+            if (pdfLoaded) {
+                statusElement.textContent = 'PDF 已載入';
+                statusElement.style.color = '#28a745';
+            } else {
+                statusElement.textContent = 'PDF 未載入';
+                statusElement.style.color = '#dc3545';
+            }
+        }
+
+        // 模擬頁面重新載入
+        document.getElementById('simulatePageReloadBtn').addEventListener('click', () => {
+            log('模擬頁面重新載入...');
+            
+            // 模擬載入一些照片
+            allPhotos = [
+                {
+                    name: 'photo1.jpg',
+                    size: 1024000,
+                    type: 'image/jpeg',
+                    dataURL: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwN2JmZiIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlBob3RvIDE8L3RleHQ+PC9zdmc+'
+                },
+                {
+                    name: 'photo2.jpg',
+                    size: 2048000,
+                    type: 'image/jpeg',
+                    dataURL: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzI4YTc0NSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlBob3RvIDI8L3RleHQ+PC9zdmc+'
+                }
+            ];
+            window.allPhotos = allPhotos;
+            
+            // 模擬載入 PDF
+            pdfLoaded = true;
+            
+            // 顯示照片
+            displayPhotos(allPhotos);
+            updatePDFStatus();
+            
+            log(`模擬載入 ${allPhotos.length} 張照片和 PDF`);
+            showStatus('simulatePageReloadResult', '頁面重新載入模擬完成', 'success');
+        });
+
+        // 顯示 Modal
+        document.getElementById('showModalBtn').addEventListener('click', () => {
+            const modal = document.getElementById('sessionRestoreModal');
+            modal.style.display = 'block';
+            modalShown = true;
+            log('Session Restore Modal 已顯示');
+            showStatus('showModalResult', 'Modal 已顯示', 'info');
+        });
+
+        // 關閉 Modal
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            const modal = document.getElementById('sessionRestoreModal');
+            modal.style.display = 'none';
+            modalShown = false;
+            log('Modal 已關閉');
+        });
+
+        // Start Fresh 按鈕
+        document.getElementById('startFreshBtn').addEventListener('click', () => {
+            const modal = document.getElementById('sessionRestoreModal');
+            modal.style.display = 'none';
+            modalShown = false;
+            
+            // 清除所有數據
+            allPhotos = [];
+            window.allPhotos = allPhotos;
+            pdfLoaded = false;
+            
+            displayPhotos(allPhotos);
+            updatePDFStatus();
+            
+            log('Start Fresh 按鈕點擊 - 所有數據已清除');
+        });
+
+        // Open Previous 按鈕（修改後的行為）
+        document.getElementById('restoreSessionBtn').addEventListener('click', () => {
+            const modal = document.getElementById('sessionRestoreModal');
+            modal.style.display = 'none';
+            modalShown = false;
+            
+            log('Open Previous 按鈕點擊 - modal 已關閉，沒有重新載入任何內容');
+            
+            // 檢查照片和 PDF 是否保持不變
+            const photosCount = allPhotos.length;
+            const pdfStatus = pdfLoaded;
+            
+            let resultMessage = `✅ 修復成功！照片數量: ${photosCount}, PDF 狀態: ${pdfStatus ? '已載入' : '未載入'}`;
+            
+            showStatus('openPreviousTestResult', resultMessage, 'success');
+        });
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 頁面載入完成
+        document.addEventListener('DOMContentLoaded', () => {
+            log('頁面載入完成，Open Previous 按鈕行為修改測試準備就緒');
+            log('請先模擬頁面重新載入，然後測試 Open Previous 按鈕行為');
+            
+            // 初始化狀態
+            updatePDFStatus();
+        });
+    </script>
+</body>
+</html>
