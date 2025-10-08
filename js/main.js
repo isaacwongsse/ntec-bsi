@@ -6931,6 +6931,75 @@ document.addEventListener('DOMContentLoaded', async function() {
                         if (typeof window.defectMarks !== 'undefined') window.defectMarks = [];
                         if (typeof window.redrawLabels === 'function') window.redrawLabels();
                         if (typeof window.redrawDefectMarks === 'function') window.redrawDefectMarks();
+                        
+                        // 清除所有缺陷/標籤詳細表格容器的數據
+                        window.logger.log('Start fresh: Clearing all defects/labels detail table containers');
+                        
+                        // 清除缺陷記錄表格
+                        const defectsDetailTableBody = document.getElementById('defectsDetailTableBody');
+                        if (defectsDetailTableBody) {
+                            defectsDetailTableBody.innerHTML = '<tr><td colspan="14" class="empty-state">No defect records yet</td></tr>';
+                            window.logger.log('Start fresh: Cleared defects detail table');
+                        }
+                        
+                        // 清除標籤記錄表格
+                        const labelsDetailTableBody = document.getElementById('labelsDetailTableBody');
+                        if (labelsDetailTableBody) {
+                            labelsDetailTableBody.innerHTML = '<tr><td colspan="18" class="empty-state">No label records yet</td></tr>';
+                            window.logger.log('Start fresh: Cleared labels detail table');
+                        }
+                        
+                        // 清除缺陷摘要表格
+                        const defectSummaryTableBody = document.getElementById('defectSummaryTableBody');
+                        const defectSummaryCount = document.getElementById('defectSummaryCount');
+                        if (defectSummaryTableBody) {
+                            defectSummaryTableBody.innerHTML = '<tr><td colspan="14" class="empty-state">No defect summary data yet</td></tr>';
+                            window.logger.log('Start fresh: Cleared defect summary table');
+                        }
+                        if (defectSummaryCount) {
+                            defectSummaryCount.textContent = '0 entries';
+                        }
+                        
+                        // 清除檢查記錄表格
+                        const dataTableBody = document.getElementById('dataTableBody');
+                        if (dataTableBody) {
+                            dataTableBody.innerHTML = '<tr><td colspan="13" class="empty-state">No data submitted yet</td></tr>';
+                            window.logger.log('Start fresh: Cleared inspection records table');
+                        }
+                        
+                        // 更新表格計數
+                        updateTableCount();
+                        
+                        // 重新初始化檢查記錄和缺陷記錄表格
+                        window.logger.log('Start fresh: Re-initializing inspection and defect record tables');
+                        
+                        // 重置所有相關的全局變量
+                        window.defectEntries = [];
+                        window.submittedDefectEntries = [];
+                        window.labels = [];
+                        window.defectMarks = [];
+                        
+                        // 重置所有計數器
+                        rowIdCounter = 0;
+                        window.logger.log('Start fresh: Reset rowIdCounter to 0');
+                        
+                        // 強制更新所有表格顯示
+                        if (typeof window.updateDefectSummaryTable === 'function') {
+                            window.updateDefectSummaryTable();
+                        }
+                        
+                        // 更新分類表格
+                        if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+                            window.updateCategoryTablesFromInspectionRecords();
+                        }
+                        
+                        // 更新分類顯示
+                        categories.forEach(category => {
+                            updateCategoryDisplay(category.id);
+                        });
+                        
+                        window.logger.log('Start fresh: All tables re-initialized successfully');
+                        
                         // 關閉並重置繪圖模式與 PDF 檢視
                         const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                         const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
