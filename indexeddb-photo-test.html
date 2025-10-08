@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB 照片存儲測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .photo-item {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            text-align: center;
+        }
+        .photo-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 3px;
+        }
+        .photo-item .photo-name {
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IndexedDB 照片存儲測試</h1>
+        
+        <div class="test-section">
+            <h3>1. 選擇照片</h3>
+            <input type="file" id="photoInput" accept="image/*" multiple>
+            <button id="addPhotosBtn" disabled>添加照片到 IndexedDB</button>
+            <div id="photoStatus" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 照片管理</h3>
+            <button id="loadPhotosBtn">從 IndexedDB 載入照片</button>
+            <button id="clearPhotosBtn">清除所有照片</button>
+            <button id="getStatsBtn">獲取存儲統計</button>
+            <div id="managementStatus" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 照片預覽</h3>
+            <div id="photoGrid" class="photo-grid">
+                <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                    尚未載入照片
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 操作日誌</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">清除日誌</button>
+        </div>
+    </div>
+
+    <!-- 載入必要的腳本 -->
+    <script src="js/indexeddb-manager.js"></script>
+    
+    <script>
+        // 日誌函數
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 顯示狀態
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 3000);
+        }
+
+        let selectedFiles = [];
+        let loadedPhotos = [];
+
+        // 照片輸入處理
+        document.getElementById('photoInput').addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            const addBtn = document.getElementById('addPhotosBtn');
+            
+            if (selectedFiles.length > 0) {
+                addBtn.disabled = false;
+                addBtn.textContent = `添加 ${selectedFiles.length} 張照片`;
+                log(`選擇了 ${selectedFiles.length} 張照片`);
+            } else {
+                addBtn.disabled = true;
+                addBtn.textContent = '添加照片到 IndexedDB';
+            }
+        });
+
+        // 添加照片到 IndexedDB
+        document.getElementById('addPhotosBtn').addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            try {
+                log('開始處理照片...');
+                showStatus('photoStatus', '正在處理照片...', 'info');
+
+                // 模擬照片處理（創建 dataURL）
+                const processedPhotos = [];
+                
+                for (const file of selectedFiles) {
+                    const dataURL = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+
+                    processedPhotos.push({
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        lastModified: file.lastModified,
+                        dataURL: dataURL
+                    });
+                }
+
+                // 保存到 IndexedDB
+                await savePhotosToIndexedDB(processedPhotos);
+                
+                showStatus('photoStatus', `成功保存 ${processedPhotos.length} 張照片到 IndexedDB`, 'success');
+                log(`成功保存 ${processedPhotos.length} 張照片到 IndexedDB`);
+                
+                // 清空選擇
+                document.getElementById('photoInput').value = '';
+                selectedFiles = [];
+                document.getElementById('addPhotosBtn').disabled = true;
+                document.getElementById('addPhotosBtn').textContent = '添加照片到 IndexedDB';
+
+            } catch (error) {
+                showStatus('photoStatus', `保存失敗: ${error.message}`, 'error');
+                log(`保存失敗: ${error.message}`);
+            }
+        });
+
+        // 從 IndexedDB 載入照片
+        document.getElementById('loadPhotosBtn').addEventListener('click', async () => {
+            try {
+                log('開始從 IndexedDB 載入照片...');
+                showStatus('managementStatus', '正在載入照片...', 'info');
+
+                loadedPhotos = await loadPhotosFromIndexedDB();
+                
+                if (loadedPhotos.length > 0) {
+                    displayPhotos(loadedPhotos);
+                    showStatus('managementStatus', `成功載入 ${loadedPhotos.length} 張照片`, 'success');
+                    log(`成功載入 ${loadedPhotos.length} 張照片`);
+                } else {
+                    showStatus('managementStatus', '沒有找到照片', 'info');
+                    log('沒有找到照片');
+                }
+
+            } catch (error) {
+                showStatus('managementStatus', `載入失敗: ${error.message}`, 'error');
+                log(`載入失敗: ${error.message}`);
+            }
+        });
+
+        // 清除所有照片
+        document.getElementById('clearPhotosBtn').addEventListener('click', async () => {
+            try {
+                log('開始清除 IndexedDB 中的照片...');
+                showStatus('managementStatus', '正在清除照片...', 'info');
+
+                await clearPhotosFromIndexedDB();
+                
+                // 清空顯示
+                document.getElementById('photoGrid').innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                        已清除所有照片
+                    </div>
+                `;
+                
+                loadedPhotos = [];
+                showStatus('managementStatus', '成功清除所有照片', 'success');
+                log('成功清除所有照片');
+
+            } catch (error) {
+                showStatus('managementStatus', `清除失敗: ${error.message}`, 'error');
+                log(`清除失敗: ${error.message}`);
+            }
+        });
+
+        // 獲取存儲統計
+        document.getElementById('getStatsBtn').addEventListener('click', async () => {
+            try {
+                log('獲取存儲統計...');
+                
+                const photos = await loadPhotosFromIndexedDB();
+                const totalSize = photos.reduce((sum, photo) => sum + (photo.size || 0), 0);
+                const totalDataURLSize = photos.reduce((sum, photo) => sum + (photo.dataURL ? photo.dataURL.length : 0), 0);
+                
+                const stats = `
+                    照片數量: ${photos.length}
+                    原始大小: ${(totalSize / 1024 / 1024).toFixed(2)} MB
+                    DataURL 大小: ${(totalDataURLSize / 1024 / 1024).toFixed(2)} MB
+                `;
+                
+                showStatus('managementStatus', stats, 'info');
+                log(`存儲統計: ${stats.replace(/\n/g, ', ')}`);
+
+            } catch (error) {
+                showStatus('managementStatus', `獲取統計失敗: ${error.message}`, 'error');
+                log(`獲取統計失敗: ${error.message}`);
+            }
+        });
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 顯示照片
+        function displayPhotos(photos) {
+            const grid = document.getElementById('photoGrid');
+            
+            if (photos.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                        沒有照片
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = photos.map(photo => `
+                <div class="photo-item">
+                    <img src="${photo.dataURL}" alt="${photo.name}" style="max-height: 100px;">
+                    <div class="photo-name">${photo.name}</div>
+                    <div style="font-size: 10px; color: #999;">
+                        ${(photo.size / 1024).toFixed(1)} KB
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // IndexedDB 照片存儲功能（從 main.js 複製）
+        async function savePhotosToIndexedDB(photos) {
+            try {
+                if (!window.indexedDBManager || !photos || photos.length === 0) {
+                    throw new Error('IndexedDB manager not available or no photos to save');
+                }
+
+                log(`Saving photos to IndexedDB: ${photos.length}`);
+                
+                await window.indexedDBManager.init();
+                
+                const photosWithIds = photos.map((photo, index) => ({
+                    id: `photo_${Date.now()}_${index}_${photo.name}`,
+                    name: photo.name,
+                    size: photo.size,
+                    type: photo.type,
+                    lastModified: photo.lastModified,
+                    dataURL: photo.dataURL,
+                    timestamp: Date.now()
+                }));
+
+                const savePromises = photosWithIds.map(photo => 
+                    window.indexedDBManager.setItem(
+                        window.indexedDBManager.stores.PHOTO_METADATA, 
+                        photo.id, 
+                        photo
+                    )
+                );
+
+                await Promise.all(savePromises);
+                log(`Successfully saved photos to IndexedDB: ${photosWithIds.length}`);
+                
+            } catch (error) {
+                log(`Failed to save photos to IndexedDB: ${error.message}`);
+                throw error;
+            }
+        }
+
+        async function loadPhotosFromIndexedDB() {
+            try {
+                if (!window.indexedDBManager) {
+                    throw new Error('IndexedDB manager not available');
+                }
+
+                log('Loading photos from IndexedDB...');
+                
+                await window.indexedDBManager.init();
+                
+                const transaction = window.indexedDBManager.db.transaction([window.indexedDBManager.stores.PHOTO_METADATA], 'readonly');
+                const store = transaction.objectStore(window.indexedDBManager.stores.PHOTO_METADATA);
+                
+                return new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    
+                    request.onsuccess = () => {
+                        const photos = request.result || [];
+                        log(`Successfully loaded photos from IndexedDB: ${photos.length}`);
+                        
+                        const formattedPhotos = photos.map(photoData => ({
+                            name: photoData.data.name,
+                            size: photoData.data.size,
+                            type: photoData.data.type,
+                            lastModified: photoData.data.lastModified,
+                            dataURL: photoData.data.dataURL
+                        }));
+                        
+                        resolve(formattedPhotos);
+                    };
+                    
+                    request.onerror = () => {
+                        log(`Failed to load photos from IndexedDB: ${request.error}`);
+                        reject(request.error);
+                    };
+                });
+                
+            } catch (error) {
+                log(`Error loading photos from IndexedDB: ${error.message}`);
+                throw error;
+            }
+        }
+
+        async function clearPhotosFromIndexedDB() {
+            try {
+                if (!window.indexedDBManager) {
+                    throw new Error('IndexedDB manager not available');
+                }
+
+                log('Clearing photos from IndexedDB...');
+                
+                await window.indexedDBManager.init();
+                
+                const transaction = window.indexedDBManager.db.transaction([window.indexedDBManager.stores.PHOTO_METADATA], 'readwrite');
+                const store = transaction.objectStore(window.indexedDBManager.stores.PHOTO_METADATA);
+                
+                return new Promise((resolve, reject) => {
+                    const request = store.clear();
+                    
+                    request.onsuccess = () => {
+                        log('Successfully cleared photos from IndexedDB');
+                        resolve();
+                    };
+                    
+                    request.onerror = () => {
+                        log(`Failed to clear photos from IndexedDB: ${request.error}`);
+                        reject(request.error);
+                    };
+                });
+                
+            } catch (error) {
+                log(`Error clearing photos from IndexedDB: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // 頁面載入完成
+        document.addEventListener('DOMContentLoaded', () => {
+            log('頁面載入完成，IndexedDB 照片存儲測試準備就緒');
+            log('請選擇照片並測試 IndexedDB 存儲功能');
+        });
+    </script>
+</body>
+</html>

@@ -4197,26 +4197,58 @@ async function loadDataFromStorage() {
             // 若已用 FSA handle 載入照片，避免覆寫 allPhotos 與已渲染預覽
             const alreadyLoadedPhotos = Array.isArray(allPhotos) && allPhotos.length > 0 && window.loadedFromHandles === true;
 
-            // 載入照片元資料（僅在尚未從 handle 載入時）
-            if (!alreadyLoadedPhotos && parsedData.photoMetadata) {
-                window.logger.log('Loading photo metadata from localStorage:', parsedData.photoMetadata.length);
-                // 從元資料重建照片物件（包含 dataURL）
-                allPhotos = parsedData.photoMetadata.map(metadata => ({
-                    name: metadata.name,
-                    size: metadata.size || 0,
-                    type: metadata.type || 'image/jpeg',
-                    lastModified: metadata.lastModified || Date.now(),
-                    webkitRelativePath: metadata.webkitRelativePath || '',
-                    dataURL: metadata.dataURL || '' // 恢復 dataURL 以便顯示照片
-                }));
-            } else if (!alreadyLoadedPhotos && parsedData.allPhotoFilenames) {
-                // 向後相容：載入舊版本的照片檔案名稱
-                window.logger.log('Loading allPhotoFilenames (legacy):', parsedData.allPhotoFilenames);
-                allPhotos = parsedData.allPhotoFilenames.map(filename => ({
-                    name: filename,
-                    size: 0,
-                    type: 'image/jpeg'
-                }));
+            // 優先從 IndexedDB 載入照片元資料（僅在尚未從 handle 載入時）
+            if (!alreadyLoadedPhotos) {
+                try {
+                    // 嘗試從 IndexedDB 載入照片
+                    const indexedDBPhotos = await loadPhotosFromIndexedDB();
+                    
+                    if (indexedDBPhotos && indexedDBPhotos.length > 0) {
+                        window.logger.log('Loading photo metadata from IndexedDB:', indexedDBPhotos.length);
+                        allPhotos = indexedDBPhotos;
+                    } else if (parsedData.photoMetadata) {
+                        // 回退到 localStorage
+                        window.logger.log('Loading photo metadata from localStorage:', parsedData.photoMetadata.length);
+                        // 從元資料重建照片物件（包含 dataURL）
+                        allPhotos = parsedData.photoMetadata.map(metadata => ({
+                            name: metadata.name,
+                            size: metadata.size || 0,
+                            type: metadata.type || 'image/jpeg',
+                            lastModified: metadata.lastModified || Date.now(),
+                            webkitRelativePath: metadata.webkitRelativePath || '',
+                            dataURL: metadata.dataURL || '' // 恢復 dataURL 以便顯示照片
+                        }));
+                    } else if (parsedData.allPhotoFilenames) {
+                        // 向後相容：載入舊版本的照片檔案名稱
+                        window.logger.log('Loading allPhotoFilenames (legacy):', parsedData.allPhotoFilenames);
+                        allPhotos = parsedData.allPhotoFilenames.map(filename => ({
+                            name: filename,
+                            size: 0,
+                            type: 'image/jpeg'
+                        }));
+                    }
+                } catch (error) {
+                    window.logger.error('Error loading photos from IndexedDB, falling back to localStorage:', error);
+                    // 回退到 localStorage
+                    if (parsedData.photoMetadata) {
+                        window.logger.log('Loading photo metadata from localStorage (fallback):', parsedData.photoMetadata.length);
+                        allPhotos = parsedData.photoMetadata.map(metadata => ({
+                            name: metadata.name,
+                            size: metadata.size || 0,
+                            type: metadata.type || 'image/jpeg',
+                            lastModified: metadata.lastModified || Date.now(),
+                            webkitRelativePath: metadata.webkitRelativePath || '',
+                            dataURL: metadata.dataURL || ''
+                        }));
+                    } else if (parsedData.allPhotoFilenames) {
+                        window.logger.log('Loading allPhotoFilenames (legacy fallback):', parsedData.allPhotoFilenames);
+                        allPhotos = parsedData.allPhotoFilenames.map(filename => ({
+                            name: filename,
+                            size: 0,
+                            type: 'image/jpeg'
+                        }));
+                    }
+                }
             }
             
             // 載入資料夾資訊
@@ -7154,6 +7186,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     
                     allPhotos.push(...newPhotos);
                     window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
+                    
+                    // Save photos to IndexedDB
+                    await savePhotosToIndexedDB(newPhotos);
                     
                     // Update photo grid with new photos only (don't re-render existing ones)
                     window.logger.log('Add photos: Starting renderNewPhotosOnly...');
@@ -18881,4 +18916,198 @@ function syncDefectsToLabelsDetailTable() {
     if (typeof window.saveLabelsToStorage === 'function') {
         window.saveLabelsToStorage();
     }
+}
+
+// IndexedDB 照片存儲功能
+/**
+ * 保存照片數據到 IndexedDB
+ * @param {Array} photos - 要保存的照片數組
+ */
+async function savePhotosToIndexedDB(photos) {
+    try {
+        if (!window.indexedDBManager || !photos || photos.length === 0) {
+            window.logger.log('IndexedDB manager not available or no photos to save');
+            return;
+        }
+
+        window.logger.log('Saving photos to IndexedDB:', photos.length);
+        
+        // 確保 IndexedDB 已初始化
+        await window.indexedDBManager.init();
+        
+        // 為每張照片創建唯一的 ID
+        const photosWithIds = photos.map((photo, index) => ({
+            id: `photo_${Date.now()}_${index}_${photo.name}`,
+            name: photo.name,
+            size: photo.size,
+            type: photo.type,
+            lastModified: photo.lastModified,
+            webkitRelativePath: photo.webkitRelativePath || '',
+            dataURL: photo.dataURL,
+            timestamp: Date.now(),
+            isNewlyAdded: photo.isNewlyAdded || false
+        }));
+
+        // 批量保存到 IndexedDB
+        const savePromises = photosWithIds.map(photo => 
+            window.indexedDBManager.setItem(
+                window.indexedDBManager.stores.PHOTO_METADATA, 
+                photo.id, 
+                photo
+            )
+        );
+
+        await Promise.all(savePromises);
+        
+        window.logger.log('Successfully saved photos to IndexedDB:', photosWithIds.length);
+        
+        // 顯示成功通知
+        showNotification(`已將 ${photosWithIds.length} 張照片保存到 IndexedDB`, 'success', 2000);
+        
+    } catch (error) {
+        window.logger.error('Failed to save photos to IndexedDB:', error);
+        showNotification('保存照片到 IndexedDB 失敗，將使用 localStorage 備份', 'warning', 3000);
+        
+        // 回退到 localStorage 保存
+        await savePhotosToLocalStorage(photos);
+    }
+}
+
+/**
+ * 從 IndexedDB 讀取照片數據
+ * @returns {Array} 照片數據數組
+ */
+async function loadPhotosFromIndexedDB() {
+    try {
+        if (!window.indexedDBManager) {
+            window.logger.log('IndexedDB manager not available');
+            return [];
+        }
+
+        window.logger.log('Loading photos from IndexedDB...');
+        
+        // 確保 IndexedDB 已初始化
+        await window.indexedDBManager.init();
+        
+        // 獲取所有照片元數據
+        const transaction = window.indexedDBManager.db.transaction([window.indexedDBManager.stores.PHOTO_METADATA], 'readonly');
+        const store = transaction.objectStore(window.indexedDBManager.stores.PHOTO_METADATA);
+        
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            
+            request.onsuccess = () => {
+                const photos = request.result || [];
+                window.logger.log('Successfully loaded photos from IndexedDB:', photos.length);
+                
+                // 轉換為 allPhotos 格式
+                const formattedPhotos = photos.map(photoData => ({
+                    name: photoData.data.name,
+                    size: photoData.data.size,
+                    type: photoData.data.type,
+                    lastModified: photoData.data.lastModified,
+                    webkitRelativePath: photoData.data.webkitRelativePath || '',
+                    dataURL: photoData.data.dataURL,
+                    isNewlyAdded: photoData.data.isNewlyAdded || false
+                }));
+                
+                resolve(formattedPhotos);
+            };
+            
+            request.onerror = () => {
+                window.logger.error('Failed to load photos from IndexedDB:', request.error);
+                reject(request.error);
+            };
+        });
+        
+    } catch (error) {
+        window.logger.error('Error loading photos from IndexedDB:', error);
+        return [];
+    }
+}
+
+/**
+ * 從 IndexedDB 清除所有照片數據
+ */
+async function clearPhotosFromIndexedDB() {
+    try {
+        if (!window.indexedDBManager) {
+            window.logger.log('IndexedDB manager not available');
+            return;
+        }
+
+        window.logger.log('Clearing photos from IndexedDB...');
+        
+        // 確保 IndexedDB 已初始化
+        await window.indexedDBManager.init();
+        
+        // 清除照片元數據存儲
+        const transaction = window.indexedDBManager.db.transaction([window.indexedDBManager.stores.PHOTO_METADATA], 'readwrite');
+        const store = transaction.objectStore(window.indexedDBManager.stores.PHOTO_METADATA);
+        
+        return new Promise((resolve, reject) => {
+            const request = store.clear();
+            
+            request.onsuccess = () => {
+                window.logger.log('Successfully cleared photos from IndexedDB');
+                resolve();
+            };
+            
+            request.onerror = () => {
+                window.logger.error('Failed to clear photos from IndexedDB:', request.error);
+                reject(request.error);
+            };
+        });
+        
+    } catch (error) {
+        window.logger.error('Error clearing photos from IndexedDB:', error);
+    }
+}
+
+/**
+ * 回退到 localStorage 保存照片（當 IndexedDB 不可用時）
+ * @param {Array} photos - 要保存的照片數組
+ */
+async function savePhotosToLocalStorage(photos) {
+    try {
+        window.logger.log('Saving photos to localStorage as fallback:', photos.length);
+        
+        // 獲取現有的照片元數據
+        const existingData = localStorage.getItem('photoNumberExtractorData');
+        let mainData = existingData ? JSON.parse(existingData) : {};
+        
+        // 更新照片元數據
+        if (!mainData.photoMetadata) {
+            mainData.photoMetadata = [];
+        }
+        
+        // 添加新照片到現有元數據
+        const newPhotoMetadata = photos.map(photo => ({
+            name: photo.name,
+            size: photo.size,
+            type: photo.type,
+            lastModified: photo.lastModified,
+            webkitRelativePath: photo.webkitRelativePath || '',
+            dataURL: photo.dataURL,
+            timestamp: Date.now()
+        }));
+        
+        mainData.photoMetadata.push(...newPhotoMetadata);
+        
+        // 保存到 localStorage
+        localStorage.setItem('photoNumberExtractorData', JSON.stringify(mainData));
+        
+        window.logger.log('Successfully saved photos to localStorage:', newPhotoMetadata.length);
+        
+    } catch (error) {
+        window.logger.error('Failed to save photos to localStorage:', error);
+    }
+}
+
+// 導出函數供其他模組使用
+if (typeof window !== 'undefined') {
+    window.savePhotosToIndexedDB = savePhotosToIndexedDB;
+    window.loadPhotosFromIndexedDB = loadPhotosFromIndexedDB;
+    window.clearPhotosFromIndexedDB = clearPhotosFromIndexedDB;
+    window.savePhotosToLocalStorage = savePhotosToLocalStorage;
 }
