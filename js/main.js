@@ -7321,19 +7321,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                         }
                         // Photo is new and unique
                         else {
-                            window.logger.log('Add photos: Resizing new photo:', file.name, 'Number:', photoNumber);
-                            const resizedDataURL = await resizeImage(file);
-                            window.logger.log('Add photos: Resize completed for:', file.name);
+                            window.logger.log('Add photos: Adding new photo:', file.name, 'Number:', photoNumber);
                             
-                            // Create a new file object with the resized data
-                            const resizedFile = {
+                            // Create a new file object (same as Upload Photos Folder - dataURL will be generated in renderPhotos)
+                            const newFile = {
                                 name: file.name,
                                 size: file.size,
                                 type: file.type,
                                 lastModified: file.lastModified || Date.now(),
-                                dataURL: resizedDataURL
+                                dataURL: '' // Will be generated in renderPhotos() like Upload Photos Folder
                             };
-                            newPhotos.push(resizedFile);
+                            newPhotos.push(newFile);
                         }
                     } else {
                         window.logger.log('Add photos: Skipping non-image file:', file.name);
@@ -7355,11 +7353,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                     window.allPhotos = allPhotos;
                     window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
                     
-                    // Update photo grid with new photos only (don't re-render existing ones)
-                    window.logger.log('Add photos: Starting renderNewPhotosOnly...');
+                    // Update photo grid with all photos (same as Upload Photos Folder)
+                    window.logger.log('Add photos: Starting renderPhotos...');
                     const lazyObserver = initLazyLoading();
-                    await renderNewPhotosOnly(newPhotos, lazyObserver);
-                    window.logger.log('Add photos: renderNewPhotosOnly completed');
+                    await renderPhotos(allPhotos, lazyObserver);
+                    window.logger.log('Add photos: renderPhotos completed');
                     
                     // Update folder display
                     updateFolderDisplay();
