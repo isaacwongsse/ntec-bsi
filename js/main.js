@@ -4439,6 +4439,32 @@ async function loadDataFromStorage() {
     window.logger.log('Data loading completed. Categories content preserved from localStorage');
 }
 
+// Sort photos by sequence number (extracted from filename)
+function sortPhotosBySequenceNumber(photos) {
+    return photos.sort((a, b) => {
+        // Extract sequence numbers from filenames
+        const getSequenceNumber = (filename) => {
+            const match = filename.match(/(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+        };
+        
+        const seqA = getSequenceNumber(a.name);
+        const seqB = getSequenceNumber(b.name);
+        
+        // If both have sequence numbers, sort by number
+        if (seqA > 0 && seqB > 0) {
+            return seqA - seqB;
+        }
+        
+        // If only one has sequence number, prioritize it
+        if (seqA > 0 && seqB === 0) return -1;
+        if (seqA === 0 && seqB > 0) return 1;
+        
+        // If neither has sequence number, sort alphabetically
+        return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+    });
+}
+
 // Clear all categories content on page reload
 function clearCategoriesOnPageReload() {
     window.logger.log('Clearing all categories content on page reload');
@@ -4727,13 +4753,8 @@ function selectMultipleFiles() {
             folderNameDisplay.textContent = `Selected Files (${imageFiles.length})`;
             
             // Process files immediately without additional confirmation
-            allPhotos = imageFiles;
+            allPhotos = sortPhotosBySequenceNumber(imageFiles);
             window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
-            
-            // Sort photos by filename for sequential display
-            allPhotos.sort((a, b) => {
-                return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
-            });
             
             window.logger.log('Starting to render photos (Safari/Firefox)...');
             
@@ -4805,7 +4826,7 @@ async function selectPhotoFolder() {
                 showNotification('No valid image files found in the selected folder!', 'error');
                 return;
             }
-            allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+            allPhotos = sortPhotosBySequenceNumber(imageFiles);
             window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
             const lazyObserver = initLazyLoading();
             await renderPhotos(allPhotos, lazyObserver);
@@ -4860,13 +4881,8 @@ async function selectPhotoFolder() {
                 }
                 
                 // Process files immediately without additional confirmation
-                allPhotos = imageFiles;
+                allPhotos = sortPhotosBySequenceNumber(imageFiles);
                 window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
-                
-                // Sort photos by filename for sequential display
-                allPhotos.sort((a, b) => {
-                    return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
-                });
                 
                 window.logger.log('Starting to render photos...');
                 
@@ -7131,7 +7147,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     }
                 }
                 if (imageFiles.length > 0) {
-                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                    allPhotos = sortPhotosBySequenceNumber(imageFiles);
                     const lazyObserver = initLazyLoading();
                     await renderPhotos(allPhotos, lazyObserver);
                     updateFolderDisplay();
@@ -7354,11 +7370,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                     window.allPhotos = allPhotos;
                     window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
                     
-                    // Update photo grid with all photos (including new ones)
-                    window.logger.log('Add photos: Starting renderPhotos for all photos...');
+                    // Update photo grid with new photos only (don't re-render existing ones)
+                    window.logger.log('Add photos: Starting renderNewPhotosOnly...');
                     const lazyObserver = initLazyLoading();
-                    await renderPhotos(allPhotos, lazyObserver);
-                    window.logger.log('Add photos: renderPhotos completed');
+                    await renderNewPhotosOnly(newPhotos, lazyObserver);
+                    window.logger.log('Add photos: renderNewPhotosOnly completed');
                     
                     // Update folder display
                     updateFolderDisplay();

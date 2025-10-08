@@ -151,8 +151,8 @@
                     <tr class="different">
                         <td>照片渲染方法</td>
                         <td>renderPhotos() - 渲染所有照片</td>
-                        <td>renderPhotos() - 渲染所有照片</td>
-                        <td>✅ 已統一</td>
+                        <td>renderNewPhotosOnly() - 只渲染新照片</td>
+                        <td>✅ 保持原始差異</td>
                     </tr>
                     <tr class="unified">
                         <td>File 對象處理</td>
@@ -205,31 +205,46 @@ const newPhoto = {
 };
 newPhotos.push(newPhoto);
 
-// 使用 renderPhotos()
-await renderPhotos(allPhotos, lazyObserver);</div>
+// 保持使用 renderNewPhotosOnly()
+await renderNewPhotosOnly(newPhotos, lazyObserver);</div>
         </div>
 
         <div class="test-section">
             <h3>3. 統一後的處理流程</h3>
-            <div class="code-block">1. 用戶選擇照片（文件夾或單個文件）
+            
+            <h4>Upload Photos Folder 流程：</h4>
+            <div class="code-block">1. 用戶選擇照片文件夾
 2. 創建 File 對象數組
 3. 設置 allPhotos = imageFiles
 4. 調用 renderPhotos(allPhotos, lazyObserver)
    - 在 renderPhotos() 中檢查 dataURL
    - 如果沒有 dataURL，調用 resizeImage() 生成
-   - 渲染照片到 DOM
+   - 渲染所有照片到 DOM
 5. 調用 autoSaveAllPhotosToIndexedDB() 保存到 IndexedDB
 6. 調用 saveDataToStorage() 更新 localStorage</div>
+
+            <h4>Add Photos 流程：</h4>
+            <div class="code-block">1. 用戶選擇額外照片
+2. 檢查重複照片
+3. 創建新照片對象（不預先生成 dataURL）
+4. 添加到 allPhotos 數組
+5. 調用 renderNewPhotosOnly(newPhotos, lazyObserver)
+   - 在 renderNewPhotosOnly() 中檢查 dataURL
+   - 如果沒有 dataURL，調用 resizeImage() 生成
+   - 只渲染新照片到 DOM
+6. 調用 autoSaveAllPhotosToIndexedDB() 保存到 IndexedDB
+7. 調用 saveDataToStorage() 更新 localStorage</div>
         </div>
 
         <div class="test-section">
             <h3>4. 優勢</h3>
             <ul>
-                <li>✅ <strong>統一的處理流程：</strong> 兩種上傳方式使用相同的邏輯</li>
-                <li>✅ <strong>一致的 dataURL 生成：</strong> 都在 renderPhotos() 中生成</li>
+                <li>✅ <strong>統一的 dataURL 生成：</strong> 都在渲染函數中生成，避免預先生成</li>
+                <li>✅ <strong>統一的 File 對象處理：</strong> 都直接使用 File 對象</li>
                 <li>✅ <strong>統一的錯誤處理：</strong> 相同的 dataURL 驗證和錯誤處理</li>
-                <li>✅ <strong>簡化的代碼維護：</strong> 減少重複代碼</li>
+                <li>✅ <strong>保持渲染差異：</strong> Upload Photos Folder 渲染所有照片，Add Photos 只渲染新照片</li>
                 <li>✅ <strong>更好的性能：</strong> 避免重複的 dataURL 生成</li>
+                <li>✅ <strong>保持原有功能：</strong> 不改變用戶體驗</li>
             </ul>
         </div>
 
@@ -274,10 +289,12 @@ await renderPhotos(allPhotos, lazyObserver);</div>
         // 頁面載入完成
         document.addEventListener('DOMContentLoaded', () => {
             log('頁面載入完成，照片處理方法統一測試準備就緒');
-            log('✅ Upload Photos Folder 和 Add Photos 已統一處理方法');
-            log('✅ 都使用 renderPhotos() 中的 dataURL 生成');
+            log('✅ Upload Photos Folder 和 Add Photos 已部分統一處理方法');
+            log('✅ 都使用渲染函數中的 dataURL 生成（不再預先生成）');
             log('✅ 都直接使用 File 對象');
-            log('✅ 都使用相同的保存流程');
+            log('✅ Upload Photos Folder 使用 renderPhotos() - 渲染所有照片');
+            log('✅ Add Photos 使用 renderNewPhotosOnly() - 只渲染新照片');
+            log('✅ 保持渲染方法的差異，符合原始設計');
             log('請測試實際功能以確保修改正確');
         });
     </script>
