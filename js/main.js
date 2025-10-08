@@ -4206,6 +4206,7 @@ async function loadDataFromStorage() {
                     if (indexedDBPhotos && indexedDBPhotos.length > 0) {
                         window.logger.log('Loading photo metadata from IndexedDB:', indexedDBPhotos.length);
                         allPhotos = indexedDBPhotos;
+                        window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
                     } else if (parsedData.photoMetadata) {
                         // 回退到 localStorage（但需要從 IndexedDB 獲取 dataURL）
                         window.logger.log('Loading photo metadata from localStorage:', parsedData.photoMetadata.length);
@@ -4226,6 +4227,7 @@ async function loadDataFromStorage() {
                                         dataURL: indexedPhoto ? indexedPhoto.dataURL : '' // 從 IndexedDB 獲取 dataURL
                                     };
                                 });
+                                window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
                                 window.logger.log('Successfully merged localStorage metadata with IndexedDB dataURLs');
                             } else {
                                 // 如果 IndexedDB 中沒有照片，創建沒有 dataURL 的照片物件
@@ -4724,6 +4726,7 @@ function selectMultipleFiles() {
             
             // Process files immediately without additional confirmation
             allPhotos = imageFiles;
+            window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
             
             // Sort photos by filename for sequential display
             allPhotos.sort((a, b) => {
@@ -4801,6 +4804,7 @@ async function selectPhotoFolder() {
                 return;
             }
             allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+            window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
             const lazyObserver = initLazyLoading();
             await renderPhotos(allPhotos, lazyObserver);
             updateFolderDisplay();
@@ -4855,6 +4859,7 @@ async function selectPhotoFolder() {
                 
                 // Process files immediately without additional confirmation
                 allPhotos = imageFiles;
+                window.allPhotos = allPhotos; // 確保 window.allPhotos 同步
                 
                 // Sort photos by filename for sequential display
                 allPhotos.sort((a, b) => {
@@ -7360,6 +7365,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     });
                     
                     allPhotos.push(...newPhotos);
+                    // 確保 window.allPhotos 與 allPhotos 同步
+                    window.allPhotos = allPhotos;
                     window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
                     
                     // Update photo grid with new photos only (don't re-render existing ones)
@@ -19087,13 +19094,15 @@ function syncDefectsToLabelsDetailTable() {
  */
 async function autoSaveAllPhotosToIndexedDB() {
     try {
-        if (!window.allPhotos || window.allPhotos.length === 0) {
+        // 檢查 both window.allPhotos 和 allPhotos
+        const photosToCheck = window.allPhotos || allPhotos;
+        if (!photosToCheck || photosToCheck.length === 0) {
             window.logger.log('No photos in allPhotos container to save');
             return;
         }
 
-        window.logger.log('Auto-saving all photos to IndexedDB:', window.allPhotos.length);
-        window.logger.log('DEBUG: allPhotos details:', window.allPhotos.map(photo => ({
+        window.logger.log('Auto-saving all photos to IndexedDB:', photosToCheck.length);
+        window.logger.log('DEBUG: allPhotos details:', photosToCheck.map(photo => ({
             name: photo.name,
             isNewlyAdded: photo.isNewlyAdded,
             hasDataURL: !!photo.dataURL
@@ -19105,7 +19114,7 @@ async function autoSaveAllPhotosToIndexedDB() {
         window.logger.log('DEBUG: existing photos in IndexedDB:', existingPhotoNames);
         
         // 找出需要保存的新照片（包括新添加的照片）
-        const newPhotos = window.allPhotos.filter(photo => {
+        const newPhotos = photosToCheck.filter(photo => {
             // 檢查是否是新添加的照片
             if (photo.isNewlyAdded) {
                 return true;
