@@ -6912,10 +6912,51 @@ document.addEventListener('DOMContentLoaded', async function() {
                     // 1) 先清空 IndexedDB（包含先前儲存的 FSA handles 與資料）
                     try {
                         await window.storageAdapter.clear();
-                    } catch (e) { /* 忽略清除錯誤 */ }
-                    // 也同步清空 localStorage（保險移除殘留鍵）
-                    try { localStorage.clear(); } catch (e) { /* noop */ }
-                    // 2) 重置前端狀態，提供完全空白的開始
+                        window.logger.log('Start fresh: IndexedDB cleared successfully');
+                    } catch (e) { 
+                        window.logger.error('Start fresh: Failed to clear IndexedDB:', e);
+                    }
+                    
+                    // 2) 同步清空 localStorage（保險移除殘留鍵）
+                    try { 
+                        localStorage.clear(); 
+                        window.logger.log('Start fresh: localStorage cleared successfully');
+                    } catch (e) { 
+                        window.logger.error('Start fresh: Failed to clear localStorage:', e);
+                    }
+                    
+                    // 3) 額外清除特定的缺陷相關鍵值
+                    try {
+                        const defectRelatedKeys = [
+                            'photoNumberExtractorData',
+                            'pne_floorplan_labels',
+                            'pne_floorplan_defect_marks',
+                            'pne_floorplan_base64',
+                            'pne_floorplan_data',
+                            'pne_floorplan_filename'
+                        ];
+                        
+                        defectRelatedKeys.forEach(key => {
+                            localStorage.removeItem(key);
+                        });
+                        
+                        window.logger.log('Start fresh: Removed defect-related keys from localStorage');
+                    } catch (e) {
+                        window.logger.error('Start fresh: Failed to remove defect-related keys:', e);
+                    }
+                    
+                    // 4) 重新初始化存儲適配器以確保狀態一致
+                    try {
+                        if (window.storageAdapter) {
+                            window.storageAdapter.initialized = false;
+                            await window.storageAdapter.init();
+                            window.logger.log('Start fresh: Storage adapter re-initialized');
+                        }
+                    } catch (e) {
+                        window.logger.error('Start fresh: Failed to re-initialize storage adapter:', e);
+                    }
+                    
+                    // 5) 重置前端狀態，提供完全空白的開始
                     try {
                         submittedData = [];
                         submittedDefectEntries = [];
@@ -6999,6 +7040,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                         });
                         
                         window.logger.log('Start fresh: All tables re-initialized successfully');
+                        
+                        // 6) 驗證數據清除是否成功
+                        try {
+                            const verificationData = await window.storageAdapter.getItem('photoNumberExtractorData');
+                            if (verificationData && (verificationData.defectEntries || verificationData.submittedDefectEntries)) {
+                                window.logger.warn('Start fresh: Verification failed - defect data still exists in storage');
+                                // 強制清除
+                                await window.storageAdapter.removeItem('photoNumberExtractorData');
+                                window.logger.log('Start fresh: Force removed photoNumberExtractorData');
+                            } else {
+                                window.logger.log('Start fresh: Verification successful - no defect data found in storage');
+                            }
+                        } catch (e) {
+                            window.logger.error('Start fresh: Verification failed:', e);
+                        }
                         
                         // 關閉並重置繪圖模式與 PDF 檢視
                         const floorPlanOverlay = document.getElementById('floorPlanOverlay');
@@ -8940,6 +8996,7 @@ window.saveDataToStorage = async function() {
     };
     window.logger.log('saveDataToStorage: Enhanced data saved (excluding submittedData - inspection records are display only)');
     await window.storageAdapter.setItem('photoNumberExtractorData', dataToSave);
+    window.logger.log('saveDataToStorage: Data synchronized to both localStorage and IndexedDB');
 
     // 同步更新單獨的樓層平面圖儲存鍵，避免重載時不同來源互相覆蓋
     try {
@@ -8953,7 +9010,7 @@ window.saveDataToStorage = async function() {
         } else {
             await window.storageAdapter.setItem('pne_floorplan_defect_marks', dataToSave.floorPlanDefectMarks || []);
         }
-        window.logger.log('saveDataToStorage: Synced LABELS_LS_KEY and DEFECT_MARKS_LS_KEY with latest state');
+        window.logger.log('saveDataToStorage: Floor plan data synchronized to both localStorage and IndexedDB');
     } catch (err) {
         window.logger.error('saveDataToStorage: Failed syncing floor plan keys', err);
     }
