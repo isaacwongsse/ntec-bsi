@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片顯示問題修復測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        button.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        button.warning:hover {
+            background: #e0a800;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+            min-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .photo-item {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+        }
+        .photo-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 3px;
+        }
+        .photo-item .photo-name {
+            font-size: 12px;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        .photo-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            display: none;
+        }
+        .diagnostic-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .diagnostic-info h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .data-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .test-steps {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>照片顯示問題修復測試</h1>
+        
+        <div class="test-steps">
+            <h3>測試步驟：</h3>
+            <ol>
+                <li>檢查照片 dataURL 有效性</li>
+                <li>測試損壞 dataURL 的處理</li>
+                <li>驗證照片顯示修復</li>
+                <li>檢查會話恢復模態框</li>
+            </ol>
+        </div>
+        
+        <div class="test-section">
+            <h3>1. 照片 dataURL 檢查</h3>
+            <button id="checkDataURLBtn">檢查照片 dataURL</button>
+            <div id="dataURLResult" class="status info" style="display: none;"></div>
+            <div class="data-display" id="dataURLInfo">尚未檢查</div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 模擬損壞的 dataURL</h3>
+            <button id="testCorruptedDataBtn">測試損壞 dataURL 處理</button>
+            <div id="corruptedResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 照片預覽測試</h3>
+            <div id="photoGrid" class="photo-grid">
+                <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                    尚未載入照片
+                </div>
+            </div>
+            <button id="loadTestPhotosBtn">載入測試照片</button>
+            <button id="clearPhotosBtn">清除照片</button>
+            <div id="photoTestResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 會話恢復模態框測試</h3>
+            <button id="testModalBtn">測試會話恢復模態框</button>
+            <div id="modalTestResult" class="status info" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. 修復前後對比</h3>
+            <div class="diagnostic-info">
+                <h4>修復前的問題：</h4>
+                <ul>
+                    <li>❌ 照片短暫顯示後消失</li>
+                    <li>❌ 損壞的 dataURL 導致圖片載入失敗</li>
+                    <li>❌ 沒有錯誤處理機制</li>
+                    <li>❌ 會話恢復模態框不顯示</li>
+                </ul>
+                <h4>修復後的改善：</h4>
+                <ul>
+                    <li>✅ 檢查 dataURL 有效性</li>
+                    <li>✅ 損壞的 dataURL 顯示錯誤占位符</li>
+                    <li>✅ 添加圖片載入錯誤處理</li>
+                    <li>✅ 會話恢復模態框正常顯示</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 操作日誌</h3>
+            <div id="log" class="log"></div>
+            <button id="clearLogBtn">清除日誌</button>
+        </div>
+    </div>
+
+    <script>
+        // 日誌函數
+        function log(message, ...args) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (args.length > 0) {
+                logEntry.innerHTML += ` ${JSON.stringify(args)}`;
+            }
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // 顯示狀態
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        // 檢查照片 dataURL
+        document.getElementById('checkDataURLBtn').addEventListener('click', async () => {
+            log('檢查照片 dataURL...');
+            
+            try {
+                // 檢查 localStorage
+                const localStorageData = localStorage.getItem('photoNumberExtractorData');
+                
+                let dataURLInfo = `照片 dataURL 檢查結果:\n`;
+                
+                if (localStorageData) {
+                    const parsed = JSON.parse(localStorageData);
+                    if (parsed.photoMetadata && parsed.photoMetadata.length > 0) {
+                        dataURLInfo += `發現 ${parsed.photoMetadata.length} 張照片的元數據\n\n`;
+                        
+                        parsed.photoMetadata.forEach((photo, index) => {
+                            dataURLInfo += `照片 ${index + 1}: ${photo.name}\n`;
+                            dataURLInfo += `- 有 dataURL: ${!!photo.dataURL}\n`;
+                            if (photo.dataURL) {
+                                dataURLInfo += `- dataURL 長度: ${photo.dataURL.length}\n`;
+                                dataURLInfo += `- 是否以 data:image/ 開頭: ${photo.dataURL.startsWith('data:image/')}\n`;
+                                dataURLInfo += `- dataURL 前50字符: ${photo.dataURL.substring(0, 50)}...\n`;
+                            }
+                            dataURLInfo += `\n`;
+                        });
+                    } else {
+                        dataURLInfo += `沒有發現照片元數據\n`;
+                    }
+                } else {
+                    dataURLInfo += `沒有發現 localStorage 數據\n`;
+                }
+                
+                document.getElementById('dataURLInfo').textContent = dataURLInfo;
+                showStatus('dataURLResult', '✅ dataURL 檢查完成', 'success');
+                log('✅ dataURL 檢查完成');
+                
+            } catch (error) {
+                showStatus('dataURLResult', `檢查失敗: ${error.message}`, 'error');
+                log(`檢查失敗: ${error.message}`);
+            }
+        });
+
+        // 測試損壞的 dataURL
+        document.getElementById('testCorruptedDataBtn').addEventListener('click', () => {
+            log('測試損壞 dataURL 處理...');
+            
+            const grid = document.getElementById('photoGrid');
+            grid.innerHTML = '';
+            
+            // 創建測試照片項目
+            const testPhotos = [
+                { name: 'valid-photo.jpg', dataURL: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwN2JmZiIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlZhbGlkPC90ZXh0Pjwvc3ZnPg==' },
+                { name: 'corrupted-photo.jpg', dataURL: 'data:image/jpeg;base64,corrupted_data_here' },
+                { name: 'empty-photo.jpg', dataURL: '' },
+                { name: 'invalid-photo.jpg', dataURL: 'not_a_data_url' }
+            ];
+            
+            testPhotos.forEach((photo, index) => {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'photo-item';
+                photoItem.innerHTML = `
+                    <img src="${photo.dataURL}" alt="${photo.name}" onerror="this.style.display='none'; this.parentElement.querySelector('.photo-error').style.display='flex';">
+                    <div class="photo-name">${photo.name}</div>
+                    <div class="photo-error">Data Error</div>
+                `;
+                grid.appendChild(photoItem);
+            });
+            
+            showStatus('corruptedResult', '✅ 損壞 dataURL 測試完成', 'success');
+            log('✅ 損壞 dataURL 測試完成');
+        });
+
+        // 載入測試照片
+        document.getElementById('loadTestPhotosBtn').addEventListener('click', () => {
+            log('載入測試照片...');
+            
+            const grid = document.getElementById('photoGrid');
+            grid.innerHTML = '';
+            
+            // 創建有效的測試照片
+            const testPhotos = [
+                { name: 'test1.jpg', dataURL: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwN2JmZiIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlRlc3QgMTwvdGV4dD48L3N2Zz4=' },
+                { name: 'test2.jpg', dataURL: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzI4YTc0NSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPlRlc3QgMjwvdGV4dD48L3N2Zz4=' },
+                { name: 'test3.jpg', dataURL: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmYzEwNyIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjMjEyNTI5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+VGVzdCAzPC90ZXh0Pjwvc3ZnPg==' }
+            ];
+            
+            testPhotos.forEach((photo, index) => {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'photo-item';
+                photoItem.innerHTML = `
+                    <img src="${photo.dataURL}" alt="${photo.name}" onerror="this.style.display='none'; this.parentElement.querySelector('.photo-error').style.display='flex';">
+                    <div class="photo-name">${photo.name}</div>
+                    <div class="photo-error">Error</div>
+                `;
+                grid.appendChild(photoItem);
+            });
+            
+            showStatus('photoTestResult', '✅ 測試照片載入完成', 'success');
+            log('✅ 測試照片載入完成');
+        });
+
+        // 清除照片
+        document.getElementById('clearPhotosBtn').addEventListener('click', () => {
+            const grid = document.getElementById('photoGrid');
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">
+                    照片已清除
+                </div>
+            `;
+            log('照片已清除');
+        });
+
+        // 測試會話恢復模態框
+        document.getElementById('testModalBtn').addEventListener('click', () => {
+            log('測試會話恢復模態框...');
+            
+            // 模擬檢查會話恢復邏輯
+            const hasData = localStorage.getItem('photoNumberExtractorData');
+            const modal = document.getElementById('sessionRestoreModal');
+            
+            if (hasData && modal) {
+                log('發現保存的數據，應該顯示會話恢復模態框');
+                showStatus('modalTestResult', '✅ 應該顯示會話恢復模態框', 'success');
+            } else if (!hasData) {
+                log('沒有發現保存的數據');
+                showStatus('modalTestResult', '⚠️ 沒有發現保存的數據', 'warning');
+            } else {
+                log('模態框元素不存在');
+                showStatus('modalTestResult', '❌ 模態框元素不存在', 'error');
+            }
+        });
+
+        // 清除日誌
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('log').innerHTML = '';
+        });
+
+        // 頁面載入完成
+        document.addEventListener('DOMContentLoaded', () => {
+            log('頁面載入完成，照片顯示問題修復測試準備就緒');
+            log('請按照步驟進行測試');
+        });
+    </script>
+</body>
+</html>

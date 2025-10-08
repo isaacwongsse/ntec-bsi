@@ -4982,9 +4982,10 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
             window.logger.log(`New photo ${file.name}: isNewlyAdded=${file.isNewlyAdded}, newIconHtml=${newIconHtml ? 'added' : 'not added'}`);
             
             photoItem.innerHTML = `
-                <img src="${resizedImageURL}" alt="${file.name}">
+                <img src="${resizedImageURL}" alt="${file.name}" onerror="this.style.display='none'; this.parentElement.querySelector('.photo-error').style.display='flex';">
                 <div class="photo-number">${number}</div>
                 <div class="photo-status" id="status-${index}"></div>
+                <div class="photo-error" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(255,0,0,0.8); color:white; padding:5px; border-radius:3px; font-size:12px;">Error</div>
                 ${newIconHtml}
             `;
             
@@ -5166,8 +5167,14 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 // Check if file already has a valid dataURL, or generate one for new photos
                 let resizedImageURL;
                 if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '') {
-                    resizedImageURL = file.dataURL;
-                    window.logger.log(`Using existing dataURL for: ${file.name}`);
+                    // 檢查 dataURL 是否有效
+                    if (file.dataURL.startsWith('data:image/') && file.dataURL.length > 100) {
+                        resizedImageURL = file.dataURL;
+                        window.logger.log(`Using existing dataURL for: ${file.name}`);
+                    } else {
+                        window.logger.warn(`Invalid dataURL for ${file.name}, will show error placeholder`);
+                        resizedImageURL = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmMDAwMCIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkRhdGEgRXJyb3I8L3RleHQ+PC9zdmc+';
+                    }
                 } else if (file instanceof File) {
                     // For new uploaded photos, generate dataURL
                     window.logger.log(`Generating dataURL for new photo: ${file.name}`);
@@ -5224,9 +5231,10 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 window.logger.log(`Photo ${file.name}: isNewlyAdded=${file.isNewlyAdded}, newIconHtml=${newIconHtml ? 'added' : 'not added'}`);
                 
                 photoItem.innerHTML = `
-                    <img src="${resizedImageURL}" alt="${file.name}">
+                    <img src="${resizedImageURL}" alt="${file.name}" onerror="this.style.display='none'; this.parentElement.querySelector('.photo-error').style.display='flex';">
                     <div class="photo-number">${number}</div>
                     <div class="photo-status" id="status-${index}"></div>
+                    <div class="photo-error" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(255,0,0,0.8); color:white; padding:5px; border-radius:3px; font-size:12px;">Error</div>
                     ${newIconHtml}
                 `;
                 
