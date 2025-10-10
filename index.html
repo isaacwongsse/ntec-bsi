@@ -57,7 +57,7 @@
                     // 載入新的 manifest
                     const manifestLink = document.createElement('link');
                     manifestLink.rel = 'manifest';
-                    manifestLink.href = './manifest.json?v=' + Date.now();
+                    manifestLink.href = 'manifest.json?v=' + Date.now();
                     document.head.appendChild(manifestLink);
                     
                 } catch (error) {

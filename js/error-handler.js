@@ -41,6 +41,11 @@ class ErrorHandler {
                 const src = event.target.src || event.target.href || '';
                 const isIgnoredResource = this.shouldIgnoreResourceError(src, event.target.tagName);
                 
+                // 調試信息
+                if (CONFIG.isDevelopment) {
+                    console.debug(`[RESOURCE ERROR] ${src} (${event.target.tagName}) - Ignored: ${isIgnoredResource}`);
+                }
+                
                 if (!isIgnoredResource) {
                     this.handleError({
                         type: 'resource',
@@ -88,6 +93,9 @@ class ErrorHandler {
         // 檢查是否匹配忽略模式
         for (const pattern of ignoredPatterns) {
             if (pattern.test(src)) {
+                if (CONFIG.isDevelopment) {
+                    console.debug(`[IGNORED] Resource matched pattern: ${pattern} for ${src}`);
+                }
                 return true;
             }
         }
@@ -95,6 +103,11 @@ class ErrorHandler {
         // 忽略某些標籤的特定錯誤
         if (tagName === 'SCRIPT' && src.includes('pdf.js')) {
             return true; // PDF.js 載入失敗是可接受的
+        }
+        
+        // 調試信息
+        if (CONFIG.isDevelopment) {
+            console.debug(`[NOT IGNORED] Resource: ${src} (${tagName})`);
         }
         
         return false;
