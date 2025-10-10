@@ -46,8 +46,15 @@ class ErrorHandler {
                         type: 'resource',
                         message: `Failed to load resource: ${src}`,
                         element: event.target.tagName,
+                        elementId: event.target.id || '',
+                        elementClass: event.target.className || '',
                         timestamp: new Date().toISOString()
                     });
+                } else {
+                    // 記錄被忽略的資源錯誤（僅在開發模式下）
+                    if (CONFIG.isDevelopment) {
+                        console.debug(`[IGNORED] Resource load failed: ${src} (${event.target.tagName})`);
+                    }
                 }
             }
         }, true);
@@ -71,7 +78,11 @@ class ErrorHandler {
             // 空的或無效的 src
             /^$|^undefined$|^null$/,
             // 數據 URL（通常不會失敗）
-            /^data:/
+            /^data:/,
+            // 主頁面 URL（可能是某些元素的錯誤配置）
+            /isaacwongsse\.github\.io\/ntec-bsi\/?$/,
+            // 相對路徑的根目錄
+            /^\/$|^\.\/$/
         ];
         
         // 檢查是否匹配忽略模式
