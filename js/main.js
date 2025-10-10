@@ -4652,14 +4652,18 @@ async function loadDataFromStorage() {
                     allPhotos = photosFromStorage;
                     window.logger.log('Loaded photos with dataURL:', allPhotos.filter(p => p.dataURL).length, 'of', allPhotos.length);
                     
-                    // 渲染載入的照片
-                    if (allPhotos.length > 0 && allPhotos.some(p => p.dataURL)) {
+                    // 渲染載入的照片 - 修復：即使沒有 dataURL 也要渲染照片
+                    if (allPhotos.length > 0) {
                         window.logger.log('Rendering loaded photos from storage...');
                         setTimeout(async () => {
                             try {
                                 const lazyObserver = initLazyLoading();
                                 await renderPhotos(allPhotos, lazyObserver);
                                 window.logger.log('Photos rendered successfully from storage');
+                                
+                                // 更新資料夾顯示和按鈕可見性
+                                updateFolderDisplay();
+                                updateAddPhotosButtonVisibility();
                             } catch (error) {
                                 window.logger.error('Error rendering photos from storage:', error);
                             }
@@ -7189,8 +7193,8 @@ async function clearTable() {
 // Initialize the page
 initCategories();
 initCustomSelect();
-// 移除此處的自動載入，等待用戶在會話恢復彈窗中做出選擇
-// loadDataFromStorage(); 
+// 修復：恢復自動載入數據，確保頁面重新載入時能恢復所有數據
+loadDataFromStorage(); 
 updateTableCount();
 updateFolderDisplay();
 
@@ -7199,11 +7203,12 @@ if (typeof window.updateDefectSummaryTable === 'function') {
     window.updateDefectSummaryTable();
 }
 
+// 修復：不要在頁面重新載入時清空分類內容，保留已保存的數據
 // Clear all category content on page reload to prevent persistence issues
-categories.forEach(category => {
-    updateCategoryDisplay(category.id);
-});
-window.logger.log('Page initialization: Cleared all category content on reload');
+// categories.forEach(category => {
+//     updateCategoryDisplay(category.id);
+// });
+// window.logger.log('Page initialization: Cleared all category content on reload');
 
 // 全局變數：追蹤標題欄位是否來自標籤分配
 let isHeaderFromLabelAssignment = false;
@@ -10027,12 +10032,20 @@ if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
 }
 
 // 頁面重新載入時清空缺陷摘要表格，防止顯示來自缺陷標記的數據
-    const defectSummaryTableBody = document.getElementById('defectSummaryTableBody');
-    const defectSummaryCount = document.getElementById('defectSummaryCount');
+// 修復：只有在沒有已保存的缺陷數據時才清空表格
+const defectSummaryTableBody = document.getElementById('defectSummaryTableBody');
+const defectSummaryCount = document.getElementById('defectSummaryCount');
 if (defectSummaryTableBody) {
+    // 檢查是否有已保存的缺陷數據
+    const hasSavedDefectData = window.submittedDefectEntries && window.submittedDefectEntries.length > 0;
+    
+    if (!hasSavedDefectData) {
         defectSummaryTableBody.innerHTML = '<tr><td colspan="14" class="empty-state">No defect summary data yet</td></tr>';
         defectSummaryCount.textContent = '0 entries';
-    window.logger.log('Page initialization: Cleared defect summary table on reload to prevent defect mark data display');
+        window.logger.log('Page initialization: Cleared defect summary table on reload (no saved defect data)');
+    } else {
+        window.logger.log('Page initialization: Preserving defect summary table (has saved defect data)');
+    }
 }
 
 // 確保在 loadDataFromStorage 後也更新分類表和缺陷摘要表
@@ -14514,8 +14527,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // 清理PDF數據存儲，只保留文件引用
-    clearPDFDataFromStorage();
+    // 修復：不要清理PDF數據存儲，保留文件引用和標籤/缺陷標記數據
+    // clearPDFDataFromStorage(); // 註釋掉，避免清理已保存的數據
     
     // 再次檢查PDF數據狀態
     window.logger.log('After clearPDFDataFromStorage - PDF data status check:');
