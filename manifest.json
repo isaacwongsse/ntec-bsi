@@ -2,7 +2,7 @@
   "name": "Photo Number Extractor",
   "short_name": "PNE",
   "description": "Extract numbers from photos and assign to categories for inspection data management",
-  "version": "6.1.5",
+  "version": "6.1.4",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -69,6 +69,12 @@
     {
       "src": "./assets/images/icon-128x128.png",
       "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/images/icon-144x144.png",
+      "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },

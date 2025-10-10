@@ -76,40 +76,55 @@ class PhotoOptimizer {
     // 壓縮圖片
     async compressImage(src) {
         return new Promise((resolve, reject) => {
+            // 檢查是否在 file:// 協議下運行
+            if (window.location.protocol === 'file:') {
+                window.logger.log('Skipping image compression in file:// protocol');
+                reject(new Error('Image compression not supported in file:// protocol'));
+                return;
+            }
+            
             const img = new Image();
             img.crossOrigin = 'anonymous';
             
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // 計算壓縮後的尺寸
-                const maxWidth = CONFIG.photo.maxWidth || 1920;
-                const maxHeight = CONFIG.photo.maxHeight || 1080;
-                const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-                
-                canvas.width = img.width * ratio;
-                canvas.height = img.height * ratio;
-                
-                // 繪製壓縮後的圖片
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                // 轉換為 blob
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) {
-                            const compressedUrl = URL.createObjectURL(blob);
-                            resolve(compressedUrl);
-                        } else {
-                            reject(new Error('Failed to compress image'));
-                        }
-                    },
-                    'image/jpeg',
-                    CONFIG.photo.quality || 0.8
-                );
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 計算壓縮後的尺寸
+                    const maxWidth = CONFIG.photo.maxWidth || 1920;
+                    const maxHeight = CONFIG.photo.maxHeight || 1080;
+                    const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
+                    
+                    canvas.width = img.width * ratio;
+                    canvas.height = img.height * ratio;
+                    
+                    // 繪製壓縮後的圖片
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // 轉換為 blob
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const compressedUrl = URL.createObjectURL(blob);
+                                resolve(compressedUrl);
+                            } else {
+                                reject(new Error('Failed to compress image'));
+                            }
+                        },
+                        'image/jpeg',
+                        CONFIG.photo.quality || 0.8
+                    );
+                } catch (error) {
+                    window.logger.error('Error during image compression:', error);
+                    reject(error);
+                }
             };
             
-            img.onerror = () => reject(new Error('Failed to load image for compression'));
+            img.onerror = () => {
+                window.logger.error('Failed to load image for compression:', src);
+                reject(new Error('Failed to load image for compression'));
+            };
             
             // 正確處理 File 對象或 URL 字符串
             if (src instanceof File) {
@@ -173,6 +188,18 @@ class PhotoOptimizer {
             // 檢查照片是否有有效的 dataURL
             if (!photo.dataURL || typeof photo.dataURL !== 'string' || photo.dataURL.trim() === '') {
                 window.logger.warn(`Photo ${photo.name} has no valid dataURL, skipping compression`);
+                return photo; // 返回原始照片，不進行壓縮
+            }
+            
+            // 檢查是否在 file:// 協議下運行
+            if (window.location.protocol === 'file:') {
+                window.logger.log(`Skipping compression for ${photo.name} in file:// protocol`);
+                return photo; // 在 file:// 協議下跳過壓縮
+            }
+            
+            // 檢查 dataURL 是否為有效的 base64 格式
+            if (!photo.dataURL.startsWith('data:image/')) {
+                window.logger.warn(`Photo ${photo.name} has invalid dataURL format, skipping compression`);
                 return photo; // 返回原始照片，不進行壓縮
             }
             

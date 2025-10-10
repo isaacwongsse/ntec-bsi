@@ -3,12 +3,6 @@ const CONFIG = {
     // 開發模式檢測
     isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
     
-    // 錯誤顯示配置
-    errors: {
-        // 僅在開發環境顯示資源載入的提示訊息，正式環境預設不顯示
-        showResourceToasts: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    },
-    
     // 照片處理配置
     photo: {
         maxSize: 5 * 1024 * 1024, // 5MB

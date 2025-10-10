@@ -1,5 +1,5 @@
 /**
- * IndexedDB 管理器 - 替代 localStorage 的存儲解決方案
+ * IndexedDB 管理器 - 主要存儲解決方案
  * 提供異步數據存儲、更大的存儲容量和更好的性能
  */
 class IndexedDBManager {
@@ -8,7 +8,6 @@ class IndexedDBManager {
         this.dbVersion = 1;
         this.db = null;
         this.isInitialized = false;
-        this.fallbackToLocalStorage = true;
         
         // 對象存儲名稱
         this.stores = {
@@ -27,24 +26,15 @@ class IndexedDBManager {
      */
     async init() {
         if (this.isInitialized) {
-            console.log('IndexedDB 已經初始化，跳過重複初始化');
             return Promise.resolve();
         }
-
-        console.log('開始初始化 IndexedDB...');
 
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
 
             request.onerror = () => {
                 console.error('IndexedDB 初始化失敗:', request.error);
-                if (this.fallbackToLocalStorage) {
-                    console.warn('回退到 localStorage');
-                    this.isInitialized = true;
-                    resolve();
-                } else {
-                    reject(request.error);
-                }
+                reject(request.error);
             };
 
             request.onsuccess = () => {
@@ -75,7 +65,7 @@ class IndexedDBManager {
                     db.createObjectStore(this.stores.VIEW_STATE, { keyPath: 'id' });
                 }
                 if (!db.objectStoreNames.contains(this.stores.USER_SETTINGS)) {
-                    db.createObjectStore(this.stores.USER_SETTINGS, { keyPath: 'key' });
+                    db.createObjectStore(this.stores.USER_SETTINGS, { keyPath: 'id' });
                 }
                 if (!db.objectStoreNames.contains(this.stores.PHOTO_METADATA)) {
                     db.createObjectStore(this.stores.PHOTO_METADATA, { keyPath: 'id' });
@@ -95,7 +85,7 @@ class IndexedDBManager {
         }
 
         if (!this.db) {
-            return this.fallbackSetItem(key, value);
+            throw new Error('IndexedDB 未初始化');
         }
 
         return new Promise((resolve, reject) => {
@@ -105,13 +95,11 @@ class IndexedDBManager {
             // 確保 key 是有效的字符串或數字
             const validKey = key !== null && key !== undefined ? String(key) : 'default';
             
-            // 依據 object store 的 keyPath 建立正確的主鍵欄位
-            // 大多數 store 使用 { keyPath: 'id' }，唯獨 userSettings 使用 { keyPath: 'key' }
-            const record = (storeName === this.stores.USER_SETTINGS)
-                ? { key: validKey, data: value, timestamp: Date.now() }
-                : { id: validKey, data: value, timestamp: Date.now() };
-
-            const request = store.put(record);
+            const request = store.put({ 
+                id: validKey, 
+                data: value, 
+                timestamp: Date.now() 
+            });
 
             request.onsuccess = () => {
                 console.log(`數據已保存到 ${storeName}:`, validKey);
@@ -120,12 +108,7 @@ class IndexedDBManager {
 
             request.onerror = () => {
                 console.error(`保存到 ${storeName} 失敗:`, request.error);
-                if (this.fallbackToLocalStorage) {
-                    this.fallbackSetItem(key, value);
-                    resolve();
-                } else {
-                    reject(request.error);
-                }
+                reject(request.error);
             };
         });
     }
@@ -139,7 +122,7 @@ class IndexedDBManager {
         }
 
         if (!this.db) {
-            return this.fallbackGetItem(key);
+            throw new Error('IndexedDB 未初始化');
         }
 
         return new Promise((resolve, reject) => {
@@ -159,11 +142,7 @@ class IndexedDBManager {
 
             request.onerror = () => {
                 console.error(`從 ${storeName} 讀取失敗:`, request.error);
-                if (this.fallbackToLocalStorage) {
-                    resolve(this.fallbackGetItem(key));
-                } else {
-                    reject(request.error);
-                }
+                reject(request.error);
             };
         });
     }
@@ -177,7 +156,7 @@ class IndexedDBManager {
         }
 
         if (!this.db) {
-            return this.fallbackRemoveItem(key);
+            throw new Error('IndexedDB 未初始化');
         }
 
         return new Promise((resolve, reject) => {
@@ -193,12 +172,7 @@ class IndexedDBManager {
 
             request.onerror = () => {
                 console.error(`從 ${storeName} 刪除失敗:`, request.error);
-                if (this.fallbackToLocalStorage) {
-                    this.fallbackRemoveItem(key);
-                    resolve();
-                } else {
-                    reject(request.error);
-                }
+                reject(request.error);
             };
         });
     }
@@ -212,7 +186,7 @@ class IndexedDBManager {
         }
 
         if (!this.db) {
-            return this.fallbackClear();
+            throw new Error('IndexedDB 未初始化');
         }
 
         const clearPromises = Object.values(this.stores).map(storeName => {
@@ -234,15 +208,8 @@ class IndexedDBManager {
             });
         });
 
-        try {
-            await Promise.all(clearPromises);
-            console.log('所有 IndexedDB 數據已清除');
-        } catch (error) {
-            console.error('清除 IndexedDB 數據時發生錯誤:', error);
-            if (this.fallbackToLocalStorage) {
-                this.fallbackClear();
-            }
-        }
+        await Promise.all(clearPromises);
+        console.log('所有 IndexedDB 數據已清除');
     }
 
     /**
@@ -270,6 +237,22 @@ class IndexedDBManager {
         for (const [localStorageKey, storeName] of Object.entries(migrationMap)) {
             const value = localStorage.getItem(localStorageKey);
             if (value !== null) {
+                // 檢查 IndexedDB 中是否已經存在更新的數據
+                const existingData = await this.getItem(storeName, localStorageKey);
+                
+                // 如果 IndexedDB 中已經有數據，且 localStorage 中的數據較舊，則跳過遷移
+                if (existingData && existingData.lastSaved) {
+                    try {
+                        const localStorageData = JSON.parse(value);
+                        if (localStorageData.lastSaved && localStorageData.lastSaved < existingData.lastSaved) {
+                            console.log(`跳過遷移 ${localStorageKey}：IndexedDB 中的數據更新`);
+                            continue;
+                        }
+                    } catch (e) {
+                        // 如果無法解析 localStorage 數據，繼續遷移
+                    }
+                }
+                
                 // 嘗試解析 JSON，如果失敗則保持原始字符串
                 let parsedValue;
                 try {
@@ -294,43 +277,6 @@ class IndexedDBManager {
             
         } catch (error) {
             console.error('數據遷移失敗:', error);
-        }
-    }
-
-    /**
-     * localStorage 回退方法
-     */
-    fallbackSetItem(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (error) {
-            console.error('localStorage 回退保存失敗:', error);
-        }
-    }
-
-    fallbackGetItem(key) {
-        try {
-            const value = localStorage.getItem(key);
-            return value ? JSON.parse(value) : null;
-        } catch (error) {
-            console.error('localStorage 回退讀取失敗:', error);
-            return null;
-        }
-    }
-
-    fallbackRemoveItem(key) {
-        try {
-            localStorage.removeItem(key);
-        } catch (error) {
-            console.error('localStorage 回退刪除失敗:', error);
-        }
-    }
-
-    fallbackClear() {
-        try {
-            localStorage.clear();
-        } catch (error) {
-            console.error('localStorage 回退清除失敗:', error);
         }
     }
 

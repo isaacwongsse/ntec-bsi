@@ -1,10 +1,14 @@
 /**
  * 存儲適配器 - 提供統一的存儲接口
- * 自動處理 IndexedDB 和 localStorage 之間的切換
+ * 僅使用 IndexedDB 進行數據存儲
  */
 class StorageAdapter {
     constructor() {
-        this.useIndexedDB = IndexedDBManager.isSupported();
+        // 強制使用 IndexedDB，不再回退到 localStorage
+        if (!IndexedDBManager.isSupported()) {
+            throw new Error('此應用程式需要支援 IndexedDB 的瀏覽器。請更新您的瀏覽器。');
+        }
+        this.useIndexedDB = true;
         this.indexedDBManager = null;
         this.initialized = false;
         
@@ -32,290 +36,162 @@ class StorageAdapter {
      */
     async init() {
         if (this.initialized) {
-            console.log('存儲適配器已經初始化，跳過重複初始化');
             return;
         }
 
-        console.log('開始初始化存儲適配器...');
-
-        if (this.useIndexedDB) {
-            try {
-                this.indexedDBManager = window.indexedDBManager;
-                await this.indexedDBManager.init();
-                
-                // 檢查是否需要遷移數據
-                const hasLocalStorageData = this.hasLocalStorageData();
-                if (hasLocalStorageData) {
-                    console.log('檢測到 localStorage 數據，開始遷移...');
-                    await this.indexedDBManager.migrateFromLocalStorage();
-                } else {
-                    console.log('沒有檢測到 localStorage 數據，跳過遷移');
-                }
-                
-                console.log('存儲適配器初始化完成 - 使用 IndexedDB');
-            } catch (error) {
-                console.error('IndexedDB 初始化失敗，回退到 localStorage:', error);
-                this.useIndexedDB = false;
+        try {
+            this.indexedDBManager = window.indexedDBManager;
+            await this.indexedDBManager.init();
+            
+            // 檢查是否需要遷移數據（僅在首次運行時）
+            const hasLocalStorageData = this.hasLocalStorageData();
+            if (hasLocalStorageData) {
+                console.log('檢測到 localStorage 數據，開始一次性遷移到 IndexedDB...');
+                await this.indexedDBManager.migrateFromLocalStorage();
+                // 遷移完成後清除 localStorage 以釋放空間
+                console.log('數據遷移完成，清除 localStorage...');
+                localStorage.clear();
             }
-        } else {
-            console.log('存儲適配器初始化完成 - 使用 localStorage');
+            
+            console.log('存儲適配器初始化完成 - 使用 IndexedDB');
+            this.initialized = true;
+        } catch (error) {
+            console.error('IndexedDB 初始化失敗:', error);
+            throw new Error('無法初始化存儲系統。請檢查瀏覽器設置並確保 IndexedDB 可用。');
         }
-        
-        this.initialized = true;
-        console.log('存儲適配器初始化狀態:', this.initialized);
     }
 
     /**
-     * 檢查 localStorage 是否有數據
+     * 檢查 localStorage 是否有數據（僅用於一次性遷移）
      */
     hasLocalStorageData() {
         const keys = Object.keys(this.keyMappings);
         return keys.some(key => localStorage.getItem(key) !== null);
     }
+    
+    /**
+     * 直接使用 IndexedDB 存儲（不經過 localStorage）
+     */
+    async setItemDirect(key, value) {
+        if (!this.initialized) {
+            await this.init();
+        }
+        
+        const storeName = this.keyMappings[key] || 'mainData';
+        const validKey = key !== null && key !== undefined ? String(key) : 'default';
+        
+        try {
+            await this.indexedDBManager.setItem(storeName, validKey, value);
+            console.log(`數據直接保存到 IndexedDB: ${key}`);
+        } catch (error) {
+            console.error('IndexedDB setItemDirect 失敗:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * 直接從 IndexedDB 讀取（不經過 localStorage）
+     */
+    async getItemDirect(key) {
+        if (!this.initialized) {
+            await this.init();
+        }
+        
+        const storeName = this.keyMappings[key] || 'mainData';
+        const validKey = key !== null && key !== undefined ? String(key) : 'default';
+        
+        try {
+            const result = await this.indexedDBManager.getItem(storeName, validKey);
+            console.log(`數據直接從 IndexedDB 讀取: ${key}`, !!result);
+            return result;
+        } catch (error) {
+            console.error('IndexedDB getItemDirect 失敗:', error);
+            return null;
+        }
+    }
 
     /**
-     * 設置項目 - 同步到 localStorage 和 IndexedDB
+     * 設置項目
      */
     async setItem(key, value) {
-        try {
-            if (!this.initialized) {
-                await this.init();
-            }
+        if (!this.initialized) {
+            await this.init();
+        }
 
-            // 同時保存到 localStorage 和 IndexedDB
-            const promises = [];
-            
-            // 保存到 localStorage
-            try {
-                localStorage.setItem(key, JSON.stringify(value));
-                console.log(`數據已同步保存到 localStorage: ${key}`);
-            } catch (localError) {
-                console.error(`localStorage 保存失敗: ${localError.message}`);
-            }
-            
-            // 保存到 IndexedDB（如果可用）
-            if (this.useIndexedDB && this.indexedDBManager) {
-                const storeName = this.keyMappings[key] || 'mainData';
-                const validKey = key !== null && key !== undefined ? String(key) : 'default';
-                promises.push(
-                    this.indexedDBManager.setItem(storeName, validKey, value)
-                        .then(() => {
-                            console.log(`數據已同步保存到 IndexedDB: ${key}`);
-                        })
-                        .catch((indexedError) => {
-                            console.error(`IndexedDB 保存失敗: ${indexedError.message}`);
-                        })
-                );
-            }
-            
-            // 等待所有操作完成
-            if (promises.length > 0) {
-                await Promise.allSettled(promises);
-            }
-            
+        const storeName = this.keyMappings[key] || 'mainData';
+        // 確保 key 是有效的字符串
+        const validKey = key !== null && key !== undefined ? String(key) : 'default';
+        
+        try {
+            await this.indexedDBManager.setItem(storeName, validKey, value);
         } catch (error) {
+            console.error('IndexedDB setItem 失敗:', error);
             if (window.storageErrorHandler) {
                 window.storageErrorHandler.handleError(error, 'setItem', { key, value });
             }
-            console.error(`setItem 操作失敗: ${error.message}`);
+            throw error; // 不再回退到 localStorage，直接拋出錯誤
         }
     }
 
     /**
-     * 獲取項目 - 優先從 IndexedDB 讀取，失敗時從 localStorage 讀取
+     * 獲取項目
      */
     async getItem(key) {
-        try {
-            if (!this.initialized) {
-                await this.init();
-            }
+        if (!this.initialized) {
+            await this.init();
+        }
 
-            // 優先從 IndexedDB 讀取
-            if (this.useIndexedDB && this.indexedDBManager) {
-                try {
-                    const storeName = this.keyMappings[key] || 'mainData';
-                    const validKey = key !== null && key !== undefined ? String(key) : 'default';
-                    const value = await this.indexedDBManager.getItem(storeName, validKey);
-                    if (value !== null) {
-                        console.log(`數據已從 IndexedDB 讀取: ${key}`);
-                        return value;
-                    }
-                } catch (indexedError) {
-                    console.warn(`IndexedDB 讀取失敗，嘗試從 localStorage 讀取: ${indexedError.message}`);
-                }
-            }
-            
-            // 從 localStorage 讀取
-            try {
-                const value = localStorage.getItem(key);
-                if (value !== null) {
-                    const parsedValue = JSON.parse(value);
-                    console.log(`數據已從 localStorage 讀取: ${key}`);
-                    
-                    // 如果 IndexedDB 可用但讀取失敗，嘗試同步數據到 IndexedDB
-                    if (this.useIndexedDB && this.indexedDBManager) {
-                        this.syncToIndexedDB(key, parsedValue).catch(syncError => {
-                            console.warn(`同步到 IndexedDB 失敗: ${syncError.message}`);
-                        });
-                    }
-                    
-                    return parsedValue;
-                }
-            } catch (localError) {
-                console.error(`localStorage 讀取失敗: ${localError.message}`);
-            }
-            
-            return null;
-            
+        const storeName = this.keyMappings[key] || 'mainData';
+        // 確保 key 是有效的字符串
+        const validKey = key !== null && key !== undefined ? String(key) : 'default';
+        
+        try {
+            const value = await this.indexedDBManager.getItem(storeName, validKey);
+            return value;
         } catch (error) {
+            console.error('IndexedDB getItem 失敗:', error);
             if (window.storageErrorHandler) {
                 window.storageErrorHandler.handleError(error, 'getItem', { key });
             }
-            console.error(`getItem 操作失敗: ${error.message}`);
-            return null;
+            return null; // 發生錯誤時返回 null
         }
     }
 
     /**
-     * 刪除項目 - 同步從 localStorage 和 IndexedDB 刪除
+     * 刪除項目
      */
     async removeItem(key) {
-        try {
-            if (!this.initialized) {
-                await this.init();
-            }
-
-            const promises = [];
-            
-            // 從 localStorage 刪除
-            try {
-                localStorage.removeItem(key);
-                console.log(`數據已從 localStorage 刪除: ${key}`);
-            } catch (localError) {
-                console.error(`localStorage 刪除失敗: ${localError.message}`);
-            }
-            
-            // 從 IndexedDB 刪除（如果可用）
-            if (this.useIndexedDB && this.indexedDBManager) {
-                const storeName = this.keyMappings[key] || 'mainData';
-                const validKey = key !== null && key !== undefined ? String(key) : 'default';
-                promises.push(
-                    this.indexedDBManager.removeItem(storeName, validKey)
-                        .then(() => {
-                            console.log(`數據已從 IndexedDB 刪除: ${key}`);
-                        })
-                        .catch((indexedError) => {
-                            console.error(`IndexedDB 刪除失敗: ${indexedError.message}`);
-                        })
-                );
-            }
-            
-            // 等待所有操作完成
-            if (promises.length > 0) {
-                await Promise.allSettled(promises);
-            }
-            
-        } catch (error) {
-            console.error(`removeItem 操作失敗: ${error.message}`);
+        if (!this.initialized) {
+            await this.init();
         }
-    }
 
-    /**
-     * 清除所有數據 - 同步清除 localStorage 和 IndexedDB
-     */
-    async clear() {
-        try {
-            if (!this.initialized) {
-                await this.init();
-            }
-
-            const promises = [];
-            
-            // 清除 localStorage
-            try {
-                localStorage.clear();
-                console.log('localStorage 已清除');
-            } catch (localError) {
-                console.error(`localStorage 清除失敗: ${localError.message}`);
-            }
-            
-            // 清除 IndexedDB（如果可用）
-            if (this.useIndexedDB && this.indexedDBManager) {
-                promises.push(
-                    this.indexedDBManager.clear()
-                        .then(() => {
-                            console.log('IndexedDB 已清除');
-                        })
-                        .catch((indexedError) => {
-                            console.error(`IndexedDB 清除失敗: ${indexedError.message}`);
-                        })
-                );
-            }
-            
-            // 等待所有操作完成
-            if (promises.length > 0) {
-                await Promise.allSettled(promises);
-            }
-            
-        } catch (error) {
-            console.error(`clear 操作失敗: ${error.message}`);
-        }
-    }
-
-    /**
-     * 同步數據到 IndexedDB
-     */
-    async syncToIndexedDB(key, value) {
-        if (!this.useIndexedDB || !this.indexedDBManager) {
-            return;
-        }
+        const storeName = this.keyMappings[key] || 'mainData';
+        // 確保 key 是有效的字符串
+        const validKey = key !== null && key !== undefined ? String(key) : 'default';
         
         try {
-            const storeName = this.keyMappings[key] || 'mainData';
-            const validKey = key !== null && key !== undefined ? String(key) : 'default';
-            await this.indexedDBManager.setItem(storeName, validKey, value);
-            console.log(`數據已同步到 IndexedDB: ${key}`);
+            await this.indexedDBManager.removeItem(storeName, validKey);
         } catch (error) {
-            console.error(`同步到 IndexedDB 失敗: ${error.message}`);
+            console.error('IndexedDB removeItem 失敗:', error);
             throw error;
         }
     }
 
     /**
-     * 強制同步所有 localStorage 數據到 IndexedDB
+     * 清除所有數據
      */
-    async syncAllLocalStorageToIndexedDB() {
-        if (!this.useIndexedDB || !this.indexedDBManager) {
-            console.log('IndexedDB 不可用，跳過同步');
-            return;
+    async clear() {
+        if (!this.initialized) {
+            await this.init();
         }
-        
-        console.log('開始同步所有 localStorage 數據到 IndexedDB...');
-        
-        const syncPromises = [];
-        
-        for (const [localStorageKey, storeName] of Object.entries(this.keyMappings)) {
-            const value = localStorage.getItem(localStorageKey);
-            if (value !== null) {
-                try {
-                    const parsedValue = JSON.parse(value);
-                    syncPromises.push(
-                        this.syncToIndexedDB(localStorageKey, parsedValue)
-                            .catch(error => {
-                                console.error(`同步 ${localStorageKey} 失敗: ${error.message}`);
-                            })
-                    );
-                } catch (parseError) {
-                    console.error(`解析 ${localStorageKey} 失敗: ${parseError.message}`);
-                }
-            }
-        }
-        
+
         try {
-            await Promise.allSettled(syncPromises);
-            console.log('所有 localStorage 數據同步到 IndexedDB 完成');
+            await this.indexedDBManager.clear();
+            // 同時清除 localStorage（如果有殘留數據）
+            localStorage.clear();
         } catch (error) {
-            console.error('同步過程發生錯誤:', error.message);
+            console.error('IndexedDB clear 失敗:', error);
+            throw error;
         }
     }
 
@@ -323,43 +199,24 @@ class StorageAdapter {
      * 獲取存儲類型
      */
     getStorageType() {
-        return this.useIndexedDB ? 'IndexedDB + localStorage (同步)' : 'localStorage';
+        return 'IndexedDB';
     }
 
     /**
-     * 強制使用 localStorage
+     * 檢查 IndexedDB 是否可用
      */
-    forceLocalStorage() {
-        this.useIndexedDB = false;
-        console.log('強制使用 localStorage');
+    isAvailable() {
+        return this.initialized && this.indexedDBManager !== null;
     }
 
     /**
-     * 強制使用 IndexedDB
+     * 獲取存儲使用情況
      */
-    forceIndexedDB() {
-        this.useIndexedDB = true;
-        console.log('強制使用 IndexedDB');
-    }
-
-    /**
-     * 同步方法 - 為了向後兼容
-     */
-    setItemSync(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
-    }
-
-    getItemSync(key) {
-        const value = localStorage.getItem(key);
-        return value ? JSON.parse(value) : null;
-    }
-
-    removeItemSync(key) {
-        localStorage.removeItem(key);
-    }
-
-    clearSync() {
-        localStorage.clear();
+    async getStorageUsage() {
+        if (!this.initialized) {
+            await this.init();
+        }
+        return await this.indexedDBManager.getStorageUsage();
     }
 }
 

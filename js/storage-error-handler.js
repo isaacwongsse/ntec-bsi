@@ -1,5 +1,5 @@
 /**
- * 存儲錯誤處理器 - 提供統一的錯誤處理和回退機制
+ * 存儲錯誤處理器 - 提供統一的錯誤處理機制
  */
 class StorageErrorHandler {
     constructor() {
@@ -7,7 +7,6 @@ class StorageErrorHandler {
         this.maxErrors = 5;
         this.errorWindow = 60000; // 1分鐘
         this.errorTimestamps = [];
-        this.fallbackMode = false;
     }
 
     /**
@@ -27,7 +26,7 @@ class StorageErrorHandler {
         
         // 檢查是否超過錯誤閾值
         if (this.errorTimestamps.length >= this.maxErrors) {
-            this.enableFallbackMode();
+            this.showCriticalError();
         }
         
         // 顯示用戶友好的錯誤消息
@@ -37,25 +36,18 @@ class StorageErrorHandler {
     }
 
     /**
-     * 啟用回退模式
+     * 顯示嚴重錯誤警告
      */
-    enableFallbackMode() {
-        if (!this.fallbackMode) {
-            this.fallbackMode = true;
-            console.warn('存儲錯誤過多，啟用回退模式');
-            
-            // 通知用戶
-            if (window.showNotification) {
-                window.showNotification(
-                    '存儲系統遇到問題，已切換到備用模式。數據仍會保存，但可能會有性能影響。',
-                    'warning'
-                );
-            }
-            
-            // 強制使用 localStorage
-            if (window.storageAdapter) {
-                window.storageAdapter.forceLocalStorage();
-            }
+    showCriticalError() {
+        console.error('存儲系統發生多次錯誤，請檢查瀏覽器設置');
+        
+        // 通知用戶
+        if (window.showNotification) {
+            window.showNotification(
+                '存儲系統發生嚴重錯誤。請確保瀏覽器允許使用 IndexedDB，或嘗試清除瀏覽器數據後重新載入。',
+                'error',
+                10000
+            );
         }
     }
 
@@ -102,15 +94,7 @@ class StorageErrorHandler {
     reset() {
         this.errorCount = 0;
         this.errorTimestamps = [];
-        this.fallbackMode = false;
         console.log('存儲錯誤處理器已重置');
-    }
-
-    /**
-     * 檢查是否在回退模式
-     */
-    isInFallbackMode() {
-        return this.fallbackMode;
     }
 
     /**
@@ -120,7 +104,6 @@ class StorageErrorHandler {
         return {
             errorCount: this.errorTimestamps.length,
             maxErrors: this.maxErrors,
-            fallbackMode: this.fallbackMode,
             errorWindow: this.errorWindow
         };
     }
