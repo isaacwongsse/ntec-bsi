@@ -430,7 +430,7 @@ class DetailTableInteractionManager {
     createCopyDot(cell) {
         const dot = document.createElement('div');
         dot.className = 'copy-dot';
-        dot.title = 'Drag to copy value';
+        dot.title = 'Drag triangle to copy value';
         cell.appendChild(dot);
     }
 

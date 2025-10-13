@@ -3162,25 +3162,24 @@ header h1, .subtitle {
     margin-top: 5px;
 }
 
-/* 複製點樣式 */
+/* 複製三角形樣式 */
 .copy-dot {
     position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 8px;
-    height: 8px;
-    background: #ff8c00;
-    border-radius: 50%;
+    bottom: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-bottom: 8px solid #ff8c00;
     cursor: grab;
     z-index: 1000;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     opacity: 0;
     visibility: hidden;
 }
 
 .copy-dot:hover {
-    background: #ff6b00;
+    border-bottom-color: #ff6b00;
     transform: scale(1.2);
     cursor: grabbing;
 }
