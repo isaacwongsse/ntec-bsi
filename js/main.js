@@ -9448,9 +9448,9 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
     // 根據模式顯示不同的確認訊息
     let confirmMessage;
     if (drawingMode) {
-        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將同時刪除樓層平面圖中對應的標籤和所有相關的缺陷記錄。';
+        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將自動刪除所有相關的缺陷記錄、更新缺陷表格、刪除樓層平面圖中的缺陷標記，然後刪除標籤記錄和標籤標記。這是一個一體化的刪除過程。';
     } else {
-        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將同時刪除所有相關的缺陷記錄。';
+        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將自動刪除所有相關的缺陷記錄、更新缺陷表格，然後刪除標籤記錄。這是一個一體化的刪除過程。';
     }
     
     if (!confirm(confirmMessage)) {
@@ -9506,51 +9506,53 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
                 deleteDefectRecordComprehensive(defectNoToDelete, 'labels detail table');
             });
             
-            // 刪除完成，直接返回（deleteDefectRecordComprehensive 會處理表格重新顯示）
-            return;
-        } else {
-            // 如果沒有缺陷編號，只刪除標籤
-            // 在刪除標籤前，先清理相關的照片分配記錄
-            cleanupPhotoAssignmentsOnLabelDelete(label);
-            
-            window.labels.splice(labelIndex, 1);
-            
-            // 保存標籤到本地存儲
-            if (typeof window.saveLabelsToStorage === 'function') {
-                window.saveLabelsToStorage();
-            }
-            
-            // 只在繪圖模式下重新渲染標籤（因為非繪圖模式下沒有地圖顯示）
-            if (drawingMode && typeof window.redrawLabels === 'function') {
-                window.redrawLabels();
-            }
-            
-            // 同步到 defects detail-table-container（檢查缺陷記錄的變化）
-            // 這會自動處理缺陷記錄的刪除和更新
-            syncLabelsToDefectsDetailTable();
-            
-            // 更新缺陷摘要表格
-            if (typeof window.updateDefectSummaryTable === 'function') {
-                window.updateDefectSummaryTable();
-                window.logger.log('Defect summary table updated after label deletion');
-            }
-            
-            // 更新分類表格
-            if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
-                window.updateCategoryTablesFromInspectionRecords();
-                window.logger.log('Category tables updated after label deletion');
-            }
-            
-            // 更新照片狀態
-            if (typeof updatePhotoStatusFromLabels === 'function') {
-                updatePhotoStatusFromLabels();
-            }
-            
-            // 重新顯示標籤詳細表格
-            if (typeof window.showLabelsDetailPopup === 'function') {
-                window.showLabelsDetailPopup();
-            }
+            // 缺陷刪除完成後，繼續刪除標籤
+            window.logger.log('Defects deleted, now proceeding to delete the label');
         }
+        
+        // 無論是否有缺陷，都繼續刪除標籤
+        // 在刪除標籤前，先清理相關的照片分配記錄
+        cleanupPhotoAssignmentsOnLabelDelete(label);
+        
+        window.labels.splice(labelIndex, 1);
+        
+        // 保存標籤到本地存儲
+        if (typeof window.saveLabelsToStorage === 'function') {
+            window.saveLabelsToStorage();
+        }
+        
+        // 只在繪圖模式下重新渲染標籤（因為非繪圖模式下沒有地圖顯示）
+        if (drawingMode && typeof window.redrawLabels === 'function') {
+            window.redrawLabels();
+        }
+        
+        // 同步到 defects detail-table-container（檢查缺陷記錄的變化）
+        // 這會自動處理缺陷記錄的刪除和更新
+        syncLabelsToDefectsDetailTable();
+        
+        // 更新缺陷摘要表格
+        if (typeof window.updateDefectSummaryTable === 'function') {
+            window.updateDefectSummaryTable();
+            window.logger.log('Defect summary table updated after label deletion');
+        }
+        
+        // 更新分類表格
+        if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+            window.updateCategoryTablesFromInspectionRecords();
+            window.logger.log('Category tables updated after label deletion');
+        }
+        
+        // 更新照片狀態
+        if (typeof updatePhotoStatusFromLabels === 'function') {
+            updatePhotoStatusFromLabels();
+        }
+        
+        // 重新顯示標籤詳細表格
+        if (typeof window.showLabelsDetailPopup === 'function') {
+            window.showLabelsDetailPopup();
+        }
+        
+        showNotification(`標籤記錄 ${label.inspectionNo} 已刪除（包括所有相關缺陷記錄和標記）`, 'success');
     } else {
         showNotification('找不到要刪除的標籤記錄', 'error');
     }
