@@ -4442,15 +4442,18 @@ function ensurePageStyles() {
     console.log('🔧 ensurePageStyles: Body element found:', !!body);
     if (body) {
         console.log('🔧 ensurePageStyles: Current body background:', body.style.background);
-        body.style.background = 'linear-gradient(135deg, #49543a 0%, #232d1b 100%)';
-        body.style.backgroundAttachment = 'fixed';
-        body.style.minHeight = '100vh';
-        body.style.padding = '0';
-        body.style.margin = '0';
-        body.style.width = '100%';
-        body.style.boxSizing = 'border-box';
-        console.log('🔧 ensurePageStyles: Body background styles applied:', body.style.background);
-        window.logger.log('Body background styles forcefully restored');
+        
+        // 使用 setProperty 方法設置 !important 樣式
+        body.style.setProperty('background', 'linear-gradient(135deg, #49543a 0%, #232d1b 100%)', 'important');
+        body.style.setProperty('background-attachment', 'fixed', 'important');
+        body.style.setProperty('min-height', '100vh', 'important');
+        body.style.setProperty('padding', '0', 'important');
+        body.style.setProperty('margin', '0', 'important');
+        body.style.setProperty('width', '100%', 'important');
+        body.style.setProperty('box-sizing', 'border-box', 'important');
+        
+        console.log('🔧 ensurePageStyles: Body background styles applied with !important:', body.style.background);
+        window.logger.log('Body background styles forcefully restored with !important');
     } else {
         console.log('🔧 ensurePageStyles: Body element not found!');
     }
@@ -4460,21 +4463,24 @@ function ensurePageStyles() {
     console.log('🔧 ensurePageStyles: Container element found:', !!container);
     if (container) {
         console.log('🔧 ensurePageStyles: Current container background:', container.style.background);
-        container.style.background = 'rgba(255, 255, 255, 0.35)';
-        container.style.borderRadius = '12px';
-        container.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.2)';
-        container.style.backdropFilter = 'blur(16px) saturate(180%)';
-        container.style.webkitBackdropFilter = 'blur(16px) saturate(180%)';
-        container.style.border = '1px solid rgba(255, 255, 255, 0.18)';
-        container.style.width = '100%';
-        container.style.margin = '0';
-        container.style.padding = '15px';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.boxSizing = 'border-box';
-        container.style.overflow = 'hidden';
-        console.log('🔧 ensurePageStyles: Container background styles applied:', container.style.background);
-        window.logger.log('Container styles forcefully restored');
+        
+        // 使用 setProperty 方法設置 !important 樣式
+        container.style.setProperty('background', 'rgba(255, 255, 255, 0.35)', 'important');
+        container.style.setProperty('border-radius', '12px', 'important');
+        container.style.setProperty('box-shadow', '0 10px 40px rgba(0, 0, 0, 0.2)', 'important');
+        container.style.setProperty('backdrop-filter', 'blur(16px) saturate(180%)', 'important');
+        container.style.setProperty('-webkit-backdrop-filter', 'blur(16px) saturate(180%)', 'important');
+        container.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.18)', 'important');
+        container.style.setProperty('width', '100%', 'important');
+        container.style.setProperty('margin', '0', 'important');
+        container.style.setProperty('padding', '15px', 'important');
+        container.style.setProperty('display', 'flex', 'important');
+        container.style.setProperty('flex-direction', 'column', 'important');
+        container.style.setProperty('box-sizing', 'border-box', 'important');
+        container.style.setProperty('overflow', 'hidden', 'important');
+        
+        console.log('🔧 ensurePageStyles: Container background styles applied with !important:', container.style.background);
+        window.logger.log('Container styles forcefully restored with !important');
     } else {
         console.log('🔧 ensurePageStyles: Container element not found!');
     }
@@ -4498,6 +4504,22 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('🔧 DOMContentLoaded: Third timeout (1000ms) - calling ensurePageStyles');
         ensurePageStyles();
     }, 1000);
+    
+    // 設置持續監控，每 2 秒檢查一次樣式
+    setInterval(() => {
+        const body = document.body;
+        const container = document.querySelector('.container');
+        
+        if (body && (!body.style.background || body.style.background === '')) {
+            console.log('🔧 Style Monitor: Body background missing, restoring...');
+            ensurePageStyles();
+        }
+        
+        if (container && (!container.style.background || container.style.background === '')) {
+            console.log('🔧 Style Monitor: Container background missing, restoring...');
+            ensurePageStyles();
+        }
+    }, 2000);
 });
 
 // Load data from storage
