@@ -3174,8 +3174,8 @@ function triggerAutoCreateDefectMark() {
         window.logger.log('Floor plan overlay element found:', floorPlanOverlay);
         window.logger.log('Current display style:', floorPlanOverlay.style.display);
         
-        floorPlanOverlay.style.zIndex = '1000';
-        window.logger.log('Floor plan overlay opened using z-index');
+        floorPlanOverlay.style.display = 'flex';
+        window.logger.log('Floor plan overlay opened, new display style:', floorPlanOverlay.style.display);
         
         // Disable close button - user must place defect mark first
         const closeBtn = document.getElementById('closeFloorPlanBtn');
@@ -7324,7 +7324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                 const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                 const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                 if (floorPlanUploadArea && floorPlanViewer) {
                                     floorPlanUploadArea.style.display = 'none';
                                     floorPlanViewer.style.display = 'flex';
@@ -7385,7 +7385,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                     const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                     const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                    if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
+                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                     if (floorPlanUploadArea && floorPlanViewer) {
                                         floorPlanUploadArea.style.display = 'none';
                                         floorPlanViewer.style.display = 'flex';
@@ -7396,19 +7396,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     window.logger.error('Open previous: Error loading embedded PDF:', error);
                                     // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                    if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
+                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                 }
                             } else {
                                 // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                             }
                         }
                     } catch (e) { 
                         window.logger.error('Open previous: Error in PDF loading logic:', e);
                         // 至少打開繪圖模式
                         const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                        if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
+                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                     }
                 };
             }
@@ -7869,7 +7869,7 @@ async function loadEmbeddedPDFAndEnterDrawingMode(embeddedPDF) {
         const floorPlanViewer = document.getElementById('floorPlanViewer');
         
         if (floorPlanOverlay) {
-            floorPlanOverlay.style.zIndex = '1000';
+            floorPlanOverlay.style.display = 'flex';
             window.logger.log('Floor plan overlay opened');
         }
         
@@ -13013,8 +13013,8 @@ openPNEBtn.addEventListener('click', function() {
                         setTimeout(() => {
                             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                             if (floorPlanOverlay) {
-                                floorPlanOverlay.style.zIndex = '1000';
-                                window.logger.log('Drawing mode opened automatically using z-index');
+                                floorPlanOverlay.style.display = 'flex';
+                                window.logger.log('Drawing mode opened automatically');
                                 
                                 // 調用必要的初始化函數
                                 if (typeof checkLabelsDataAndShowContent === 'function') {
@@ -14569,7 +14569,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
     }
 
-    // Close floor plan overlay (使用 z-index 控制顯示/隱藏，保持 floor-plan-content 不受影響)
+    // Close floor plan overlay (do not reset or clear anything)
     function closeFloorPlan() {
         // Check if user is waiting to place defect mark
         if (window.isWaitingForDefectMarkPlacement) {
@@ -14578,9 +14578,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        // 使用 z-index 隱藏繪圖模式，而不是完全隱藏
-        floorPlanOverlay.style.zIndex = '-1';
-        window.logger.log('Drawing mode hidden using z-index');
+        floorPlanOverlay.style.display = 'none';
         
         // Reset Quick Label Switch when closing floor plan
         const quickLabelSwitch = document.getElementById('quickLabelSwitch');
@@ -14665,7 +14663,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // ESC key event
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && floorPlanOverlay.style.zIndex !== '-1' && floorPlanOverlay.style.zIndex !== '') {
+        if (e.key === 'Escape' && floorPlanOverlay.style.display !== 'none') {
             closeFloorPlan();
         }
     });
@@ -14704,10 +14702,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 e.preventDefault();
                 commandKeyPressCount = 0;
                 
-                // Open Drawing mode (使用 z-index 顯示)
-                if (floorPlanOverlay.style.zIndex === '-1' || !floorPlanOverlay.style.zIndex) {
-                    floorPlanOverlay.style.zIndex = '1000';
-                    window.logger.log('Drawing mode shown using z-index');
+                // Open Drawing mode
+                if (floorPlanOverlay.style.display === 'none' || !floorPlanOverlay.style.display) {
+                    floorPlanOverlay.style.display = 'flex';
                     checkLabelsDataAndShowContent();
                     
                     // 初始化滑塊功能
@@ -17130,7 +17127,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
             if (pneDropdown) {
                 pneDropdown.style.display = 'none';
             }
-            floorPlanOverlay.style.zIndex = '1000';
+            floorPlanOverlay.style.display = 'flex';
             checkLabelsDataAndShowContent();
             
             // 初始化滑塊功能
@@ -17151,7 +17148,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
     if (floorplanThumb) {
         floorplanThumb.addEventListener('click', function(e) {
             e.stopPropagation();
-            floorPlanOverlay.style.zIndex = '1000';
+            floorPlanOverlay.style.display = 'flex';
             checkLabelsDataAndShowContent();
             
             // 初始化滑塊功能
@@ -18402,7 +18399,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
                     // 確保樓層平面圖覆蓋層已經開啟
                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                     if (floorPlanOverlay && floorPlanOverlay.style.display === 'none') {
-                        floorPlanOverlay.style.zIndex = '1000';
+                        floorPlanOverlay.style.display = 'flex';
                         checkLabelsDataAndShowContent();
                         
                         // 初始化滑塊功能
@@ -18456,7 +18453,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
             // 先開啟樓層平面圖覆蓋層
             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
             if (floorPlanOverlay) {
-                floorPlanOverlay.style.zIndex = '1000';
+                floorPlanOverlay.style.display = 'flex';
                 checkLabelsDataAndShowContent();
                 
                 // 初始化滑塊功能
@@ -18676,7 +18673,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
         });
     }
 
-    // 關閉floor-plan-content的函數 (使用 z-index 控制顯示/隱藏)
+    // 關閉floor-plan-content的函數
     function closeFloorPlanContent() {
         try {
             // Check if user is waiting to place defect mark
@@ -18688,9 +18685,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
             
             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
             if (floorPlanOverlay) {
-                // 使用 z-index 隱藏繪圖模式，而不是完全隱藏
-                floorPlanOverlay.style.zIndex = '-1';
-                window.logger.log('Floor plan content hidden using z-index');
+                floorPlanOverlay.style.display = 'none';
+                window.logger.log('Floor plan content closed');
                 
                 // Reset Quick Label Switch when closing floor plan
                 const quickLabelSwitch = document.getElementById('quickLabelSwitch');
@@ -18711,54 +18707,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 // Reset mouse tracking
                 mouseTrackingActive = false;
                 
-                // 優化：只在必要時更新照片狀態，避免重新渲染
+                // Re-render photos to ensure submission status is correct
                 if (allPhotos && allPhotos.length > 0) {
-                    console.log('🔍 Updating photo status after closing floor plan content (without re-rendering)');
-                    
-                    // 檢查是否有照片狀態需要更新
-                    let needsStatusUpdate = false;
-                    document.querySelectorAll('.photo-item').forEach(item => {
-                        const statusDiv = item.querySelector('.photo-status');
-                        const filename = item.getAttribute('data-filename');
-                        
-                        // 檢查已提交的照片狀態是否正確
-                        if (filename && submittedFilenames.has(filename)) {
-                            if (!statusDiv || !statusDiv.textContent.includes('Submitted to')) {
-                                needsStatusUpdate = true;
-                                
-                                // 從 submittedData 查找檢查編號
-                                let locationId = null;
-                                if (submittedData && submittedData.length > 0) {
-                                    for (const row of submittedData) {
-                                        if (row.photoFilenames && row.photoFilenames.includes(filename)) {
-                                            locationId = row.locationId;
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                if (locationId) {
-                                    if (!statusDiv) {
-                                        // 創建狀態元素
-                                        const newStatusDiv = document.createElement('div');
-                                        newStatusDiv.className = 'photo-status';
-                                        item.appendChild(newStatusDiv);
-                                        statusDiv = newStatusDiv;
-                                    }
-                                    
-                                    statusDiv.textContent = `Submitted to ${locationId}`;
-                                    statusDiv.style.display = 'flex';
-                                    statusDiv.style.visibility = 'visible';
-                                    item.classList.add('submitted');
-                                    console.log(`🔍 Updated photo status: Submitted to ${locationId}`);
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (!needsStatusUpdate) {
-                        console.log('🔍 No photo status updates needed, skipping re-render');
-                    }
+                    console.log('🔍 Re-rendering photos after closing floor plan content');
+                    const lazyObserver = typeof initLazyLoading === 'function' ? initLazyLoading() : null;
+                    renderPhotos(allPhotos, lazyObserver);
                 }
             }
         } catch (error) {
@@ -20843,5 +20796,3 @@ function syncDefectsToLabelsDetailTable() {
         window.saveLabelsToStorage();
     }
 }
-
-}); // 閉合 DOMContentLoaded 事件監聽器
