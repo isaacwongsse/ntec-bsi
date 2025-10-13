@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Mode Exit Test</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .test-info h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .test-info ul {
+            margin-bottom: 0;
+        }
+        .test-info li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Edit Mode Exit Test</h1>
+        
+        <div class="test-info">
+            <h3>測試說明：</h3>
+            <ul>
+                <li><strong>雙擊編輯：</strong>雙擊任何可編輯字段進入編輯模式</li>
+                <li><strong>點擊其他字段：</strong>點擊其他字段會自動保存並退出編輯模式</li>
+                <li><strong>點擊外部：</strong>點擊表格外部區域會自動保存並退出編輯模式</li>
+                <li><strong>鍵盤操作：</strong>按 Enter 保存，按 Escape 取消</li>
+                <li><strong>失去焦點：</strong>按 Tab 鍵或點擊其他地方會自動保存</li>
+            </ul>
+        </div>
+
+        <h2>Test Table</h2>
+        <div class="detail-table-container">
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" value="Item 1"></td>
+                        <td><input type="text" value="100"></td>
+                        <td><textarea>This is a test item</textarea></td>
+                        <td><select><option>Active</option><option>Inactive</option></select></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" value="Item 2"></td>
+                        <td><input type="text" value="200"></td>
+                        <td><textarea>Another test item</textarea></td>
+                        <td><select><option>Active</option><option>Inactive</option></select></td>
+                    </tr>
+                    <tr>
+                        <td><input type="text" value="Item 3"></td>
+                        <td><input type="text" value="300"></td>
+                        <td><textarea>Third test item</textarea></td>
+                        <td><select><option>Active</option><option>Inactive</option></select></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">
+            <h4>測試步驟：</h4>
+            <ol>
+                <li>雙擊第一個字段進入編輯模式</li>
+                <li>修改內容但不按 Enter</li>
+                <li>點擊其他字段 - 應該自動保存並退出編輯</li>
+                <li>再次雙擊進入編輯模式</li>
+                <li>點擊表格外部區域 - 應該自動保存並退出編輯</li>
+                <li>測試按 Escape 取消編輯</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="js/detail-table-interaction.js"></script>
+    <script>
+        // 測試完成後顯示提示
+        setTimeout(() => {
+            console.log('Edit Mode Exit Test loaded successfully!');
+            console.log('Test the following:');
+            console.log('1. Double-click any cell to enter edit mode');
+            console.log('2. Click another cell - should auto-save and exit edit mode');
+            console.log('3. Click outside the table - should auto-save and exit edit mode');
+            console.log('4. Press Escape - should cancel edit without saving');
+            console.log('5. Press Enter - should save and exit edit mode');
+        }, 1000);
+    </script>
+</body>
+</html>

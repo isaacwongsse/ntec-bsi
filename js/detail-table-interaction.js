@@ -428,9 +428,29 @@ class DetailTableInteractionManager {
         const existingInput = cell.querySelector('input, textarea, select');
         
         if (existingInput) {
-            // 如果已經有輸入元素，直接聚焦
+            // 如果已經有輸入元素，直接聚焦並添加點擊外部監聽器
             existingInput.focus();
             existingInput.select();
+            
+            // 添加點擊外部監聽器
+            const handleClickOutside = (e) => {
+                const clickedCell = e.target.closest('td');
+                if (clickedCell && clickedCell !== cell) {
+                    // 點擊了其他字段，觸發 blur 事件
+                    existingInput.blur();
+                    document.removeEventListener('click', handleClickOutside);
+                } else if (!clickedCell) {
+                    // 點擊了表格外部，觸發 blur 事件
+                    existingInput.blur();
+                    document.removeEventListener('click', handleClickOutside);
+                }
+            };
+            
+            // 延遲添加點擊外部監聽器
+            setTimeout(() => {
+                document.addEventListener('click', handleClickOutside);
+            }, 100);
+            
             return;
         }
 
@@ -462,6 +482,9 @@ class DetailTableInteractionManager {
             this.setCellValue(cell, newValue);
             cell.removeChild(input);
             
+            // 移除點擊外部監聽器
+            document.removeEventListener('click', handleClickOutside);
+            
             // 觸發保存事件
             const table = cell.closest('table');
             if (table) {
@@ -471,6 +494,20 @@ class DetailTableInteractionManager {
 
         const cancelEdit = () => {
             cell.removeChild(input);
+            // 移除點擊外部監聽器
+            document.removeEventListener('click', handleClickOutside);
+        };
+
+        // 點擊其他字段或任何地方時退出編輯
+        const handleClickOutside = (e) => {
+            const clickedCell = e.target.closest('td');
+            if (clickedCell && clickedCell !== cell) {
+                // 點擊了其他字段，保存編輯
+                finishEdit();
+            } else if (!clickedCell) {
+                // 點擊了表格外部，保存編輯
+                finishEdit();
+            }
         };
 
         input.addEventListener('blur', finishEdit);
@@ -488,6 +525,11 @@ class DetailTableInteractionManager {
         cell.appendChild(input);
         input.focus();
         input.select();
+
+        // 延遲添加點擊外部監聽器，避免立即觸發
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 100);
     }
 
     createCopyDot(cell) {
