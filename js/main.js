@@ -13095,9 +13095,6 @@ openPNEBtn.addEventListener('click', function() {
                                     window.logger.log('No previous PDF file found in PNE file');
                                 }
                             }, 500); // 等待繪圖模式完全打開
-                            } else {
-                                window.logger.log('floorPlanOverlay element not found');
-                            }
                         }, 300); // 等待照片預覽區域準備好
                     }, 200); // 等待PNE文件載入完成
                 }
