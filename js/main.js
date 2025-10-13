@@ -2086,7 +2086,7 @@ window.updateAllDefectMarkSizes = function() {
                 // 更新文字框大小
                 const scaledSize = window.defectMarkSizeScale * (window.currentScale || 1);
                 const scaledFontSize = Math.max(8, scaledSize * 0.4); // 文字框字體大小為縮放後圓點大小的40%
-                const scaledPadding = 10 * (window.currentScale || 1); // 縮放 padding
+                const scaledPadding = 5 * (window.currentScale || 1); // 縮放 padding
                 
                 element.style.fontSize = scaledFontSize + 'px';
                 element.style.padding = scaledPadding + 'px';
@@ -15535,10 +15535,10 @@ if (typeof window.updateAllLabelPositions === 'function') {
         textboxElement.style.fontSize = fontSize;
         
         // 設置固定的 padding 和 border-radius，不隨縮放變化
-        textboxElement.style.padding = '10px';
+        textboxElement.style.padding = '5px';
         textboxElement.style.borderRadius = '4px';
         
-        // 設置文字框為自動調整大小，保持 10px 邊距
+        // 設置文字框為自動調整大小，保持 5px 邊距
         textboxElement.style.width = 'auto';
         textboxElement.style.height = 'auto';
         textboxElement.style.minWidth = 'fit-content';
@@ -15606,8 +15606,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 更新文字框字體大小和樣式
         textboxElement.style.fontSize = scaledTextboxFontSize + 'px';
         
-        // 設置文字框為自動調整大小，保持 10px 邊距
-        const scaledPadding = 10 * (window.currentScale || 1); // 縮放 padding
+        // 設置文字框為自動調整大小，保持 5px 邊距
+        const scaledPadding = 5 * (window.currentScale || 1); // 縮放 padding
         textboxElement.style.padding = scaledPadding + 'px';
         textboxElement.style.borderRadius = '4px';
         textboxElement.style.width = 'auto';
