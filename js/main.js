@@ -4887,6 +4887,18 @@ async function loadDataFromStorage() {
     
     // 注意：不再清除分類內容，因為現在會從 localStorage 載入
     window.logger.log('Data loading completed. Categories content preserved from localStorage');
+    
+    // 確保容器背景樣式正確載入
+    const container = document.querySelector('.container');
+    if (container) {
+        container.style.background = 'rgba(255, 255, 255, 0.35)';
+        container.style.borderRadius = 'var(--border-radius)';
+        container.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.2)';
+        container.style.backdropFilter = 'blur(16px) saturate(180%)';
+        container.style.webkitBackdropFilter = 'blur(16px) saturate(180%)';
+        container.style.border = '1px solid rgba(255, 255, 255, 0.18)';
+        window.logger.log('Container background style restored at end of loadDataFromStorage');
+    }
 }
 
 // Clear all categories content on page reload
@@ -7359,6 +7371,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
                     // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
                     await loadDataFromStorage();
+                    
+                    // 確保容器背景樣式正確載入
+                    const container = document.querySelector('.container');
+                    if (container) {
+                        container.style.background = 'rgba(255, 255, 255, 0.35)';
+                        container.style.borderRadius = 'var(--border-radius)';
+                        container.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.2)';
+                        container.style.backdropFilter = 'blur(16px) saturate(180%)';
+                        container.style.webkitBackdropFilter = 'blur(16px) saturate(180%)';
+                        container.style.border = '1px solid rgba(255, 255, 255, 0.18)';
+                        window.logger.log('Container background style restored after loadDataFromStorage');
+                    }
 
                     // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
                     try {
@@ -7430,14 +7454,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                         await window.storageAdapter.clear();
                         console.log('IndexedDB 數據清除完成');
                         
-                        // 也同步清空 localStorage（保險移除殘留鍵）
+                    // 也同步清空 localStorage（保險移除殘留鍵）
                         try { 
                             localStorage.clear(); 
                             console.log('localStorage 數據清除完成');
-                            
-                            // 重新初始化語言系統
-                            initializeLanguageSystem();
-                            console.log('語言系統重新初始化完成');
                         } catch (e) { 
                             console.warn('localStorage 清除失敗:', e);
                         }
@@ -7478,7 +7498,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         const floorplanThumb = document.getElementById('floorplanThumb');
                         const floorplanThumbImg = document.getElementById('floorplanThumbImg');
                         
-                        if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '-1';
+                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'none';
                         if (floorPlanViewer) floorPlanViewer.style.display = 'none';
                         if (floorPlanUploadArea) floorPlanUploadArea.style.display = 'block';
                         if (labelLayer) labelLayer.innerHTML = '';
