@@ -9045,11 +9045,164 @@ function clearAllSelections() {
     lastSelectedCell = null;
 }
 
-// 更新多選UI（簡化版本，僅用於調試）
+// 更新多選UI - 添加複製點功能
 function updateMultiSelectUI() {
     const count = selectedCells.size;
     window.logger.log('Selected cells count:', count);
-    // 多選按鈕已移除，此函數保留用於調試
+    
+    // 移除所有現有的複製點
+    document.querySelectorAll('.copy-dot').forEach(dot => {
+        dot.remove();
+    });
+    
+    // 只在單個選中字段時顯示複製點
+    if (count === 1) {
+        const cell = Array.from(selectedCells)[0];
+        createCopyDot(cell);
+    }
+}
+
+// 創建複製點
+function createCopyDot(cell) {
+    if (cell.querySelector('.copy-dot')) return; // 避免重複創建
+    
+    const dot = document.createElement('div');
+    dot.className = 'copy-dot';
+    dot.title = 'Drag to copy value';
+    cell.appendChild(dot);
+    
+    // 添加拖拽複製功能
+    dot.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startDragCopy(cell, e);
+    });
+}
+
+// 開始拖拽複製
+function startDragCopy(sourceCell, e) {
+    const dragTargetCells = new Set();
+    
+    // 添加拖拽樣式
+    document.body.classList.add('detail-table-dragging');
+    
+    // 創建拖拽預覽
+    const preview = document.createElement('div');
+    preview.className = 'detail-table-drag-preview';
+    
+    const sourceValue = getCellValue(sourceCell);
+    preview.innerHTML = `
+        <div class="preview-source">Source: ${sourceValue}</div>
+        <div class="preview-hint">Drag to select target fields</div>
+    `;
+    
+    document.body.appendChild(preview);
+    
+    // 設置初始位置
+    updateDragPreview(preview, e);
+    
+    // 添加移動事件
+    const moveHandler = (e) => {
+        updateDragPreview(preview, e);
+        highlightDropTargetRange(e, sourceCell, dragTargetCells);
+    };
+    
+    const upHandler = (e) => {
+        endDragCopy(sourceCell, dragTargetCells);
+        document.body.removeChild(preview);
+        document.removeEventListener('mousemove', moveHandler);
+        document.removeEventListener('mouseup', upHandler);
+    };
+    
+    document.addEventListener('mousemove', moveHandler);
+    document.addEventListener('mouseup', upHandler);
+}
+
+// 更新拖拽預覽位置
+function updateDragPreview(preview, e) {
+    preview.style.left = e.clientX + 10 + 'px';
+    preview.style.top = e.clientY - 10 + 'px';
+}
+
+// 高亮拖拽目標範圍
+function highlightDropTargetRange(e, sourceCell, dragTargetCells) {
+    const targetCell = document.elementFromPoint(e.clientX, e.clientY)?.closest('td');
+    
+    // 清除之前的高亮
+    document.querySelectorAll('.detail-table-drop-target').forEach(cell => {
+        cell.classList.remove('detail-table-drop-target');
+    });
+    
+    if (targetCell && targetCell !== sourceCell) {
+        // 計算從源字段到目標字段的範圍
+        const targetRange = getCellRange(sourceCell, targetCell);
+        
+        // 高亮範圍內的所有字段
+        targetRange.forEach(cell => {
+            if (cell !== sourceCell) {
+                cell.classList.add('detail-table-drop-target');
+                dragTargetCells.add(cell);
+            }
+        });
+    } else {
+        dragTargetCells.clear();
+    }
+}
+
+// 結束拖拽複製
+function endDragCopy(sourceCell, dragTargetCells) {
+    if (dragTargetCells.size > 0) {
+        // 將源字段的值複製到所有目標字段
+        const sourceValue = getCellValue(sourceCell);
+        dragTargetCells.forEach(targetCell => {
+            setCellValue(targetCell, sourceValue);
+        });
+        
+        // 觸發保存事件
+        const table = sourceCell.closest('table');
+        if (table) {
+            table.dispatchEvent(new Event('dataChanged', { bubbles: true }));
+        }
+    }
+    
+    // 清除樣式
+    document.body.classList.remove('detail-table-dragging');
+    document.querySelectorAll('.detail-table-drop-target').forEach(cell => {
+        cell.classList.remove('detail-table-drop-target');
+    });
+}
+
+// 獲取單元格範圍
+function getCellRange(startCell, endCell) {
+    const startRow = startCell.parentElement;
+    const endRow = endCell.parentElement;
+    const table = startRow.closest('table');
+    
+    const startRowIndex = Array.from(table.querySelectorAll('tr')).indexOf(startRow);
+    const endRowIndex = Array.from(table.querySelectorAll('tr')).indexOf(endRow);
+    
+    const startCellIndex = Array.from(startRow.querySelectorAll('td')).indexOf(startCell);
+    const endCellIndex = Array.from(endRow.querySelectorAll('td')).indexOf(endCell);
+    
+    const minRow = Math.min(startRowIndex, endRowIndex);
+    const maxRow = Math.max(startRowIndex, endRowIndex);
+    const minCell = Math.min(startCellIndex, endCellIndex);
+    const maxCell = Math.max(startCellIndex, endCellIndex);
+    
+    const cells = [];
+    for (let rowIndex = minRow; rowIndex <= maxRow; rowIndex++) {
+        const row = table.querySelectorAll('tr')[rowIndex];
+        if (row) {
+            const rowCells = row.querySelectorAll('td');
+            for (let cellIndex = minCell; cellIndex <= maxCell; cellIndex++) {
+                if (rowCells[cellIndex]) {
+                    cells.push(rowCells[cellIndex]);
+                }
+            }
+        }
+    }
+    
+    return cells;
 }
 
 // 複製選中的字段內容 - 限制只能複製單個 td
