@@ -2533,7 +2533,7 @@ header h1, .subtitle {
     background: white;
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    width: calc(100vw - 60px);
+    width: calc(100vw - 40px);
     height: calc(100vh - 60px);
     display: flex;
     flex-direction: column;
