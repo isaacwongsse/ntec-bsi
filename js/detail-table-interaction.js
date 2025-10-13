@@ -99,14 +99,17 @@ class DetailTableInteractionManager {
         const cell = e.target.closest('td');
         if (!cell) return;
 
+        console.log('Mouse down on cell:', cell, 'Target:', e.target);
+
         // 檢查是否點擊在橙色複製點上
-        const copyDot = cell.querySelector('.copy-dot');
-        if (copyDot && copyDot.contains(e.target)) {
+        if (e.target.classList.contains('copy-dot')) {
+            console.log('Clicked on copy dot, starting drag copy');
             this.startDragCopy(cell, e);
             return;
         }
 
         // 開始選擇模式
+        console.log('Starting selection mode');
         this.isSelecting = true;
         this.startCell = cell;
         this.endCell = cell;
@@ -126,12 +129,14 @@ class DetailTableInteractionManager {
         const cell = e.target.closest('td');
         if (!cell || cell === this.startCell) return;
 
+        console.log('Mouse enter on cell during selection:', cell);
         this.endCell = cell;
         this.updateSelection();
     }
 
     handleMouseUp(e) {
         if (this.isSelecting) {
+            console.log('Mouse up, ending selection');
             this.isSelecting = false;
             this.addCopyDots();
         }
@@ -143,15 +148,19 @@ class DetailTableInteractionManager {
     }
 
     handleClick(e) {
-        // 如果沒有進行拖拽選擇，則單擊選擇
-        if (!this.isSelecting && !this.isDragging) {
-            const cell = e.target.closest('td');
-            if (cell) {
-                this.clearSelection();
-                this.selectCell(cell);
-                this.addCopyDots();
+        // 添加小延遲來避免與拖拽選擇衝突
+        setTimeout(() => {
+            // 如果沒有進行拖拽選擇，則單擊選擇
+            if (!this.isSelecting && !this.isDragging) {
+                const cell = e.target.closest('td');
+                if (cell) {
+                    console.log('Single click selection');
+                    this.clearSelection();
+                    this.selectCell(cell);
+                    this.addCopyDots();
+                }
             }
-        }
+        }, 10);
     }
 
     handleDoubleClick(e) {
@@ -289,11 +298,14 @@ class DetailTableInteractionManager {
     updateSelection() {
         if (!this.startCell || !this.endCell) return;
 
+        console.log('Updating selection from', this.startCell, 'to', this.endCell);
+
         // 清除當前選擇
         this.clearSelection();
 
         // 獲取選擇範圍
         const range = this.getCellRange(this.startCell, this.endCell);
+        console.log('Selection range:', range);
         
         // 選擇範圍內的所有單元格
         range.forEach(cell => {
