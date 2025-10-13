@@ -13030,71 +13030,71 @@ openPNEBtn.addEventListener('click', function() {
                             openFloorPlanOverlay();
                             
                             // 3. 自動載入之前的PDF文件
-                                setTimeout(() => {
-                                    // 檢查PNE文件中的PDF數據
-                                    let pdfFileReference = null;
-                                    let pdfFileName = '';
+                            setTimeout(() => {
+                                // 檢查PNE文件中的PDF數據
+                                let pdfFileReference = null;
+                                let pdfFileName = '';
+                                
+                                // 從filePaths中獲取PDF文件引用
+                                if (data.filePaths && data.filePaths.pdfFileReference) {
+                                    pdfFileReference = data.filePaths.pdfFileReference;
+                                    pdfFileName = pdfFileReference.name || '';
+                                    window.logger.log('Found PDF file reference in PNE file:', pdfFileName);
+                                }
+                                
+                                // 也檢查是否有PDF路徑
+                                if (!pdfFileName && data.filePaths && data.filePaths.pdfPath) {
+                                    pdfFileName = data.filePaths.pdfPath;
+                                    window.logger.log('Found PDF path in PNE file:', pdfFileName);
+                                }
+                                
+                                if (pdfFileName) {
+                                    window.logger.log('Auto-loading previous PDF file:', pdfFileName);
                                     
-                                    // 從filePaths中獲取PDF文件引用
-                                    if (data.filePaths && data.filePaths.pdfFileReference) {
-                                        pdfFileReference = data.filePaths.pdfFileReference;
-                                        pdfFileName = pdfFileReference.name || '';
-                                        window.logger.log('Found PDF file reference in PNE file:', pdfFileName);
-                                    }
+                                    // 檢查是否有PDF的base64數據
+                                    const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
+                                    window.logger.log('PDF base64 data check:', {
+                                        exists: !!pdfBase64,
+                                        length: pdfBase64 ? pdfBase64.length : 0,
+                                        firstChars: pdfBase64 ? pdfBase64.substring(0, 50) : 'N/A'
+                                    });
                                     
-                                    // 也檢查是否有PDF路徑
-                                    if (!pdfFileName && data.filePaths && data.filePaths.pdfPath) {
-                                        pdfFileName = data.filePaths.pdfPath;
-                                        window.logger.log('Found PDF path in PNE file:', pdfFileName);
-                                    }
-                                    
-                                    if (pdfFileName) {
-                                        window.logger.log('Auto-loading previous PDF file:', pdfFileName);
-                                        
-                                        // 檢查是否有PDF的base64數據
-                                        const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
-                                        window.logger.log('PDF base64 data check:', {
-                                            exists: !!pdfBase64,
-                                            length: pdfBase64 ? pdfBase64.length : 0,
-                                            firstChars: pdfBase64 ? pdfBase64.substring(0, 50) : 'N/A'
-                                        });
-                                        
-                                        if (pdfBase64) {
-                                            try {
-                                                // 將base64數據轉換為ArrayBuffer
-                                                const binaryString = atob(pdfBase64);
-                                                const arrayBuffer = new ArrayBuffer(binaryString.length);
-                                                const uint8Array = new Uint8Array(arrayBuffer);
-                                                for (let i = 0; i < binaryString.length; i++) {
-                                                    uint8Array[i] = binaryString.charCodeAt(i);
-                                                }
-                                                
-                                                // 使用現有的PDF載入函數
-                                                if (typeof loadPDFFromArrayBuffer === 'function') {
-                                                    loadPDFFromArrayBuffer(arrayBuffer, pdfFileName);
-                                                    window.logger.log('PDF loaded successfully from base64 data');
-                                                } else {
-                                                    window.logger.log('loadPDFFromArrayBuffer function not available');
-                                                    if (typeof showNotification === 'function') {
-                                                        showNotification(`檢測到PDF文件：${pdfFileName}。請手動上傳PDF文件以查看樓層平面圖。`, 'info');
-                                                    }
-                                                }
-                                            } catch (error) {
-                                                window.logger.error('Error loading PDF from base64:', error);
+                                    if (pdfBase64) {
+                                        try {
+                                            // 將base64數據轉換為ArrayBuffer
+                                            const binaryString = atob(pdfBase64);
+                                            const arrayBuffer = new ArrayBuffer(binaryString.length);
+                                            const uint8Array = new Uint8Array(arrayBuffer);
+                                            for (let i = 0; i < binaryString.length; i++) {
+                                                uint8Array[i] = binaryString.charCodeAt(i);
+                                            }
+                                            
+                                            // 使用現有的PDF載入函數
+                                            if (typeof loadPDFFromArrayBuffer === 'function') {
+                                                loadPDFFromArrayBuffer(arrayBuffer, pdfFileName);
+                                                window.logger.log('PDF loaded successfully from base64 data');
+                                            } else {
+                                                window.logger.log('loadPDFFromArrayBuffer function not available');
                                                 if (typeof showNotification === 'function') {
-                                                    showNotification('載入PDF文件時發生錯誤，請手動上傳PDF文件。', 'error');
+                                                    showNotification(`檢測到PDF文件：${pdfFileName}。請手動上傳PDF文件以查看樓層平面圖。`, 'info');
                                                 }
                                             }
-                                        } else {
-                                            window.logger.log('No PDF base64 data found in localStorage');
+                                        } catch (error) {
+                                            window.logger.error('Error loading PDF from base64:', error);
                                             if (typeof showNotification === 'function') {
-                                                showNotification(`檢測到PDF文件引用：${pdfFileName}。請重新上傳PDF文件以查看樓層平面圖。`, 'info');
+                                                showNotification('載入PDF文件時發生錯誤，請手動上傳PDF文件。', 'error');
                                             }
                                         }
                                     } else {
-                                        window.logger.log('No previous PDF file found in PNE file');
+                                        window.logger.log('No PDF base64 data found in localStorage');
+                                        if (typeof showNotification === 'function') {
+                                            showNotification(`檢測到PDF文件引用：${pdfFileName}。請重新上傳PDF文件以查看樓層平面圖。`, 'info');
+                                        }
                                     }
-                                }, 500); // 等待繪圖模式完全打開
+                                } else {
+                                    window.logger.log('No previous PDF file found in PNE file');
+                                }
+                            }, 500); // 等待繪圖模式完全打開
                             } else {
                                 window.logger.log('floorPlanOverlay element not found');
                             }
