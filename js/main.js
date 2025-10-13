@@ -8020,6 +8020,12 @@ async function updateAllTablesAfterStartFresh() {
             }
         });
         
+        // 3.1. 更新分類記錄表格 (Categories Records Tables)
+        if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+            window.updateCategoryTablesFromInspectionRecords();
+            console.log('分類記錄表格已清空');
+        }
+        
         // 4. 更新標籤詳細表格 (Labels Detail)
         const labelsDetailTableBody = document.getElementById('labelsDetailTableBody');
         if (labelsDetailTableBody) {
