@@ -4278,6 +4278,8 @@ input:checked + .slider:before {
     width: 100%;
 }
 
+/* Remove action buttons column styling */
+
 /* Ensure text content wraps properly in cells */
 .detail-table td {
     vertical-align: top;
@@ -4317,6 +4319,49 @@ input:checked + .slider:before {
 #defectsDetailTable td:nth-child(3) input {
     text-align: center;
     font-weight: 500;
+}
+
+/* Remove action buttons styling */
+
+/* Field Selection Styles */
+.field-selected {
+    background-color: rgba(255, 165, 0, 0.2) !important;
+    border: 2px solid orange !important;
+    outline: none !important;
+}
+
+.field-selected:focus {
+    background-color: rgba(255, 165, 0, 0.3) !important;
+    border: 2px solid orange !important;
+}
+
+.orange-dot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    background-color: orange;
+    border-radius: 50%;
+    right: 2px;
+    bottom: 2px;
+    cursor: crosshair;
+    z-index: 1000;
+    transition: all 0.2s ease;
+}
+
+.orange-dot:hover {
+    width: 3px;
+    height: 3px;
+    background-color: darkorange;
+}
+
+/* Ensure table cells can contain positioned elements */
+.detail-table td {
+    position: relative;
+}
+
+/* Override existing td styles to ensure proper positioning */
+.detail-table td {
+    position: relative !important;
 }
 
 /* 載入指示器樣式 */

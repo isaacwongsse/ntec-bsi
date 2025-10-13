@@ -16003,10 +16003,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 顯示彈出表格
         popup.style.display = 'flex';
         
-        // 更新表格欄位管理器
-        if (window.tableFieldManager) {
-            window.tableFieldManager.updateTables();
-        }
+        // 觸發表格更新事件
+        const tableUpdateEvent = new CustomEvent('tableUpdated', { 
+            detail: { tableType: 'labels' } 
+        });
+        document.dispatchEvent(tableUpdateEvent);
         
         // 添加自動保存功能
         addAutoSaveListeners('labels');
@@ -16083,10 +16084,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 顯示彈出表格
         popup.style.display = 'flex';
         
-        // 更新表格欄位管理器
-        if (window.tableFieldManager) {
-            window.tableFieldManager.updateTables();
-        }
+        // 觸發表格更新事件
+        const tableUpdateEvent = new CustomEvent('tableUpdated', { 
+            detail: { tableType: 'defects' } 
+        });
+        document.dispatchEvent(tableUpdateEvent);
         
         // 添加自動保存功能
         addAutoSaveListeners('defects');
