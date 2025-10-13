@@ -80,12 +80,14 @@ class DetailTableInteractionManager {
         cell.removeEventListener('mouseenter', this.handleMouseEnter);
         cell.removeEventListener('mouseup', this.handleMouseUp);
         cell.removeEventListener('click', this.handleClick);
+        cell.removeEventListener('dblclick', this.handleDoubleClick);
 
         // 添加新的事件監聽器
         cell.addEventListener('mousedown', this.handleMouseDown.bind(this));
         cell.addEventListener('mouseenter', this.handleMouseEnter.bind(this));
         cell.addEventListener('mouseup', this.handleMouseUp.bind(this));
         cell.addEventListener('click', this.handleClick.bind(this));
+        cell.addEventListener('dblclick', this.handleDoubleClick.bind(this));
 
         // 防止默認的拖拽行為
         cell.addEventListener('dragstart', (e) => e.preventDefault());
@@ -150,6 +152,20 @@ class DetailTableInteractionManager {
                 this.addCopyDots();
             }
         }
+    }
+
+    handleDoubleClick(e) {
+        const cell = e.target.closest('td');
+        if (!cell) return;
+
+        // 清除選擇狀態
+        this.clearSelection();
+        
+        // 進入編輯模式
+        this.enterEditMode(cell);
+        
+        e.preventDefault();
+        e.stopPropagation();
     }
 
     startDragCopy(sourceCell, e) {
@@ -318,11 +334,85 @@ class DetailTableInteractionManager {
     }
 
     addCopyDots() {
-        this.selectedCells.forEach(cell => {
+        // 只在單個選中字段時顯示複製點
+        if (this.selectedCells.size === 1) {
+            const cell = Array.from(this.selectedCells)[0];
             if (!cell.querySelector('.copy-dot')) {
                 this.createCopyDot(cell);
             }
+        } else {
+            // 多選時移除所有複製點
+            document.querySelectorAll('.copy-dot').forEach(dot => {
+                dot.remove();
+            });
+        }
+    }
+
+    enterEditMode(cell) {
+        // 檢查是否已經有輸入元素
+        const existingInput = cell.querySelector('input, textarea, select');
+        
+        if (existingInput) {
+            // 如果已經有輸入元素，直接聚焦
+            existingInput.focus();
+            existingInput.select();
+            return;
+        }
+
+        // 創建編輯輸入框
+        const currentValue = this.getCellValue(cell);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentValue;
+        input.className = 'detail-table-edit-input';
+        
+        // 設置輸入框樣式
+        input.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #007bff;
+            background: white;
+            padding: 8px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            box-sizing: border-box;
+        `;
+
+        // 添加事件監聽器
+        const finishEdit = () => {
+            const newValue = input.value;
+            this.setCellValue(cell, newValue);
+            cell.removeChild(input);
+            
+            // 觸發保存事件
+            const table = cell.closest('table');
+            if (table) {
+                table.dispatchEvent(new Event('dataChanged', { bubbles: true }));
+            }
+        };
+
+        const cancelEdit = () => {
+            cell.removeChild(input);
+        };
+
+        input.addEventListener('blur', finishEdit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                finishEdit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+            }
         });
+
+        // 添加到單元格並聚焦
+        cell.appendChild(input);
+        input.focus();
+        input.select();
     }
 
     createCopyDot(cell) {

@@ -40,9 +40,11 @@
             <h3>功能測試說明：</h3>
             <ul>
                 <li><strong>拖拽選擇：</strong>按住左鍵並拖拽可以選擇多個字段（垂直/水平）</li>
-                <li><strong>複製點：</strong>選中字段後會在右下角顯示橙色點</li>
+                <li><strong>複製點：</strong>只有單個選中字段時才會在右下角顯示橙色點</li>
                 <li><strong>範圍複製：</strong>將鼠標懸停在橙色點上，按住左鍵拖拽可以選擇目標範圍，所有高亮的字段都會複製源字段的數據</li>
                 <li><strong>單擊選擇：</strong>單擊字段可以選擇單個字段</li>
+                <li><strong>雙擊編輯：</strong>雙擊字段可以進入編輯模式，直接修改字段內容</li>
+                <li><strong>編輯操作：</strong>編輯時按 Enter 保存，按 Escape 取消</li>
             </ul>
         </div>
 
@@ -206,9 +208,10 @@
             console.log('Detail Table Interaction Test loaded successfully!');
             console.log('Try the following:');
             console.log('1. Click and drag to select multiple cells');
-            console.log('2. Look for orange dots in selected cells');
-            console.log('3. Drag from orange dots to select target range');
-            console.log('4. All highlighted cells will copy the source cell value');
+            console.log('2. Orange dots only appear for single selected cells');
+            console.log('3. Double-click any cell to enter edit mode');
+            console.log('4. Drag from orange dots to select target range');
+            console.log('5. All highlighted cells will copy the source cell value');
         }, 1000);
     </script>
 </body>
