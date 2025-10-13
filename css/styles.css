@@ -4278,7 +4278,14 @@ input:checked + .slider:before {
     width: 100%;
 }
 
-/* Remove action buttons column styling */
+/* Special handling for action buttons column - also set to 150px */
+.detail-table th:first-child,
+.detail-table td:first-child {
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    text-align: center;
+}
 
 /* Ensure text content wraps properly in cells */
 .detail-table td {
@@ -4321,47 +4328,21 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
-/* Remove action buttons styling */
-
-/* Field Selection Styles */
-.field-selected {
-    background-color: rgba(255, 165, 0, 0.2) !important;
-    border: 2px solid orange !important;
-    outline: none !important;
+/* Center delete button in action buttons column */
+#defectsDetailTable td.action-buttons {
+    text-align: center;
 }
 
-.field-selected:focus {
-    background-color: rgba(255, 165, 0, 0.3) !important;
-    border: 2px solid orange !important;
-}
-
-.orange-dot {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    background-color: orange;
-    border-radius: 50%;
-    right: 2px;
-    bottom: 2px;
-    cursor: crosshair;
-    z-index: 1000;
-    transition: all 0.2s ease;
-}
-
-.orange-dot:hover {
-    width: 3px;
-    height: 3px;
-    background-color: darkorange;
-}
-
-/* Ensure table cells can contain positioned elements */
-.detail-table td {
-    position: relative;
-}
-
-/* Override existing td styles to ensure proper positioning */
-.detail-table td {
-    position: relative !important;
+.btn-delete-defect {
+    display: inline-block;
+    margin: 0 auto;
+    border-radius: 50% !important; /* 圓形按鈕 */
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 載入指示器樣式 */
