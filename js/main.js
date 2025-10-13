@@ -10111,25 +10111,8 @@ pneDropdown.addEventListener('click', e => {
                 
             case 'uploadfloorplan':
                 // Open drawing mode (floor plan)
-                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                if (floorPlanOverlay) {
-                    floorPlanOverlay.style.zIndex = '1000';
-                    window.logger.log('Drawing mode opened from PNE dropdown');
-                    
-                    // 調用必要的初始化函數
-                    if (typeof checkLabelsDataAndShowContent === 'function') {
-                        checkLabelsDataAndShowContent();
-                    }
-                    
-                    // 初始化滑塊功能
-                    setTimeout(() => {
-                        if (typeof window.initLabelSizeAdjustment === 'function') {
-                            window.initLabelSizeAdjustment();
-                        }
-                        if (typeof window.initDefectMarkSizeAdjustment === 'function') {
-                            window.initDefectMarkSizeAdjustment();
-                        }
-                    }, 100);
+                if (typeof openFloorPlanOverlay === 'function') {
+                    openFloorPlanOverlay();
                 }
                 break;
                 
