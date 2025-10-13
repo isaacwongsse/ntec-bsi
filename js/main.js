@@ -18676,7 +18676,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
         });
     }
 
-    // 關閉floor-plan-content的函數 (使用 z-index 控制顯示/隱藏)
+    // 關閉floor-plan-content的函數
     function closeFloorPlanContent() {
         try {
             // Check if user is waiting to place defect mark
@@ -18688,9 +18688,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
             
             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
             if (floorPlanOverlay) {
-                // 使用 z-index 隱藏繪圖模式，而不是完全隱藏
-                floorPlanOverlay.style.zIndex = '-1';
-                window.logger.log('Floor plan content closed using z-index');
+                floorPlanOverlay.style.display = 'none';
+                window.logger.log('Floor plan content closed');
                 
                 // Reset Quick Label Switch when closing floor plan
                 const quickLabelSwitch = document.getElementById('quickLabelSwitch');
@@ -18711,54 +18710,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 // Reset mouse tracking
                 mouseTrackingActive = false;
                 
-                // 優化：只在必要時更新照片狀態，避免重新渲染
+                // Re-render photos to ensure submission status is correct
                 if (allPhotos && allPhotos.length > 0) {
-                    console.log('🔍 Updating photo status after closing floor plan content (without re-rendering)');
-                    
-                    // 檢查是否有照片狀態需要更新
-                    let needsStatusUpdate = false;
-                    document.querySelectorAll('.photo-item').forEach(item => {
-                        const statusDiv = item.querySelector('.photo-status');
-                        const filename = item.getAttribute('data-filename');
-                        
-                        // 檢查已提交的照片狀態是否正確
-                        if (filename && submittedFilenames.has(filename)) {
-                            if (!statusDiv || !statusDiv.textContent.includes('Submitted to')) {
-                                needsStatusUpdate = true;
-                                
-                                // 從 submittedData 查找檢查編號
-                                let locationId = null;
-                                if (submittedData && submittedData.length > 0) {
-                                    for (const row of submittedData) {
-                                        if (row.photoFilenames && row.photoFilenames.includes(filename)) {
-                                            locationId = row.locationId;
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                if (locationId) {
-                                    if (!statusDiv) {
-                                        // 創建狀態元素
-                                        const newStatusDiv = document.createElement('div');
-                                        newStatusDiv.className = 'photo-status';
-                                        item.appendChild(newStatusDiv);
-                                        statusDiv = newStatusDiv;
-                                    }
-                                    
-                                    statusDiv.textContent = `Submitted to ${locationId}`;
-                                    statusDiv.style.display = 'flex';
-                                    statusDiv.style.visibility = 'visible';
-                                    item.classList.add('submitted');
-                                    console.log(`🔍 Updated photo status: Submitted to ${locationId}`);
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (!needsStatusUpdate) {
-                        console.log('🔍 No photo status updates needed, skipping re-render');
-                    }
+                    console.log('🔍 Re-rendering photos after closing floor plan content');
+                    const lazyObserver = typeof initLazyLoading === 'function' ? initLazyLoading() : null;
+                    renderPhotos(allPhotos, lazyObserver);
                 }
             }
         } catch (error) {
@@ -18912,8 +18868,81 @@ if (typeof window.updateAllLabelPositions === 'function') {
             //     window.redrawLabels();
             // }
             
-            // 關閉floor-plan-content
-            closeFloorPlanContent();
+            // 關閉floor-plan-content (使用 z-index 隱藏)
+            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+            if (floorPlanOverlay) {
+                floorPlanOverlay.style.zIndex = '-1';
+                window.logger.log('Floor plan content closed using z-index after assign to new record');
+                
+                // Reset Quick Label Switch when closing floor plan
+                const quickLabelSwitch = document.getElementById('quickLabelSwitch');
+                if (quickLabelSwitch) {
+                    quickLabelSwitch.checked = false;
+                    window.logger.log('Quick Label Switch reset to OFF when closing floor plan content');
+                }
+                
+                // Reset Quick Label mode states
+                const floorPlanViewer = document.getElementById('floorPlanViewer');
+                const quickLabelInstruction = document.getElementById('quickLabelInstruction');
+                if (floorPlanViewer) {
+                    floorPlanViewer.style.cursor = 'grab';
+                }
+                if (quickLabelInstruction) {
+                    quickLabelInstruction.style.display = 'none';
+                }
+                // Reset mouse tracking
+                mouseTrackingActive = false;
+                
+                // 優化：只在必要時更新照片狀態，避免重新渲染
+                if (allPhotos && allPhotos.length > 0) {
+                    console.log('🔍 Updating photo status after closing floor plan content (without re-rendering)');
+                    
+                    // 檢查是否有照片狀態需要更新
+                    let needsStatusUpdate = false;
+                    document.querySelectorAll('.photo-item').forEach(item => {
+                        const statusDiv = item.querySelector('.photo-status');
+                        const filename = item.getAttribute('data-filename');
+                        
+                        // 檢查已提交的照片狀態是否正確
+                        if (filename && submittedFilenames.has(filename)) {
+                            if (!statusDiv || !statusDiv.textContent.includes('Submitted to')) {
+                                needsStatusUpdate = true;
+                                
+                                // 從 submittedData 查找檢查編號
+                                let locationId = null;
+                                if (submittedData && submittedData.length > 0) {
+                                    for (const row of submittedData) {
+                                        if (row.photoFilenames && row.photoFilenames.includes(filename)) {
+                                            locationId = row.locationId;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (locationId) {
+                                    if (!statusDiv) {
+                                        // 創建狀態元素
+                                        const newStatusDiv = document.createElement('div');
+                                        newStatusDiv.className = 'photo-status';
+                                        item.appendChild(newStatusDiv);
+                                        statusDiv = newStatusDiv;
+                                    }
+                                    
+                                    statusDiv.textContent = `Submitted to ${locationId}`;
+                                    statusDiv.style.display = 'flex';
+                                    statusDiv.style.visibility = 'visible';
+                                    item.classList.add('submitted');
+                                    console.log(`🔍 Updated photo status: Submitted to ${locationId}`);
+                                }
+                            }
+                        }
+                    });
+                    
+                    if (!needsStatusUpdate) {
+                        console.log('🔍 No photo status updates needed, skipping re-render');
+                    }
+                }
+            }
             
             // 驗證數據是否正確保存
             window.logger.log('Final verification - Label data after assignment:', {
