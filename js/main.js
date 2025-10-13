@@ -4433,11 +4433,24 @@ function restorePhotoAssignmentStatus() {
     window.logger.log('Photo assignment status restored');
 }
 
-// 確保容器樣式正確的函數
-function ensureContainerStyles() {
+// 確保頁面和容器樣式正確的函數
+function ensurePageStyles() {
+    // 確保 body 背景樣式
+    const body = document.body;
+    if (body) {
+        body.style.background = 'linear-gradient(135deg, #49543a 0%, #232d1b 100%)';
+        body.style.backgroundAttachment = 'fixed';
+        body.style.minHeight = '100vh';
+        body.style.padding = '0';
+        body.style.margin = '0';
+        body.style.width = '100%';
+        body.style.boxSizing = 'border-box';
+        window.logger.log('Body background styles forcefully restored');
+    }
+    
+    // 確保容器樣式
     const container = document.querySelector('.container');
     if (container) {
-        // 強制設置所有必要的樣式
         container.style.background = 'rgba(255, 255, 255, 0.35)';
         container.style.borderRadius = '12px';
         container.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.2)';
@@ -4455,12 +4468,12 @@ function ensureContainerStyles() {
     }
 }
 
-// 在頁面載入完成後確保容器樣式
+// 在頁面載入完成後確保頁面和容器樣式
 document.addEventListener('DOMContentLoaded', function() {
     // 延遲執行以確保所有樣式都已載入
-    setTimeout(ensureContainerStyles, 100);
-    setTimeout(ensureContainerStyles, 500);
-    setTimeout(ensureContainerStyles, 1000);
+    setTimeout(ensurePageStyles, 100);
+    setTimeout(ensurePageStyles, 500);
+    setTimeout(ensurePageStyles, 1000);
 });
 
 // Load data from storage
@@ -4918,8 +4931,8 @@ async function loadDataFromStorage() {
     // 注意：不再清除分類內容，因為現在會從 localStorage 載入
     window.logger.log('Data loading completed. Categories content preserved from localStorage');
     
-    // 確保容器背景樣式正確載入
-    ensureContainerStyles();
+    // 確保頁面和容器背景樣式正確載入
+    ensurePageStyles();
 }
 
 // Clear all categories content on page reload
@@ -7393,8 +7406,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
                     await loadDataFromStorage();
                     
-                    // 確保容器背景樣式正確載入
-                    ensureContainerStyles();
+                    // 確保頁面和容器背景樣式正確載入
+                    ensurePageStyles();
 
                     // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
                     try {
