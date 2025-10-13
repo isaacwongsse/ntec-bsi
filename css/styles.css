@@ -2878,11 +2878,6 @@ header h1, .subtitle {
     white-space: nowrap;
 }
 
-/* 確保在 floor-plan-container 內的 defect-mark-textbox 有正確的 padding */
-.floor-plan-container .defect-mark-textbox {
-    padding: 5px;
-}
-
 .defect-mark-connection {
     position: absolute;
     z-index: 999; /* 在圓點和文字框後面 */
