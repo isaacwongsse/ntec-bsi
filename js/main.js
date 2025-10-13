@@ -8007,12 +8007,10 @@ async function updateAllTablesAfterStartFresh() {
             }
         }
         
-        // 3. 更新分類表格 (Category Tables A-I)
+        // 3. 更新分類表格 (Category Tables A-J)
         categories.forEach(category => {
-            if (category.id !== 'j') { // 排除缺陷分類，它有自己的處理邏輯
-                updateCategoryDisplay(category.id);
-                console.log(`分類 ${category.id.toUpperCase()} 表格已更新`);
-            }
+            updateCategoryDisplay(category.id);
+            console.log(`分類 ${category.id.toUpperCase()} 表格已更新`);
         });
         
         // 4. 更新標籤詳細表格 (Labels Detail)
@@ -15982,11 +15980,6 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 row.dataset.labelId = label.id;
                 row.dataset.labelIndex = index;
                 row.innerHTML = `
-                    <td class="action-buttons">
-                        <button class="btn-delete-label" onclick="deleteLabelFromDetailTable('${label.id}', ${index})" title="刪除標籤記錄">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
                     <td><input type="text" value="${label.inspectionNo || ''}" data-field="inspectionNo" data-index="${index}"></td>
                     <td><input type="text" value="${label.floor || ''}" data-field="floor" data-index="${index}"></td>
                     <td><input type="text" value="${label.areaName || ''}" data-field="areaName" data-index="${index}"></td>
@@ -16009,6 +16002,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
         
         // 顯示彈出表格
         popup.style.display = 'flex';
+        
+        // 更新表格欄位管理器
+        if (window.tableFieldManager) {
+            window.tableFieldManager.updateTables();
+        }
         
         // 添加自動保存功能
         addAutoSaveListeners('labels');
@@ -16058,11 +16056,6 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 };
                 
                 row.innerHTML = `
-                    <td class="action-buttons">
-                        <button class="btn-delete-defect" onclick="deleteDefectFromDetailTable('${defect.id}', '${defect.defectNo}', ${index})" title="刪除缺陷記錄">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
                     <td><input type="text" value="${defect.defectNo || ''}" data-field="defectNo" data-index="${index}" readonly></td>
                     <td><input type="text" value="${defect.locationId || defect.inspectionNo || ''}" data-field="locationId" data-index="${index}" readonly></td>
                      <td><input type="text" value="${defect.imminentDanger ? 'Yes' : 'No'}" data-field="imminentDanger" data-index="${index}" readonly></td>
@@ -16089,6 +16082,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
         
         // 顯示彈出表格
         popup.style.display = 'flex';
+        
+        // 更新表格欄位管理器
+        if (window.tableFieldManager) {
+            window.tableFieldManager.updateTables();
+        }
         
         // 添加自動保存功能
         addAutoSaveListeners('defects');

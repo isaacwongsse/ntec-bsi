@@ -4278,15 +4278,6 @@ input:checked + .slider:before {
     width: 100%;
 }
 
-/* Special handling for action buttons column - also set to 150px */
-.detail-table th:first-child,
-.detail-table td:first-child {
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
-    text-align: center;
-}
-
 /* Ensure text content wraps properly in cells */
 .detail-table td {
     vertical-align: top;
@@ -4326,23 +4317,6 @@ input:checked + .slider:before {
 #defectsDetailTable td:nth-child(3) input {
     text-align: center;
     font-weight: 500;
-}
-
-/* Center delete button in action buttons column */
-#defectsDetailTable td.action-buttons {
-    text-align: center;
-}
-
-.btn-delete-defect {
-    display: inline-block;
-    margin: 0 auto;
-    border-radius: 50% !important; /* 圓形按鈕 */
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 /* 載入指示器樣式 */
