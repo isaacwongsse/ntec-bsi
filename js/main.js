@@ -7430,10 +7430,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                         await window.storageAdapter.clear();
                         console.log('IndexedDB 數據清除完成');
                         
-                    // 也同步清空 localStorage（保險移除殘留鍵）
+                        // 也同步清空 localStorage（保險移除殘留鍵）
                         try { 
                             localStorage.clear(); 
                             console.log('localStorage 數據清除完成');
+                            
+                            // 重新初始化語言系統
+                            initializeLanguageSystem();
+                            console.log('語言系統重新初始化完成');
                         } catch (e) { 
                             console.warn('localStorage 清除失敗:', e);
                         }
@@ -7474,7 +7478,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         const floorplanThumb = document.getElementById('floorplanThumb');
                         const floorplanThumbImg = document.getElementById('floorplanThumbImg');
                         
-                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'none';
+                        if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '-1';
                         if (floorPlanViewer) floorPlanViewer.style.display = 'none';
                         if (floorPlanUploadArea) floorPlanUploadArea.style.display = 'block';
                         if (labelLayer) labelLayer.innerHTML = '';
