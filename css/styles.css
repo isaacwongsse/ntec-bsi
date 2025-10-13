@@ -3001,6 +3001,7 @@ header h1, .subtitle {
     border-bottom: 1px solid #dee2e6;
     border-left: 2px solid transparent;
     border-top: 2px solid transparent;
+    overflow: visible; /* 確保複製點可見 */
 }
 
 .detail-table td:hover {
@@ -3159,6 +3160,69 @@ header h1, .subtitle {
     color: #6c757d;
     font-style: italic;
     margin-top: 5px;
+}
+
+/* 複製點樣式 */
+.copy-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 8px;
+    height: 8px;
+    background: #ff8c00;
+    border-radius: 50%;
+    cursor: grab;
+    z-index: 1000;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    opacity: 0;
+    visibility: hidden;
+}
+
+.copy-dot:hover {
+    background: #ff6b00;
+    transform: scale(1.2);
+    cursor: grabbing;
+}
+
+.copy-dot:active {
+    cursor: grabbing;
+}
+
+/* 選中單元格顯示複製點 */
+.detail-table td.selected .copy-dot {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 拖拽預覽樣式 */
+.detail-table-drag-preview {
+    position: fixed;
+    background: rgba(255, 140, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    max-width: 200px;
+    word-wrap: break-word;
+}
+
+/* 拖拽目標高亮 */
+.detail-table-drop-target {
+    background-color: rgba(255, 140, 0, 0.2) !important;
+    border: 2px dashed #ff8c00 !important;
+}
+
+/* 拖拽模式樣式 */
+.detail-table-dragging {
+    cursor: grabbing !important;
+}
+
+.detail-table-dragging .copy-dot {
+    cursor: grabbing;
 }
 
 
