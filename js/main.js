@@ -755,7 +755,7 @@ function updateTableHeaders() {
     const defectsTable = document.getElementById('defectsDetailTable');
     if (defectsTable) {
         const headers = defectsTable.querySelectorAll('th');
-        const headerKeys = ['action', 'defectNo', 'inspectionNo', 'imminentDanger', 'inspectionDate', 'floor', 'areaName', 'roomNo', 'photoNumbers', 'categories', 'defectType', 'description', 'remedialWorks'];
+        const headerKeys = ['defectNo', 'inspectionNo', 'imminentDanger', 'inspectionDate', 'floor', 'areaName', 'roomNo', 'photoNumbers', 'categories', 'defectType', 'description', 'remedialWorks'];
         
         headers.forEach((header, index) => {
             if (headerKeys[index]) {
@@ -1364,7 +1364,6 @@ function updateDefectsDetailTableHeaders() {
     if (defectsDetailTable) {
         const headers = defectsDetailTable.querySelectorAll('th');
         const headerKeys = [
-            'actionsHeaderDefects',
             'defectNoHeaderDefects',
             'inspectionNoHeaderDefects',
             'imminentDangerHeaderDefects',
@@ -14606,48 +14605,54 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (labelsDataReminder) labelsDataReminder.style.display = 'none';
         if (uploadPlaceholder) uploadPlaceholder.style.display = 'block';
         
-        // Re-render photos to ensure submission status is correct
+        // 優化：只在必要時更新照片狀態，避免重新渲染
         if (allPhotos && allPhotos.length > 0) {
-            console.log('🔍 Re-rendering photos after closing floor plan');
-            console.log('🔍 submittedData status:', submittedData ? submittedData.length : 'null');
-            console.log('🔍 window.labels status:', window.labels ? window.labels.length : 'null');
-            console.log('🔍 submittedFilenames status:', submittedFilenames ? submittedFilenames.size : 'null');
-            const lazyObserver = typeof initLazyLoading === 'function' ? initLazyLoading() : null;
-            renderPhotos(allPhotos, lazyObserver);
+            console.log('🔍 Updating photo status after closing floor plan (without re-rendering)');
             
-            // 延遲確保狀態設置不會被其他函數覆蓋
-            setTimeout(() => {
-                console.log('🔍 Final photo status check after delay');
-                document.querySelectorAll('.photo-item.submitted').forEach(item => {
-                    const statusDiv = item.querySelector('.photo-status');
-                    if (statusDiv && statusDiv.textContent.includes('Submitted to')) {
-                        console.log(`🔍 Photo status preserved: ${statusDiv.textContent}`);
-                    } else {
-                        console.log(`🔍 Photo status missing, re-applying`);
-                        // 重新應用狀態
-                        const filename = item.getAttribute('data-filename');
-                        if (filename && submittedFilenames.has(filename)) {
-                            // 從 submittedData 查找檢查編號
-                            let locationId = null;
-                            if (submittedData && submittedData.length > 0) {
-                                for (const row of submittedData) {
-                                    if (row.photoFilenames && row.photoFilenames.includes(filename)) {
-                                        locationId = row.locationId;
-                                        break;
-                                    }
+            // 檢查是否有照片狀態需要更新
+            let needsStatusUpdate = false;
+            document.querySelectorAll('.photo-item').forEach(item => {
+                const statusDiv = item.querySelector('.photo-status');
+                const filename = item.getAttribute('data-filename');
+                
+                // 檢查已提交的照片狀態是否正確
+                if (filename && submittedFilenames.has(filename)) {
+                    if (!statusDiv || !statusDiv.textContent.includes('Submitted to')) {
+                        needsStatusUpdate = true;
+                        
+                        // 從 submittedData 查找檢查編號
+                        let locationId = null;
+                        if (submittedData && submittedData.length > 0) {
+                            for (const row of submittedData) {
+                                if (row.photoFilenames && row.photoFilenames.includes(filename)) {
+                                    locationId = row.locationId;
+                                    break;
                                 }
                             }
-                            if (locationId) {
-                                statusDiv.textContent = `Submitted to ${locationId}`;
-                                statusDiv.style.display = 'flex !important';
-                                statusDiv.style.visibility = 'visible';
-                                item.classList.add('submitted');
-                                console.log(`🔍 Re-applied status: Submitted to ${locationId}`);
+                        }
+                        
+                        if (locationId) {
+                            if (!statusDiv) {
+                                // 創建狀態元素
+                                const newStatusDiv = document.createElement('div');
+                                newStatusDiv.className = 'photo-status';
+                                item.appendChild(newStatusDiv);
+                                statusDiv = newStatusDiv;
                             }
+                            
+                            statusDiv.textContent = `Submitted to ${locationId}`;
+                            statusDiv.style.display = 'flex';
+                            statusDiv.style.visibility = 'visible';
+                            item.classList.add('submitted');
+                            console.log(`🔍 Updated photo status: Submitted to ${locationId}`);
                         }
                     }
-                });
-            }, 500);
+                }
+            });
+            
+            if (!needsStatusUpdate) {
+                console.log('🔍 No photo status updates needed, skipping re-render');
+            }
         }
     }
 
@@ -16063,7 +16068,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 使用 window.defectEntries 而不是 window.defectMarks，因為我們要顯示來自 defect-form 的數據
         if (window.defectEntries.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="20" style="text-align: center; color: #666; font-style: italic;">No defect entries found</td>';
+            row.innerHTML = '<td colspan="18" style="text-align: center; color: #666; font-style: italic;">No defect entries found</td>';
             tableBody.appendChild(row);
         } else {
             window.defectEntries.forEach((defect, index) => {
@@ -16079,11 +16084,6 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 };
                 
                 row.innerHTML = `
-                    <td class="action-buttons">
-                        <button class="btn-delete-defect" onclick="deleteDefectFromDetailTable('${defect.id}', '${defect.defectNo}', ${index})" title="刪除缺陷記錄">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
                     <td><input type="text" value="${defect.defectNo || ''}" data-field="defectNo" data-index="${index}" readonly></td>
                     <td><input type="text" value="${defect.locationId || defect.inspectionNo || ''}" data-field="locationId" data-index="${index}" readonly></td>
                      <td><input type="text" value="${defect.imminentDanger ? 'Yes' : 'No'}" data-field="imminentDanger" data-index="${index}" readonly></td>

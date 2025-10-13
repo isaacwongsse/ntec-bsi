@@ -80,14 +80,12 @@ class DetailTableInteractionManager {
         cell.removeEventListener('mouseenter', this.handleMouseEnter);
         cell.removeEventListener('mouseup', this.handleMouseUp);
         cell.removeEventListener('click', this.handleClick);
-        cell.removeEventListener('dblclick', this.handleDoubleClick);
 
         // 添加新的事件監聽器
         cell.addEventListener('mousedown', this.handleMouseDown.bind(this));
         cell.addEventListener('mouseenter', this.handleMouseEnter.bind(this));
         cell.addEventListener('mouseup', this.handleMouseUp.bind(this));
         cell.addEventListener('click', this.handleClick.bind(this));
-        cell.addEventListener('dblclick', this.handleDoubleClick.bind(this));
 
         // 防止默認的拖拽行為
         cell.addEventListener('dragstart', (e) => e.preventDefault());
@@ -105,6 +103,12 @@ class DetailTableInteractionManager {
         if (e.target.classList.contains('copy-dot')) {
             console.log('Clicked on copy dot, starting drag copy');
             this.startDragCopy(cell, e);
+            return;
+        }
+
+        // 檢查是否點擊在輸入元素上，如果是則不開始選擇模式
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            console.log('Clicked on input element, not starting selection');
             return;
         }
 
@@ -150,32 +154,18 @@ class DetailTableInteractionManager {
     handleClick(e) {
         // 添加小延遲來避免與拖拽選擇衝突
         setTimeout(() => {
-            // 如果沒有進行拖拽選擇，則單擊選擇
+            // 如果沒有進行拖拽選擇，則單擊進入編輯模式
             if (!this.isSelecting && !this.isDragging) {
                 const cell = e.target.closest('td');
                 if (cell) {
-                    console.log('Single click selection');
+                    console.log('Single click - entering edit mode');
                     this.clearSelection();
-                    this.selectCell(cell);
-                    this.addCopyDots();
+                    this.enterEditMode(cell);
                 }
             }
         }, 10);
     }
 
-    handleDoubleClick(e) {
-        const cell = e.target.closest('td');
-        if (!cell) return;
-
-        // 清除選擇狀態
-        this.clearSelection();
-        
-        // 進入編輯模式
-        this.enterEditMode(cell);
-        
-        e.preventDefault();
-        e.stopPropagation();
-    }
 
     startDragCopy(sourceCell, e) {
         // 檢查源字段是否允許編輯
