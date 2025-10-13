@@ -39,13 +39,10 @@
 body {
     background: var(--bg-gradient);
     min-height: 100vh;
-    padding: 0;
-    margin: 0;
+    padding: 15px;
     color: var(--text);
     background-attachment: fixed;
     line-height: 1.6;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .skip-link {
@@ -64,9 +61,8 @@ body {
 }
 
 .container {
-    width: 100%;
-    margin: 0;
-    padding: 15px;
+    max-width: 1800px;
+    margin: 0 auto;
     background: rgba(255, 255, 255, 0.35);
     border-radius: var(--border-radius);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -76,7 +72,6 @@ body {
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    box-sizing: border-box;
 }
 
 header {
@@ -89,12 +84,6 @@ header {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    border-radius: var(--border-radius);
-    margin-bottom: 20px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-    backdrop-filter: blur(12px) saturate(160%);
-    -webkit-backdrop-filter: blur(12px) saturate(160%);
-    border: 1px solid rgba(255,255,255,0.18);
 }
 
 .header-content {

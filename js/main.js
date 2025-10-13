@@ -4433,95 +4433,6 @@ function restorePhotoAssignmentStatus() {
     window.logger.log('Photo assignment status restored');
 }
 
-// 確保頁面和容器樣式正確的函數
-function ensurePageStyles() {
-    console.log('🔧 ensurePageStyles: Starting to restore page styles');
-    
-    // 確保 body 背景樣式
-    const body = document.body;
-    console.log('🔧 ensurePageStyles: Body element found:', !!body);
-    if (body) {
-        console.log('🔧 ensurePageStyles: Current body background:', body.style.background);
-        
-        // 使用 setProperty 方法設置 !important 樣式
-        body.style.setProperty('background', 'linear-gradient(135deg, #49543a 0%, #232d1b 100%)', 'important');
-        body.style.setProperty('background-attachment', 'fixed', 'important');
-        body.style.setProperty('min-height', '100vh', 'important');
-        body.style.setProperty('padding', '0', 'important');
-        body.style.setProperty('margin', '0', 'important');
-        body.style.setProperty('width', '100%', 'important');
-        body.style.setProperty('box-sizing', 'border-box', 'important');
-        
-        console.log('🔧 ensurePageStyles: Body background styles applied with !important:', body.style.background);
-        window.logger.log('Body background styles forcefully restored with !important');
-    } else {
-        console.log('🔧 ensurePageStyles: Body element not found!');
-    }
-    
-    // 確保容器樣式
-    const container = document.querySelector('.container');
-    console.log('🔧 ensurePageStyles: Container element found:', !!container);
-    if (container) {
-        console.log('🔧 ensurePageStyles: Current container background:', container.style.background);
-        
-        // 使用 setProperty 方法設置 !important 樣式
-        container.style.setProperty('background', 'rgba(255, 255, 255, 0.35)', 'important');
-        container.style.setProperty('border-radius', '12px', 'important');
-        container.style.setProperty('box-shadow', '0 10px 40px rgba(0, 0, 0, 0.2)', 'important');
-        container.style.setProperty('backdrop-filter', 'blur(16px) saturate(180%)', 'important');
-        container.style.setProperty('-webkit-backdrop-filter', 'blur(16px) saturate(180%)', 'important');
-        container.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.18)', 'important');
-        container.style.setProperty('width', '100%', 'important');
-        container.style.setProperty('margin', '0', 'important');
-        container.style.setProperty('padding', '15px', 'important');
-        container.style.setProperty('display', 'flex', 'important');
-        container.style.setProperty('flex-direction', 'column', 'important');
-        container.style.setProperty('box-sizing', 'border-box', 'important');
-        container.style.setProperty('overflow', 'hidden', 'important');
-        
-        console.log('🔧 ensurePageStyles: Container background styles applied with !important:', container.style.background);
-        window.logger.log('Container styles forcefully restored with !important');
-    } else {
-        console.log('🔧 ensurePageStyles: Container element not found!');
-    }
-    
-    console.log('🔧 ensurePageStyles: Function completed');
-}
-
-// 在頁面載入完成後確保頁面和容器樣式
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔧 DOMContentLoaded: Event fired, setting up page style restoration');
-    // 延遲執行以確保所有樣式都已載入
-    setTimeout(() => {
-        console.log('🔧 DOMContentLoaded: First timeout (100ms) - calling ensurePageStyles');
-        ensurePageStyles();
-    }, 100);
-    setTimeout(() => {
-        console.log('🔧 DOMContentLoaded: Second timeout (500ms) - calling ensurePageStyles');
-        ensurePageStyles();
-    }, 500);
-    setTimeout(() => {
-        console.log('🔧 DOMContentLoaded: Third timeout (1000ms) - calling ensurePageStyles');
-        ensurePageStyles();
-    }, 1000);
-    
-    // 設置持續監控，每 2 秒檢查一次樣式
-    setInterval(() => {
-        const body = document.body;
-        const container = document.querySelector('.container');
-        
-        if (body && (!body.style.background || body.style.background === '')) {
-            console.log('🔧 Style Monitor: Body background missing, restoring...');
-            ensurePageStyles();
-        }
-        
-        if (container && (!container.style.background || container.style.background === '')) {
-            console.log('🔧 Style Monitor: Container background missing, restoring...');
-            ensurePageStyles();
-        }
-    }, 2000);
-});
-
 // Load data from storage
 async function loadDataFromStorage() {
     console.log('🔍 loadDataFromStorage: Starting to load data from IndexedDB');
@@ -4976,11 +4887,6 @@ async function loadDataFromStorage() {
     
     // 注意：不再清除分類內容，因為現在會從 localStorage 載入
     window.logger.log('Data loading completed. Categories content preserved from localStorage');
-    
-    // 確保頁面和容器背景樣式正確載入
-    console.log('🔧 loadDataFromStorage: About to call ensurePageStyles');
-    ensurePageStyles();
-    console.log('🔧 loadDataFromStorage: ensurePageStyles called');
 }
 
 // Clear all categories content on page reload
@@ -7453,9 +7359,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
                     // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
                     await loadDataFromStorage();
-                    
-                    // 確保頁面和容器背景樣式正確載入
-                    ensurePageStyles();
 
                     // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
                     try {
@@ -18965,81 +18868,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
             //     window.redrawLabels();
             // }
             
-            // 關閉floor-plan-content (使用 z-index 隱藏)
-            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-            if (floorPlanOverlay) {
-                floorPlanOverlay.style.zIndex = '-1';
-                window.logger.log('Floor plan content closed using z-index after assign to new record');
-                
-                // Reset Quick Label Switch when closing floor plan
-                const quickLabelSwitch = document.getElementById('quickLabelSwitch');
-                if (quickLabelSwitch) {
-                    quickLabelSwitch.checked = false;
-                    window.logger.log('Quick Label Switch reset to OFF when closing floor plan content');
-                }
-                
-                // Reset Quick Label mode states
-                const floorPlanViewer = document.getElementById('floorPlanViewer');
-                const quickLabelInstruction = document.getElementById('quickLabelInstruction');
-                if (floorPlanViewer) {
-                    floorPlanViewer.style.cursor = 'grab';
-                }
-                if (quickLabelInstruction) {
-                    quickLabelInstruction.style.display = 'none';
-                }
-                // Reset mouse tracking
-                mouseTrackingActive = false;
-                
-                // 優化：只在必要時更新照片狀態，避免重新渲染
-                if (allPhotos && allPhotos.length > 0) {
-                    console.log('🔍 Updating photo status after closing floor plan content (without re-rendering)');
-                    
-                    // 檢查是否有照片狀態需要更新
-                    let needsStatusUpdate = false;
-                    document.querySelectorAll('.photo-item').forEach(item => {
-                        const statusDiv = item.querySelector('.photo-status');
-                        const filename = item.getAttribute('data-filename');
-                        
-                        // 檢查已提交的照片狀態是否正確
-                        if (filename && submittedFilenames.has(filename)) {
-                            if (!statusDiv || !statusDiv.textContent.includes('Submitted to')) {
-                                needsStatusUpdate = true;
-                                
-                                // 從 submittedData 查找檢查編號
-                                let locationId = null;
-                                if (submittedData && submittedData.length > 0) {
-                                    for (const row of submittedData) {
-                                        if (row.photoFilenames && row.photoFilenames.includes(filename)) {
-                                            locationId = row.locationId;
-                                            break;
-                                        }
-                                    }
-                                }
-                                
-                                if (locationId) {
-                                    if (!statusDiv) {
-                                        // 創建狀態元素
-                                        const newStatusDiv = document.createElement('div');
-                                        newStatusDiv.className = 'photo-status';
-                                        item.appendChild(newStatusDiv);
-                                        statusDiv = newStatusDiv;
-                                    }
-                                    
-                                    statusDiv.textContent = `Submitted to ${locationId}`;
-                                    statusDiv.style.display = 'flex';
-                                    statusDiv.style.visibility = 'visible';
-                                    item.classList.add('submitted');
-                                    console.log(`🔍 Updated photo status: Submitted to ${locationId}`);
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (!needsStatusUpdate) {
-                        console.log('🔍 No photo status updates needed, skipping re-render');
-                    }
-                }
-            }
+            // 關閉floor-plan-content
+            closeFloorPlanContent();
             
             // 驗證數據是否正確保存
             window.logger.log('Final verification - Label data after assignment:', {
