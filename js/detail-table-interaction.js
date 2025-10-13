@@ -366,19 +366,20 @@ class DetailTableInteractionManager {
         input.value = currentValue;
         input.className = 'detail-table-edit-input';
         
-        // 設置輸入框樣式
+        // 設置輸入框樣式 - 使用正常的表格輸入框樣式
         input.style.cssText = `
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            border: 2px solid #007bff;
+            border: 1px solid #ddd;
             background: white;
             padding: 8px;
             font-size: 0.9rem;
             z-index: 1000;
             box-sizing: border-box;
+            border-radius: 0;
         `;
 
         // 添加事件監聽器
@@ -398,16 +399,32 @@ class DetailTableInteractionManager {
             cell.removeChild(input);
         };
 
+        // 點擊其他字段時確認修改
+        const handleClickOutside = (e) => {
+            const clickedCell = e.target.closest('td');
+            if (clickedCell && clickedCell !== cell) {
+                finishEdit();
+                document.removeEventListener('click', handleClickOutside);
+            }
+        };
+
         input.addEventListener('blur', finishEdit);
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 finishEdit();
+                document.removeEventListener('click', handleClickOutside);
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 cancelEdit();
+                document.removeEventListener('click', handleClickOutside);
             }
         });
+
+        // 監聽點擊其他字段
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 100);
 
         // 添加到單元格並聚焦
         cell.appendChild(input);
