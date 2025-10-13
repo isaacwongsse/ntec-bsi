@@ -3004,18 +3004,6 @@ header h1, .subtitle {
     overflow: visible; /* 確保複製點可見 */
 }
 
-/* 輸入字段的鼠標圖標 */
-.detail-table td input,
-.detail-table td textarea,
-.detail-table td select {
-    cursor: text;
-}
-
-/* 編輯輸入框的鼠標圖標 */
-.detail-table-edit-input {
-    cursor: text !important;
-}
-
 .detail-table td:hover {
     background-color: rgba(0, 123, 255, 0.1);
     border-left-color: rgba(0, 123, 255, 0.3);
@@ -3177,8 +3165,8 @@ header h1, .subtitle {
 /* 複製點樣式 */
 .copy-dot {
     position: absolute;
-    bottom: 0;
-    right: 0;
+    bottom: 2px;
+    right: 2px;
     width: 8px;
     height: 8px;
     background: #ff8c00;
@@ -3189,12 +3177,11 @@ header h1, .subtitle {
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     opacity: 0;
     visibility: hidden;
-    transform: translate(50%, 50%); /* 將中心點對齊到右下角 */
 }
 
 .copy-dot:hover {
     background: #ff6b00;
-    transform: translate(50%, 50%) scale(1.2);
+    transform: scale(1.2);
     cursor: grabbing;
 }
 

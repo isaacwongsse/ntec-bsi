@@ -39,11 +39,11 @@
         <div class="test-info">
             <h3>功能測試說明：</h3>
             <ul>
-                <li><strong>單擊選擇：</strong>單擊字段可以選擇單個字段（鼠標顯示箭頭圖標）</li>
-                <li><strong>雙擊編輯：</strong>雙擊字段可以進入編輯模式（鼠標顯示文本輸入圖標）</li>
-                <li><strong>複製點：</strong>只有單個選中字段時才會在右下角顯示橙色點（鼠標懸停顯示抓取圖標）</li>
-                <li><strong>範圍複製：</strong>將鼠標懸停在橙色點上，按住左鍵拖拽可以選擇目標範圍，所有高亮的字段都會複製源字段的數據</li>
                 <li><strong>拖拽選擇：</strong>按住左鍵並拖拽可以選擇多個字段（垂直/水平）</li>
+                <li><strong>複製點：</strong>只有單個選中字段時才會在右下角顯示橙色點</li>
+                <li><strong>範圍複製：</strong>將鼠標懸停在橙色點上，按住左鍵拖拽可以選擇目標範圍，所有高亮的字段都會複製源字段的數據</li>
+                <li><strong>單擊選擇：</strong>單擊字段可以選擇單個字段</li>
+                <li><strong>雙擊編輯：</strong>雙擊字段可以進入編輯模式，顯示正常的輸入框樣式</li>
                 <li><strong>編輯操作：</strong>編輯時按 Enter 保存，按 Escape 取消，或點擊其他字段確認修改</li>
             </ul>
         </div>
@@ -207,9 +207,9 @@
         setTimeout(() => {
             console.log('Detail Table Interaction Test loaded successfully!');
             console.log('Try the following:');
-            console.log('1. Single click to select cells (arrow cursor)');
-            console.log('2. Double-click to enter edit mode (text cursor)');
-            console.log('3. Orange dots appear for single selected cells (grab cursor)');
+            console.log('1. Click and drag to select multiple cells');
+            console.log('2. Orange dots only appear for single selected cells');
+            console.log('3. Double-click any cell to enter edit mode (normal input style)');
             console.log('4. Drag from orange dots to select target range');
             console.log('5. All highlighted cells will copy the source cell value');
         }, 1000);

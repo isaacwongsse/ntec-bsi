@@ -8802,19 +8802,9 @@ function handleTableClick(event) {
     const isNonFieldElement = event.target.tagName === 'BUTTON' ||
                             event.target.closest('button') ||
                             event.target.closest('.multiselect-btn') ||
-                            event.target.closest('.action-buttons') ||
-                            event.target.closest('.copy-dot'); // 排除複製點
+                            event.target.closest('.action-buttons');
     if (isNonFieldElement) {
         return;
-    }
-
-    // 檢查是否點擊了輸入字段
-    const isInputElement = event.target.tagName === 'INPUT' ||
-                          event.target.tagName === 'TEXTAREA' ||
-                          event.target.tagName === 'SELECT' ||
-                          event.target.closest('input, textarea, select');
-    if (isInputElement) {
-        return; // 讓輸入字段正常處理點擊事件
     }
 
     // 檢查是否切換了表格
