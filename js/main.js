@@ -8775,12 +8775,14 @@ function initMultiSelect() {
     const labelsTable = document.getElementById('labelsDetailTable');
     if (labelsTable) {
         labelsTable.addEventListener('click', handleTableClick);
+        labelsTable.addEventListener('dblclick', handleTableDoubleClick);
     }
 
     // 為缺陷詳細表格添加多選功能
     const defectsTable = document.getElementById('defectsDetailTable');
     if (defectsTable) {
         defectsTable.addEventListener('click', handleTableClick);
+        defectsTable.addEventListener('dblclick', handleTableDoubleClick);
     }
 
     // 多選按鈕已移除，不再需要綁定按鈕事件
@@ -8830,6 +8832,141 @@ function handleTableClick(event) {
     }
 
     updateMultiSelectUI();
+}
+
+// 處理表格雙擊事件 - 進入編輯模式
+function handleTableDoubleClick(event) {
+    const cell = event.target.closest('td');
+    if (!cell || cell.closest('thead')) {
+        return;
+    }
+
+    const table = event.target.closest('table');
+    if (!table) return;
+
+    // 檢查是否點擊了按鈕或其他非字段交互元素
+    const isNonFieldElement = event.target.tagName === 'BUTTON' ||
+                            event.target.closest('button') ||
+                            event.target.closest('.multiselect-btn') ||
+                            event.target.closest('.action-buttons');
+    if (isNonFieldElement) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    // 清除選擇狀態
+    clearAllSelections();
+    
+    // 進入編輯模式
+    enterCellEditMode(cell);
+}
+
+// 進入單元格編輯模式
+function enterCellEditMode(cell) {
+    // 檢查是否已經有輸入元素
+    const existingInput = cell.querySelector('input, textarea, select');
+    
+    if (existingInput) {
+        // 如果已經有輸入元素，直接聚焦
+        existingInput.focus();
+        existingInput.select();
+        return;
+    }
+
+    // 創建編輯輸入框
+    const currentValue = getCellValue(cell);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentValue;
+    input.className = 'detail-table-edit-input';
+    
+    // 設置輸入框樣式 - 使用正常的表格輸入框樣式
+    input.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 1px solid #ddd;
+        background: white;
+        padding: 8px;
+        font-size: 0.9rem;
+        z-index: 1000;
+        box-sizing: border-box;
+        border-radius: 0;
+    `;
+
+    // 添加事件監聽器
+    const finishEdit = () => {
+        const newValue = input.value;
+        setCellValue(cell, newValue);
+        cell.removeChild(input);
+        
+        // 觸發保存事件
+        const table = cell.closest('table');
+        if (table) {
+            table.dispatchEvent(new Event('dataChanged', { bubbles: true }));
+        }
+    };
+
+    const cancelEdit = () => {
+        cell.removeChild(input);
+    };
+
+    // 點擊其他字段時確認修改
+    const handleClickOutside = (e) => {
+        const clickedCell = e.target.closest('td');
+        if (clickedCell && clickedCell !== cell) {
+            finishEdit();
+            document.removeEventListener('click', handleClickOutside);
+        }
+    };
+
+    input.addEventListener('blur', finishEdit);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            finishEdit();
+            document.removeEventListener('click', handleClickOutside);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit();
+            document.removeEventListener('click', handleClickOutside);
+        }
+    });
+
+    // 監聽點擊其他字段
+    setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+    }, 100);
+
+    // 添加到單元格並聚焦
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+}
+
+// 獲取單元格值
+function getCellValue(cell) {
+    const input = cell.querySelector('input, textarea, select');
+    if (input) {
+        return input.value || input.textContent || '';
+    }
+    return cell.textContent || '';
+}
+
+// 設置單元格值
+function setCellValue(cell, value) {
+    const input = cell.querySelector('input, textarea, select');
+    if (input) {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+        cell.textContent = value;
+    }
 }
 
 // 選擇單個字段
