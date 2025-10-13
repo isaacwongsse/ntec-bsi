@@ -3240,26 +3240,26 @@ header h1, .subtitle {
     cursor: grabbing;
 }
 
-/* 編輯模式樣式 - 使用正常的表格輸入框樣式 */
+/* 編輯模式樣式 */
 .detail-table-edit-input {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    border: 1px solid #ddd !important;
+    border: 2px solid #007bff !important;
     background: white !important;
     padding: 8px !important;
     font-size: 0.9rem !important;
     z-index: 1000 !important;
     box-sizing: border-box !important;
     outline: none !important;
-    border-radius: 0 !important;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3) !important;
 }
 
 .detail-table-edit-input:focus {
-    border-color: #007bff !important;
-    box-shadow: 0 0 0 1px rgba(0, 123, 255, 0.2) !important;
+    border-color: #0056b3 !important;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.4) !important;
 }
 
 
