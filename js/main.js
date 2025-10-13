@@ -20843,3 +20843,5 @@ function syncDefectsToLabelsDetailTable() {
         window.saveLabelsToStorage();
     }
 }
+
+}); // 閉合 DOMContentLoaded 事件監聽器
