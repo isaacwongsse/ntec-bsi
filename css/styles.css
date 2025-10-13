@@ -3198,27 +3198,20 @@ header h1, .subtitle {
 /* 拖拽預覽樣式 */
 .detail-table-drag-preview {
     position: fixed;
-    background: rgba(255, 140, 0, 0.9);
+    background: rgba(255, 140, 0, 0.95);
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border-radius: 6px;
     font-size: 12px;
     pointer-events: none;
     z-index: 10000;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    max-width: 200px;
+    max-width: 250px;
     word-wrap: break-word;
-}
-
-/* 多選拖拽預覽樣式 */
-.detail-table-drag-preview.multi-select-preview {
-    background: rgba(255, 140, 0, 0.95);
-    padding: 8px 12px;
-    border-radius: 6px;
     min-width: 150px;
 }
 
-.detail-table-drag-preview .preview-header {
+.detail-table-drag-preview .preview-source {
     font-weight: bold;
     font-size: 13px;
     margin-bottom: 2px;
@@ -3226,9 +3219,10 @@ header h1, .subtitle {
     padding-bottom: 2px;
 }
 
-.detail-table-drag-preview .preview-content {
+.detail-table-drag-preview .preview-hint {
     font-size: 11px;
     opacity: 0.9;
+    font-style: italic;
 }
 
 /* 拖拽目標高亮 */
