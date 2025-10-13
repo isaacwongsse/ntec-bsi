@@ -178,6 +178,12 @@ class DetailTableInteractionManager {
     }
 
     startDragCopy(sourceCell, e) {
+        // 檢查源字段是否允許編輯
+        if (!this.isCellEditable(sourceCell)) {
+            console.log('Source cell is not editable, cannot copy');
+            return;
+        }
+
         this.isDragging = true;
         this.dragSourceCell = sourceCell;
         this.dragTargetCells = new Set(); // 用於存儲所有拖拽目標字段
@@ -241,9 +247,9 @@ class DetailTableInteractionManager {
             // 計算從源字段到目標字段的範圍
             const targetRange = this.getCellRange(this.dragSourceCell, targetCell);
             
-            // 高亮範圍內的所有字段
+            // 高亮範圍內的所有可編輯字段
             targetRange.forEach(cell => {
-                if (cell !== this.dragSourceCell) {
+                if (cell !== this.dragSourceCell && this.isCellEditable(cell)) {
                     cell.classList.add('detail-table-drop-target');
                     this.dragTargetCells.add(cell);
                 }
@@ -349,7 +355,8 @@ class DetailTableInteractionManager {
         // 只在單個選中字段時顯示複製點
         if (this.selectedCells.size === 1) {
             const cell = Array.from(this.selectedCells)[0];
-            if (!cell.querySelector('.copy-dot')) {
+            // 檢查字段是否允許編輯
+            if (this.isCellEditable(cell) && !cell.querySelector('.copy-dot')) {
                 this.createCopyDot(cell);
             }
         } else {
@@ -360,7 +367,63 @@ class DetailTableInteractionManager {
         }
     }
 
+    isCellEditable(cell) {
+        // 檢查字段是否允許編輯
+        // 1. 如果已經有輸入元素（input, textarea, select），則可編輯
+        const existingInput = cell.querySelector('input, textarea, select');
+        if (existingInput) {
+            // 檢查輸入元素是否被禁用
+            if (existingInput.disabled || existingInput.readOnly) {
+                return false;
+            }
+            return true;
+        }
+
+        // 2. 檢查字段是否有特定的不可編輯標記
+        if (cell.classList.contains('non-editable') || 
+            cell.classList.contains('readonly') ||
+            cell.hasAttribute('data-readonly')) {
+            return false;
+        }
+
+        // 3. 檢查字段內容是否為特殊類型（如按鈕、鏈接等）
+        const cellContent = cell.innerHTML.trim();
+        if (cellContent.includes('<button') || 
+            cellContent.includes('<a ') ||
+            cellContent.includes('onclick=')) {
+            return false;
+        }
+
+        // 4. 檢查字段是否在特定的不可編輯列中
+        const columnIndex = Array.from(cell.parentElement.querySelectorAll('td')).indexOf(cell);
+        const table = cell.closest('table');
+        const headerRow = table.querySelector('thead tr');
+        if (headerRow) {
+            const headerCell = headerRow.querySelectorAll('th')[columnIndex];
+            if (headerCell) {
+                const headerText = headerCell.textContent.toLowerCase();
+                // 某些列通常不可編輯
+                if (headerText.includes('action') || 
+                    headerText.includes('id') ||
+                    headerText.includes('no.') ||
+                    headerText.includes('number') ||
+                    headerText.includes('date') && !headerText.includes('inspection date')) {
+                    return false;
+                }
+            }
+        }
+
+        // 默認情況下，如果沒有輸入元素，則不可編輯
+        return false;
+    }
+
     enterEditMode(cell) {
+        // 檢查字段是否允許編輯
+        if (!this.isCellEditable(cell)) {
+            console.log('Cell is not editable, skipping edit mode');
+            return;
+        }
+
         // 檢查是否已經有輸入元素
         const existingInput = cell.querySelector('input, textarea, select');
         
@@ -430,7 +493,7 @@ class DetailTableInteractionManager {
     createCopyDot(cell) {
         const dot = document.createElement('div');
         dot.className = 'copy-dot';
-        dot.title = 'Drag triangle to copy value';
+        dot.title = 'Drag to copy value';
         cell.appendChild(dot);
     }
 
