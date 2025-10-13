@@ -2520,7 +2520,7 @@ header h1, .subtitle {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 5000;
+    /* z-index 由 JavaScript 動態控制 */
 }
 
 .floor-plan-container {

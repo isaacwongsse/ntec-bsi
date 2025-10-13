@@ -3174,8 +3174,8 @@ function triggerAutoCreateDefectMark() {
         window.logger.log('Floor plan overlay element found:', floorPlanOverlay);
         window.logger.log('Current display style:', floorPlanOverlay.style.display);
         
-        floorPlanOverlay.style.display = 'flex';
-        window.logger.log('Floor plan overlay opened, new display style:', floorPlanOverlay.style.display);
+        floorPlanOverlay.style.zIndex = '1000';
+        window.logger.log('Floor plan overlay opened using z-index');
         
         // Disable close button - user must place defect mark first
         const closeBtn = document.getElementById('closeFloorPlanBtn');
@@ -7324,7 +7324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                 const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                 const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
                                 if (floorPlanUploadArea && floorPlanViewer) {
                                     floorPlanUploadArea.style.display = 'none';
                                     floorPlanViewer.style.display = 'flex';
@@ -7385,7 +7385,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                     const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                     const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                    if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
                                     if (floorPlanUploadArea && floorPlanViewer) {
                                         floorPlanUploadArea.style.display = 'none';
                                         floorPlanViewer.style.display = 'flex';
@@ -7396,19 +7396,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     window.logger.error('Open previous: Error loading embedded PDF:', error);
                                     // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                    if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
                                 }
                             } else {
                                 // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
                             }
                         }
                     } catch (e) { 
                         window.logger.error('Open previous: Error in PDF loading logic:', e);
                         // 至少打開繪圖模式
                         const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        if (floorPlanOverlay) floorPlanOverlay.style.zIndex = '1000';
                     }
                 };
             }
@@ -7869,7 +7869,7 @@ async function loadEmbeddedPDFAndEnterDrawingMode(embeddedPDF) {
         const floorPlanViewer = document.getElementById('floorPlanViewer');
         
         if (floorPlanOverlay) {
-            floorPlanOverlay.style.display = 'flex';
+            floorPlanOverlay.style.zIndex = '1000';
             window.logger.log('Floor plan overlay opened');
         }
         
@@ -13013,8 +13013,8 @@ openPNEBtn.addEventListener('click', function() {
                         setTimeout(() => {
                             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                             if (floorPlanOverlay) {
-                                floorPlanOverlay.style.display = 'flex';
-                                window.logger.log('Drawing mode opened automatically');
+                                floorPlanOverlay.style.zIndex = '1000';
+                                window.logger.log('Drawing mode opened automatically using z-index');
                                 
                                 // 調用必要的初始化函數
                                 if (typeof checkLabelsDataAndShowContent === 'function') {
@@ -14569,7 +14569,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
     }
 
-    // Close floor plan overlay (do not reset or clear anything)
+    // Close floor plan overlay (使用 z-index 控制顯示/隱藏，保持 floor-plan-content 不受影響)
     function closeFloorPlan() {
         // Check if user is waiting to place defect mark
         if (window.isWaitingForDefectMarkPlacement) {
@@ -14578,7 +14578,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        floorPlanOverlay.style.display = 'none';
+        // 使用 z-index 隱藏繪圖模式，而不是完全隱藏
+        floorPlanOverlay.style.zIndex = '-1';
+        window.logger.log('Drawing mode hidden using z-index');
         
         // Reset Quick Label Switch when closing floor plan
         const quickLabelSwitch = document.getElementById('quickLabelSwitch');
@@ -14663,7 +14665,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // ESC key event
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && floorPlanOverlay.style.display !== 'none') {
+        if (e.key === 'Escape' && floorPlanOverlay.style.zIndex !== '-1' && floorPlanOverlay.style.zIndex !== '') {
             closeFloorPlan();
         }
     });
@@ -14702,9 +14704,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 e.preventDefault();
                 commandKeyPressCount = 0;
                 
-                // Open Drawing mode
-                if (floorPlanOverlay.style.display === 'none' || !floorPlanOverlay.style.display) {
-                    floorPlanOverlay.style.display = 'flex';
+                // Open Drawing mode (使用 z-index 顯示)
+                if (floorPlanOverlay.style.zIndex === '-1' || !floorPlanOverlay.style.zIndex) {
+                    floorPlanOverlay.style.zIndex = '1000';
+                    window.logger.log('Drawing mode shown using z-index');
                     checkLabelsDataAndShowContent();
                     
                     // 初始化滑塊功能
@@ -17127,7 +17130,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
             if (pneDropdown) {
                 pneDropdown.style.display = 'none';
             }
-            floorPlanOverlay.style.display = 'flex';
+            floorPlanOverlay.style.zIndex = '1000';
             checkLabelsDataAndShowContent();
             
             // 初始化滑塊功能
@@ -17148,7 +17151,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
     if (floorplanThumb) {
         floorplanThumb.addEventListener('click', function(e) {
             e.stopPropagation();
-            floorPlanOverlay.style.display = 'flex';
+            floorPlanOverlay.style.zIndex = '1000';
             checkLabelsDataAndShowContent();
             
             // 初始化滑塊功能
@@ -18399,7 +18402,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
                     // 確保樓層平面圖覆蓋層已經開啟
                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                     if (floorPlanOverlay && floorPlanOverlay.style.display === 'none') {
-                        floorPlanOverlay.style.display = 'flex';
+                        floorPlanOverlay.style.zIndex = '1000';
                         checkLabelsDataAndShowContent();
                         
                         // 初始化滑塊功能
@@ -18453,7 +18456,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
             // 先開啟樓層平面圖覆蓋層
             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
             if (floorPlanOverlay) {
-                floorPlanOverlay.style.display = 'flex';
+                floorPlanOverlay.style.zIndex = '1000';
                 checkLabelsDataAndShowContent();
                 
                 // 初始化滑塊功能
