@@ -755,7 +755,7 @@ function updateTableHeaders() {
     const defectsTable = document.getElementById('defectsDetailTable');
     if (defectsTable) {
         const headers = defectsTable.querySelectorAll('th');
-        const headerKeys = ['defectNo', 'inspectionNo', 'imminentDanger', 'inspectionDate', 'floor', 'areaName', 'roomNo', 'photoNumbers', 'categories', 'defectType', 'description', 'remedialWorks'];
+        const headerKeys = ['action', 'defectNo', 'inspectionNo', 'imminentDanger', 'inspectionDate', 'floor', 'areaName', 'roomNo', 'photoNumbers', 'categories', 'defectType', 'description', 'remedialWorks'];
         
         headers.forEach((header, index) => {
             if (headerKeys[index]) {
@@ -1364,6 +1364,7 @@ function updateDefectsDetailTableHeaders() {
     if (defectsDetailTable) {
         const headers = defectsDetailTable.querySelectorAll('th');
         const headerKeys = [
+            'actionsHeaderDefects',
             'defectNoHeaderDefects',
             'inspectionNoHeaderDefects',
             'imminentDangerHeaderDefects',
@@ -2085,7 +2086,7 @@ window.updateAllDefectMarkSizes = function() {
                 // 更新文字框大小
                 const scaledSize = window.defectMarkSizeScale * (window.currentScale || 1);
                 const scaledFontSize = Math.max(8, scaledSize * 0.4); // 文字框字體大小為縮放後圓點大小的40%
-                const scaledPadding = 5 * (window.currentScale || 1); // 縮放 padding
+                const scaledPadding = 10 * (window.currentScale || 1); // 縮放 padding
                 
                 element.style.fontSize = scaledFontSize + 'px';
                 element.style.padding = scaledPadding + 'px';
@@ -4651,18 +4652,14 @@ async function loadDataFromStorage() {
                     allPhotos = photosFromStorage;
                     window.logger.log('Loaded photos with dataURL:', allPhotos.filter(p => p.dataURL).length, 'of', allPhotos.length);
                     
-                    // 渲染載入的照片 - 修復：即使沒有 dataURL 也要渲染照片
-                    if (allPhotos.length > 0) {
+                    // 渲染載入的照片
+                    if (allPhotos.length > 0 && allPhotos.some(p => p.dataURL)) {
                         window.logger.log('Rendering loaded photos from storage...');
                         setTimeout(async () => {
                             try {
                                 const lazyObserver = initLazyLoading();
                                 await renderPhotos(allPhotos, lazyObserver);
                                 window.logger.log('Photos rendered successfully from storage');
-                                
-                                // 更新資料夾顯示和按鈕可見性
-                                updateFolderDisplay();
-                                updateAddPhotosButtonVisibility();
                             } catch (error) {
                                 window.logger.error('Error rendering photos from storage:', error);
                             }
@@ -7192,8 +7189,8 @@ async function clearTable() {
 // Initialize the page
 initCategories();
 initCustomSelect();
-// 修復：恢復自動載入數據，確保頁面重新載入時能恢復所有數據
-loadDataFromStorage(); 
+// 移除此處的自動載入，等待用戶在會話恢復彈窗中做出選擇
+// loadDataFromStorage(); 
 updateTableCount();
 updateFolderDisplay();
 
@@ -7202,12 +7199,11 @@ if (typeof window.updateDefectSummaryTable === 'function') {
     window.updateDefectSummaryTable();
 }
 
-// 修復：不要在頁面重新載入時清空分類內容，保留已保存的數據
 // Clear all category content on page reload to prevent persistence issues
-// categories.forEach(category => {
-//     updateCategoryDisplay(category.id);
-// });
-// window.logger.log('Page initialization: Cleared all category content on reload');
+categories.forEach(category => {
+    updateCategoryDisplay(category.id);
+});
+window.logger.log('Page initialization: Cleared all category content on reload');
 
 // 全局變數：追蹤標題欄位是否來自標籤分配
 let isHeaderFromLabelAssignment = false;
@@ -7324,10 +7320,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                 const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                 const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                if (floorPlanOverlay) {
-                                    floorPlanOverlay.style.display = 'flex';
-                                    // 注意：這裡不調用 openFloorPlanOverlay() 因為 PDF 已經載入
-                                }
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                 if (floorPlanUploadArea && floorPlanViewer) {
                                     floorPlanUploadArea.style.display = 'none';
                                     floorPlanViewer.style.display = 'flex';
@@ -7388,10 +7381,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                     const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                     const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                    if (floorPlanOverlay) {
-                                        floorPlanOverlay.style.display = 'flex';
-                                        // 注意：這裡不調用 openFloorPlanOverlay() 因為 PDF 已經載入
-                                    }
+                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                     if (floorPlanUploadArea && floorPlanViewer) {
                                         floorPlanUploadArea.style.display = 'none';
                                         floorPlanViewer.style.display = 'flex';
@@ -7402,28 +7392,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     window.logger.error('Open previous: Error loading embedded PDF:', error);
                                     // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                    if (floorPlanOverlay) {
-                                        floorPlanOverlay.style.display = 'flex';
-                                        // 注意：這裡不調用 openFloorPlanOverlay() 因為只是顯示載入按鈕
-                                    }
+                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                 }
                             } else {
                                 // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                if (floorPlanOverlay) {
-                                    floorPlanOverlay.style.display = 'flex';
-                                    // 注意：這裡不調用 openFloorPlanOverlay() 因為只是顯示載入按鈕
-                                }
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                             }
                         }
                     } catch (e) { 
                         window.logger.error('Open previous: Error in PDF loading logic:', e);
                         // 至少打開繪圖模式
                         const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                        if (floorPlanOverlay) {
-                            floorPlanOverlay.style.display = 'flex';
-                            // 注意：這裡不調用 openFloorPlanOverlay() 因為只是顯示載入按鈕
-                        }
+                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                     }
                 };
             }
@@ -7884,8 +7865,8 @@ async function loadEmbeddedPDFAndEnterDrawingMode(embeddedPDF) {
         const floorPlanViewer = document.getElementById('floorPlanViewer');
         
         if (floorPlanOverlay) {
-            // 使用統一的開啟函數
-            openFloorPlanOverlay();
+            floorPlanOverlay.style.display = 'flex';
+            window.logger.log('Floor plan overlay opened');
         }
         
         if (floorPlanUploadArea && floorPlanViewer) {
@@ -8033,12 +8014,6 @@ async function updateAllTablesAfterStartFresh() {
                 console.log(`分類 ${category.id.toUpperCase()} 表格已更新`);
             }
         });
-        
-        // 3.1. 更新分類記錄表格 (Categories Records Tables)
-        if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
-            window.updateCategoryTablesFromInspectionRecords();
-            console.log('分類記錄表格已清空');
-        }
         
         // 4. 更新標籤詳細表格 (Labels Detail)
         const labelsDetailTableBody = document.getElementById('labelsDetailTableBody');
@@ -9462,9 +9437,9 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
     // 根據模式顯示不同的確認訊息
     let confirmMessage;
     if (drawingMode) {
-        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將自動刪除所有相關的缺陷記錄、更新缺陷表格、刪除樓層平面圖中的缺陷標記，然後刪除標籤記錄和標籤標記。這是一個一體化的刪除過程。';
+        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將同時刪除樓層平面圖中對應的標籤和所有相關的缺陷記錄。';
     } else {
-        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將自動刪除所有相關的缺陷記錄、更新缺陷表格，然後刪除標籤記錄。這是一個一體化的刪除過程。';
+        confirmMessage = '確定要刪除這個標籤記錄嗎？此操作將同時刪除所有相關的缺陷記錄。';
     }
     
     if (!confirm(confirmMessage)) {
@@ -9520,53 +9495,51 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
                 deleteDefectRecordComprehensive(defectNoToDelete, 'labels detail table');
             });
             
-            // 缺陷刪除完成後，繼續刪除標籤
-            window.logger.log('Defects deleted, now proceeding to delete the label');
+            // 刪除完成，直接返回（deleteDefectRecordComprehensive 會處理表格重新顯示）
+            return;
+        } else {
+            // 如果沒有缺陷編號，只刪除標籤
+            // 在刪除標籤前，先清理相關的照片分配記錄
+            cleanupPhotoAssignmentsOnLabelDelete(label);
+            
+            window.labels.splice(labelIndex, 1);
+            
+            // 保存標籤到本地存儲
+            if (typeof window.saveLabelsToStorage === 'function') {
+                window.saveLabelsToStorage();
+            }
+            
+            // 只在繪圖模式下重新渲染標籤（因為非繪圖模式下沒有地圖顯示）
+            if (drawingMode && typeof window.redrawLabels === 'function') {
+                window.redrawLabels();
+            }
+            
+            // 同步到 defects detail-table-container（檢查缺陷記錄的變化）
+            // 這會自動處理缺陷記錄的刪除和更新
+            syncLabelsToDefectsDetailTable();
+            
+            // 更新缺陷摘要表格
+            if (typeof window.updateDefectSummaryTable === 'function') {
+                window.updateDefectSummaryTable();
+                window.logger.log('Defect summary table updated after label deletion');
+            }
+            
+            // 更新分類表格
+            if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+                window.updateCategoryTablesFromInspectionRecords();
+                window.logger.log('Category tables updated after label deletion');
+            }
+            
+            // 更新照片狀態
+            if (typeof updatePhotoStatusFromLabels === 'function') {
+                updatePhotoStatusFromLabels();
+            }
+            
+            // 重新顯示標籤詳細表格
+            if (typeof window.showLabelsDetailPopup === 'function') {
+                window.showLabelsDetailPopup();
+            }
         }
-        
-        // 無論是否有缺陷，都繼續刪除標籤
-        // 在刪除標籤前，先清理相關的照片分配記錄
-        cleanupPhotoAssignmentsOnLabelDelete(label);
-        
-        window.labels.splice(labelIndex, 1);
-        
-        // 保存標籤到本地存儲
-        if (typeof window.saveLabelsToStorage === 'function') {
-            window.saveLabelsToStorage();
-        }
-        
-        // 只在繪圖模式下重新渲染標籤（因為非繪圖模式下沒有地圖顯示）
-        if (drawingMode && typeof window.redrawLabels === 'function') {
-            window.redrawLabels();
-        }
-        
-        // 同步到 defects detail-table-container（檢查缺陷記錄的變化）
-        // 這會自動處理缺陷記錄的刪除和更新
-        syncLabelsToDefectsDetailTable();
-        
-        // 更新缺陷摘要表格
-        if (typeof window.updateDefectSummaryTable === 'function') {
-            window.updateDefectSummaryTable();
-            window.logger.log('Defect summary table updated after label deletion');
-        }
-        
-        // 更新分類表格
-        if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
-            window.updateCategoryTablesFromInspectionRecords();
-            window.logger.log('Category tables updated after label deletion');
-        }
-        
-        // 更新照片狀態
-        if (typeof updatePhotoStatusFromLabels === 'function') {
-            updatePhotoStatusFromLabels();
-        }
-        
-        // 重新顯示標籤詳細表格
-        if (typeof window.showLabelsDetailPopup === 'function') {
-            window.showLabelsDetailPopup();
-        }
-        
-        showNotification(`標籤記錄 ${label.inspectionNo} 已刪除（包括所有相關缺陷記錄和標記）`, 'success');
     } else {
         showNotification('找不到要刪除的標籤記錄', 'error');
     }
@@ -10054,20 +10027,12 @@ if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
 }
 
 // 頁面重新載入時清空缺陷摘要表格，防止顯示來自缺陷標記的數據
-// 修復：只有在沒有已保存的缺陷數據時才清空表格
-const defectSummaryTableBody = document.getElementById('defectSummaryTableBody');
-const defectSummaryCount = document.getElementById('defectSummaryCount');
+    const defectSummaryTableBody = document.getElementById('defectSummaryTableBody');
+    const defectSummaryCount = document.getElementById('defectSummaryCount');
 if (defectSummaryTableBody) {
-    // 檢查是否有已保存的缺陷數據
-    const hasSavedDefectData = window.submittedDefectEntries && window.submittedDefectEntries.length > 0;
-    
-    if (!hasSavedDefectData) {
         defectSummaryTableBody.innerHTML = '<tr><td colspan="14" class="empty-state">No defect summary data yet</td></tr>';
         defectSummaryCount.textContent = '0 entries';
-        window.logger.log('Page initialization: Cleared defect summary table on reload (no saved defect data)');
-    } else {
-        window.logger.log('Page initialization: Preserving defect summary table (has saved defect data)');
-    }
+    window.logger.log('Page initialization: Cleared defect summary table on reload to prevent defect mark data display');
 }
 
 // 確保在 loadDataFromStorage 後也更新分類表和缺陷摘要表
@@ -13026,75 +12991,107 @@ openPNEBtn.addEventListener('click', function() {
                         
                         // 2. 自動打開繪圖模式
                         setTimeout(() => {
-                            // 使用統一的開啟函數
-                            openFloorPlanOverlay();
-                            
-                            // 3. 自動載入之前的PDF文件
-                            setTimeout(() => {
-                                // 檢查PNE文件中的PDF數據
-                                let pdfFileReference = null;
-                                let pdfFileName = '';
+                            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                            if (floorPlanOverlay) {
+                                floorPlanOverlay.style.display = 'flex';
+                                window.logger.log('Drawing mode opened automatically');
                                 
-                                // 從filePaths中獲取PDF文件引用
-                                if (data.filePaths && data.filePaths.pdfFileReference) {
-                                    pdfFileReference = data.filePaths.pdfFileReference;
-                                    pdfFileName = pdfFileReference.name || '';
-                                    window.logger.log('Found PDF file reference in PNE file:', pdfFileName);
+                                // 調用必要的初始化函數
+                                if (typeof checkLabelsDataAndShowContent === 'function') {
+                                    // 在調用前檢查PDF數據狀態
+                                    window.logger.log('Before checkLabelsDataAndShowContent - PDF data check:');
+                                    window.logger.log('pne_floorplan_base64 exists:', !!localStorage.getItem('pne_floorplan_base64'));
+                                    window.logger.log('pne_floorplan_data exists:', !!localStorage.getItem('pne_floorplan_data'));
+                                    window.logger.log('pne_floorplan_filename exists:', !!localStorage.getItem('pne_floorplan_filename'));
+                                    
+                                    checkLabelsDataAndShowContent();
+                                    
+                                    // 在調用後再次檢查PDF數據狀態
+                                    window.logger.log('After checkLabelsDataAndShowContent - PDF data check:');
+                                    window.logger.log('pne_floorplan_base64 exists:', !!localStorage.getItem('pne_floorplan_base64'));
+                                    window.logger.log('pne_floorplan_data exists:', !!localStorage.getItem('pne_floorplan_data'));
+                                    window.logger.log('pne_floorplan_filename exists:', !!localStorage.getItem('pne_floorplan_filename'));
                                 }
                                 
-                                // 也檢查是否有PDF路徑
-                                if (!pdfFileName && data.filePaths && data.filePaths.pdfPath) {
-                                    pdfFileName = data.filePaths.pdfPath;
-                                    window.logger.log('Found PDF path in PNE file:', pdfFileName);
-                                }
+                                // 初始化滑塊功能
+                                setTimeout(() => {
+                                    if (typeof window.initLabelSizeAdjustment === 'function') {
+                                        window.initLabelSizeAdjustment();
+                                    }
+                                    if (typeof window.initDefectMarkSizeAdjustment === 'function') {
+                                        window.initDefectMarkSizeAdjustment();
+                                    }
+                                }, 100);
                                 
-                                if (pdfFileName) {
-                                    window.logger.log('Auto-loading previous PDF file:', pdfFileName);
+                                // 3. 自動載入之前的PDF文件
+                                setTimeout(() => {
+                                    // 檢查PNE文件中的PDF數據
+                                    let pdfFileReference = null;
+                                    let pdfFileName = '';
                                     
-                                    // 檢查是否有PDF的base64數據
-                                    const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
-                                    window.logger.log('PDF base64 data check:', {
-                                        exists: !!pdfBase64,
-                                        length: pdfBase64 ? pdfBase64.length : 0,
-                                        firstChars: pdfBase64 ? pdfBase64.substring(0, 50) : 'N/A'
-                                    });
+                                    // 從filePaths中獲取PDF文件引用
+                                    if (data.filePaths && data.filePaths.pdfFileReference) {
+                                        pdfFileReference = data.filePaths.pdfFileReference;
+                                        pdfFileName = pdfFileReference.name || '';
+                                        window.logger.log('Found PDF file reference in PNE file:', pdfFileName);
+                                    }
                                     
-                                    if (pdfBase64) {
-                                        try {
-                                            // 將base64數據轉換為ArrayBuffer
-                                            const binaryString = atob(pdfBase64);
-                                            const arrayBuffer = new ArrayBuffer(binaryString.length);
-                                            const uint8Array = new Uint8Array(arrayBuffer);
-                                            for (let i = 0; i < binaryString.length; i++) {
-                                                uint8Array[i] = binaryString.charCodeAt(i);
-                                            }
-                                            
-                                            // 使用現有的PDF載入函數
-                                            if (typeof loadPDFFromArrayBuffer === 'function') {
-                                                loadPDFFromArrayBuffer(arrayBuffer, pdfFileName);
-                                                window.logger.log('PDF loaded successfully from base64 data');
-                                            } else {
-                                                window.logger.log('loadPDFFromArrayBuffer function not available');
+                                    // 也檢查是否有PDF路徑
+                                    if (!pdfFileName && data.filePaths && data.filePaths.pdfPath) {
+                                        pdfFileName = data.filePaths.pdfPath;
+                                        window.logger.log('Found PDF path in PNE file:', pdfFileName);
+                                    }
+                                    
+                                    if (pdfFileName) {
+                                        window.logger.log('Auto-loading previous PDF file:', pdfFileName);
+                                        
+                                        // 檢查是否有PDF的base64數據
+                                        const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
+                                        window.logger.log('PDF base64 data check:', {
+                                            exists: !!pdfBase64,
+                                            length: pdfBase64 ? pdfBase64.length : 0,
+                                            firstChars: pdfBase64 ? pdfBase64.substring(0, 50) : 'N/A'
+                                        });
+                                        
+                                        if (pdfBase64) {
+                                            try {
+                                                // 將base64數據轉換為ArrayBuffer
+                                                const binaryString = atob(pdfBase64);
+                                                const arrayBuffer = new ArrayBuffer(binaryString.length);
+                                                const uint8Array = new Uint8Array(arrayBuffer);
+                                                for (let i = 0; i < binaryString.length; i++) {
+                                                    uint8Array[i] = binaryString.charCodeAt(i);
+                                                }
+                                                
+                                                // 使用現有的PDF載入函數
+                                                if (typeof loadPDFFromArrayBuffer === 'function') {
+                                                    loadPDFFromArrayBuffer(arrayBuffer, pdfFileName);
+                                                    window.logger.log('PDF loaded successfully from base64 data');
+                                                } else {
+                                                    window.logger.log('loadPDFFromArrayBuffer function not available');
+                                                    if (typeof showNotification === 'function') {
+                                                        showNotification(`檢測到PDF文件：${pdfFileName}。請手動上傳PDF文件以查看樓層平面圖。`, 'info');
+                                                    }
+                                                }
+                                            } catch (error) {
+                                                window.logger.error('Error loading PDF from base64:', error);
                                                 if (typeof showNotification === 'function') {
-                                                    showNotification(`檢測到PDF文件：${pdfFileName}。請手動上傳PDF文件以查看樓層平面圖。`, 'info');
+                                                    showNotification('載入PDF文件時發生錯誤，請手動上傳PDF文件。', 'error');
                                                 }
                                             }
-                                        } catch (error) {
-                                            window.logger.error('Error loading PDF from base64:', error);
+                                        } else {
+                                            window.logger.log('No PDF base64 data found in localStorage');
                                             if (typeof showNotification === 'function') {
-                                                showNotification('載入PDF文件時發生錯誤，請手動上傳PDF文件。', 'error');
+                                                showNotification(`檢測到PDF文件引用：${pdfFileName}。請重新上傳PDF文件以查看樓層平面圖。`, 'info');
                                             }
                                         }
                                     } else {
-                                        window.logger.log('No PDF base64 data found in localStorage');
-                                        if (typeof showNotification === 'function') {
-                                            showNotification(`檢測到PDF文件引用：${pdfFileName}。請重新上傳PDF文件以查看樓層平面圖。`, 'info');
-                                        }
+                                        window.logger.log('No previous PDF file found in PNE file');
                                     }
-                                } else {
-                                    window.logger.log('No previous PDF file found in PNE file');
-                                }
-                            }, 500); // 等待繪圖模式完全打開
+                                }, 500); // 等待繪圖模式完全打開
+                            } else {
+                                window.logger.log('floorPlanOverlay element not found');
+                            }
                         }, 300); // 等待照片預覽區域準備好
                     }, 200); // 等待PNE文件載入完成
                 }
@@ -14517,8 +14514,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    // 修復：不要清理PDF數據存儲，保留文件引用和標籤/缺陷標記數據
-    // clearPDFDataFromStorage(); // 註釋掉，避免清理已保存的數據
+    // 清理PDF數據存儲，只保留文件引用
+    clearPDFDataFromStorage();
     
     // 再次檢查PDF數據狀態
     window.logger.log('After clearPDFDataFromStorage - PDF data status check:');
@@ -14588,54 +14585,48 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (labelsDataReminder) labelsDataReminder.style.display = 'none';
         if (uploadPlaceholder) uploadPlaceholder.style.display = 'block';
         
-        // 優化：只在必要時更新照片狀態，避免重新渲染
+        // Re-render photos to ensure submission status is correct
         if (allPhotos && allPhotos.length > 0) {
-            console.log('🔍 Updating photo status after closing floor plan (without re-rendering)');
+            console.log('🔍 Re-rendering photos after closing floor plan');
+            console.log('🔍 submittedData status:', submittedData ? submittedData.length : 'null');
+            console.log('🔍 window.labels status:', window.labels ? window.labels.length : 'null');
+            console.log('🔍 submittedFilenames status:', submittedFilenames ? submittedFilenames.size : 'null');
+            const lazyObserver = typeof initLazyLoading === 'function' ? initLazyLoading() : null;
+            renderPhotos(allPhotos, lazyObserver);
             
-            // 檢查是否有照片狀態需要更新
-            let needsStatusUpdate = false;
-            document.querySelectorAll('.photo-item').forEach(item => {
-                const statusDiv = item.querySelector('.photo-status');
-                const filename = item.getAttribute('data-filename');
-                
-                // 檢查已提交的照片狀態是否正確
-                if (filename && submittedFilenames.has(filename)) {
-                    if (!statusDiv || !statusDiv.textContent.includes('Submitted to')) {
-                        needsStatusUpdate = true;
-                        
-                        // 從 submittedData 查找檢查編號
-                        let locationId = null;
-                        if (submittedData && submittedData.length > 0) {
-                            for (const row of submittedData) {
-                                if (row.photoFilenames && row.photoFilenames.includes(filename)) {
-                                    locationId = row.locationId;
-                                    break;
+            // 延遲確保狀態設置不會被其他函數覆蓋
+            setTimeout(() => {
+                console.log('🔍 Final photo status check after delay');
+                document.querySelectorAll('.photo-item.submitted').forEach(item => {
+                    const statusDiv = item.querySelector('.photo-status');
+                    if (statusDiv && statusDiv.textContent.includes('Submitted to')) {
+                        console.log(`🔍 Photo status preserved: ${statusDiv.textContent}`);
+                    } else {
+                        console.log(`🔍 Photo status missing, re-applying`);
+                        // 重新應用狀態
+                        const filename = item.getAttribute('data-filename');
+                        if (filename && submittedFilenames.has(filename)) {
+                            // 從 submittedData 查找檢查編號
+                            let locationId = null;
+                            if (submittedData && submittedData.length > 0) {
+                                for (const row of submittedData) {
+                                    if (row.photoFilenames && row.photoFilenames.includes(filename)) {
+                                        locationId = row.locationId;
+                                        break;
+                                    }
                                 }
                             }
-                        }
-                        
-                        if (locationId) {
-                            if (!statusDiv) {
-                                // 創建狀態元素
-                                const newStatusDiv = document.createElement('div');
-                                newStatusDiv.className = 'photo-status';
-                                item.appendChild(newStatusDiv);
-                                statusDiv = newStatusDiv;
+                            if (locationId) {
+                                statusDiv.textContent = `Submitted to ${locationId}`;
+                                statusDiv.style.display = 'flex !important';
+                                statusDiv.style.visibility = 'visible';
+                                item.classList.add('submitted');
+                                console.log(`🔍 Re-applied status: Submitted to ${locationId}`);
                             }
-                            
-                            statusDiv.textContent = `Submitted to ${locationId}`;
-                            statusDiv.style.display = 'flex';
-                            statusDiv.style.visibility = 'visible';
-                            item.classList.add('submitted');
-                            console.log(`🔍 Updated photo status: Submitted to ${locationId}`);
                         }
                     }
-                }
-            });
-            
-            if (!needsStatusUpdate) {
-                console.log('🔍 No photo status updates needed, skipping re-render');
-            }
+                });
+            }, 500);
         }
     }
 
@@ -14687,11 +14678,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 // Open Drawing mode
                 if (floorPlanOverlay.style.display === 'none' || !floorPlanOverlay.style.display) {
-                    // 使用統一的開啟函數
-                    openFloorPlanOverlay();
+                    floorPlanOverlay.style.display = 'flex';
+                    checkLabelsDataAndShowContent();
+                    
+                    // 初始化滑塊功能
+                    setTimeout(() => {
+                        if (typeof window.initLabelSizeAdjustment === 'function') {
+                            window.initLabelSizeAdjustment();
+                        }
+                        if (typeof window.initDefectMarkSizeAdjustment === 'function') {
+                            window.initDefectMarkSizeAdjustment();
+                        }
+                    }, 100);
                     
                     // Show appropriate notification based on platform
-                    const keyName = isCommandKey ? 'Command' : (isCtrlKey ? 'Windows' : 'Ctrl');
+                    const keyName = isCommandKey ? 'Command' : (isCtrlKey ? 'Ctrl' : 'Windows');
                     showNotification(`Drawing mode opened (Double ${keyName} key)`, 'info');
                 }
             }
@@ -15521,10 +15522,10 @@ if (typeof window.updateAllLabelPositions === 'function') {
         textboxElement.style.fontSize = fontSize;
         
         // 設置固定的 padding 和 border-radius，不隨縮放變化
-        textboxElement.style.padding = '5px';
+        textboxElement.style.padding = '10px';
         textboxElement.style.borderRadius = '4px';
         
-        // 設置文字框為自動調整大小，保持 5px 邊距
+        // 設置文字框為自動調整大小，保持 10px 邊距
         textboxElement.style.width = 'auto';
         textboxElement.style.height = 'auto';
         textboxElement.style.minWidth = 'fit-content';
@@ -15592,8 +15593,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 更新文字框字體大小和樣式
         textboxElement.style.fontSize = scaledTextboxFontSize + 'px';
         
-        // 設置文字框為自動調整大小，保持 5px 邊距
-        const scaledPadding = 5 * (window.currentScale || 1); // 縮放 padding
+        // 設置文字框為自動調整大小，保持 10px 邊距
+        const scaledPadding = 10 * (window.currentScale || 1); // 縮放 padding
         textboxElement.style.padding = scaledPadding + 'px';
         textboxElement.style.borderRadius = '4px';
         textboxElement.style.width = 'auto';
@@ -16041,7 +16042,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 使用 window.defectEntries 而不是 window.defectMarks，因為我們要顯示來自 defect-form 的數據
         if (window.defectEntries.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="18" style="text-align: center; color: #666; font-style: italic;">No defect entries found</td>';
+            row.innerHTML = '<td colspan="20" style="text-align: center; color: #666; font-style: italic;">No defect entries found</td>';
             tableBody.appendChild(row);
         } else {
             window.defectEntries.forEach((defect, index) => {
@@ -16057,6 +16058,11 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 };
                 
                 row.innerHTML = `
+                    <td class="action-buttons">
+                        <button class="btn-delete-defect" onclick="deleteDefectFromDetailTable('${defect.id}', '${defect.defectNo}', ${index})" title="刪除缺陷記錄">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
                     <td><input type="text" value="${defect.defectNo || ''}" data-field="defectNo" data-index="${index}" readonly></td>
                     <td><input type="text" value="${defect.locationId || defect.inspectionNo || ''}" data-field="locationId" data-index="${index}" readonly></td>
                      <td><input type="text" value="${defect.imminentDanger ? 'Yes' : 'No'}" data-field="imminentDanger" data-index="${index}" readonly></td>
@@ -16927,53 +16933,9 @@ if (typeof window.updateAllLabelPositions === 'function') {
         });
     }
     
-    // 統一的繪圖模式開啟函數
-    function openFloorPlanOverlay() {
-        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-        if (!floorPlanOverlay) {
-            window.logger.error('Floor plan overlay element not found');
-            return;
-        }
-
-        // 檢查是否已經開啟
-        if (floorPlanOverlay.style.display === 'flex') {
-            window.logger.log('Floor plan overlay is already open');
-            return;
-        }
-
-        window.logger.log('Opening floor plan overlay...');
-        floorPlanOverlay.style.display = 'flex';
-        
-        // 調用必要的初始化函數
-        if (typeof checkLabelsDataAndShowContent === 'function') {
-            checkLabelsDataAndShowContent();
-        }
-        
-        // 初始化滑塊功能
-        setTimeout(() => {
-            if (typeof window.initLabelSizeAdjustment === 'function') {
-                window.initLabelSizeAdjustment();
-            }
-            if (typeof window.initDefectMarkSizeAdjustment === 'function') {
-                window.initDefectMarkSizeAdjustment();
-            }
-        }, 100);
-        
-        window.logger.log('Floor plan overlay opened successfully');
-    }
-
-    // 將函數設為全局可用
-    window.openFloorPlanOverlay = openFloorPlanOverlay;
-
     // Function to check labels data and show appropriate content
     async function checkLabelsDataAndShowContent() {
         window.logger.log('checkLabelsDataAndShowContent called');
-        
-        // 防止重複初始化
-        if (window.labelsDataInitialized) {
-            window.logger.log('Labels data already initialized, skipping');
-            return;
-        }
         
         // 確保 skipDefectMarksLoad 標誌為 false，允許缺陷標記載入
         window.skipDefectMarksLoad = false;
@@ -17109,10 +17071,6 @@ if (typeof window.updateAllLabelPositions === 'function') {
             setupDoubleClickHandler();
             window.logger.log('Double-click handler re-initialized for defect mark creation');
         }
-        
-        // 標記初始化完成
-        window.labelsDataInitialized = true;
-        window.logger.log('checkLabelsDataAndShowContent completed successfully');
     }
 
     // Add event listener for "Open Previous Floor Plan" button
@@ -17148,9 +17106,18 @@ if (typeof window.updateAllLabelPositions === 'function') {
             if (pneDropdown) {
                 pneDropdown.style.display = 'none';
             }
+            floorPlanOverlay.style.display = 'flex';
+            checkLabelsDataAndShowContent();
             
-            // 使用統一的開啟函數
-            openFloorPlanOverlay();
+            // 初始化滑塊功能
+            setTimeout(() => {
+                if (typeof window.initLabelSizeAdjustment === 'function') {
+                    window.initLabelSizeAdjustment();
+                }
+                if (typeof window.initDefectMarkSizeAdjustment === 'function') {
+                    window.initDefectMarkSizeAdjustment();
+                }
+            }, 100);
         });
     }
 
@@ -17160,8 +17127,18 @@ if (typeof window.updateAllLabelPositions === 'function') {
     if (floorplanThumb) {
         floorplanThumb.addEventListener('click', function(e) {
             e.stopPropagation();
-            // 使用統一的開啟函數
-            openFloorPlanOverlay();
+            floorPlanOverlay.style.display = 'flex';
+            checkLabelsDataAndShowContent();
+            
+            // 初始化滑塊功能
+            setTimeout(() => {
+                if (typeof window.initLabelSizeAdjustment === 'function') {
+                    window.initLabelSizeAdjustment();
+                }
+                if (typeof window.initDefectMarkSizeAdjustment === 'function') {
+                    window.initDefectMarkSizeAdjustment();
+                }
+            }, 100);
         });
     }
 
@@ -18401,8 +18378,18 @@ if (typeof window.updateAllLabelPositions === 'function') {
                     // 確保樓層平面圖覆蓋層已經開啟
                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                     if (floorPlanOverlay && floorPlanOverlay.style.display === 'none') {
-                        // 使用統一的開啟函數
-                        openFloorPlanOverlay();
+                        floorPlanOverlay.style.display = 'flex';
+                        checkLabelsDataAndShowContent();
+                        
+                        // 初始化滑塊功能
+                        setTimeout(() => {
+                            if (typeof window.initLabelSizeAdjustment === 'function') {
+                                window.initLabelSizeAdjustment();
+                            }
+                            if (typeof window.initDefectMarkSizeAdjustment === 'function') {
+                                window.initDefectMarkSizeAdjustment();
+                            }
+                        }, 100);
                     }
                     
                     // 然後開啟對應的詳細資訊彈窗
@@ -18445,8 +18432,18 @@ if (typeof window.updateAllLabelPositions === 'function') {
             // 先開啟樓層平面圖覆蓋層
             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
             if (floorPlanOverlay) {
-                // 使用統一的開啟函數
-                openFloorPlanOverlay();
+                floorPlanOverlay.style.display = 'flex';
+                checkLabelsDataAndShowContent();
+                
+                // 初始化滑塊功能
+                setTimeout(() => {
+                    if (typeof window.initLabelSizeAdjustment === 'function') {
+                        window.initLabelSizeAdjustment();
+                    }
+                    if (typeof window.initDefectMarkSizeAdjustment === 'function') {
+                        window.initDefectMarkSizeAdjustment();
+                    }
+                }, 100);
                 
                 // 然後開啟對應的詳細資訊彈窗
                 setTimeout(() => {

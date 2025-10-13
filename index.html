@@ -57,7 +57,7 @@
                     // 載入新的 manifest
                     const manifestLink = document.createElement('link');
                     manifestLink.rel = 'manifest';
-                    manifestLink.href = 'manifest.json?v=' + Date.now();
+                    manifestLink.href = './manifest.json?v=' + Date.now();
                     document.head.appendChild(manifestLink);
                     
                 } catch (error) {
@@ -655,7 +655,6 @@
     <script src="js/error-handler.js" defer></script>
     <script src="js/keyboard-navigation.js" defer></script>
     <script src="js/virtual-scroll-enhanced.js" defer></script>
-    <script src="js/detail-table-interaction.js" defer></script>
     
     <!-- Service Worker 和 Web Worker 管理器 (僅在支援的環境下載入) -->
     <script>

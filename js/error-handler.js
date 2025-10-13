@@ -37,80 +37,16 @@ class ErrorHandler {
         // 捕獲資源載入錯誤
         window.addEventListener('error', (event) => {
             if (event.target !== window) {
-                // 過濾掉一些常見的、非關鍵的資源載入失敗
-                const src = event.target.src || event.target.href || '';
-                const isIgnoredResource = this.shouldIgnoreResourceError(src, event.target.tagName);
-                
-                // 調試信息
-                if (CONFIG.isDevelopment) {
-                    console.debug(`[RESOURCE ERROR] ${src} (${event.target.tagName}) - Ignored: ${isIgnoredResource}`);
-                }
-                
-                if (!isIgnoredResource) {
-                    this.handleError({
-                        type: 'resource',
-                        message: `Failed to load resource: ${src}`,
-                        element: event.target.tagName,
-                        elementId: event.target.id || '',
-                        elementClass: event.target.className || '',
-                        timestamp: new Date().toISOString()
-                    });
-                } else {
-                    // 記錄被忽略的資源錯誤（僅在開發模式下）
-                    if (CONFIG.isDevelopment) {
-                        console.debug(`[IGNORED] Resource load failed: ${src} (${event.target.tagName})`);
-                    }
-                }
+                this.handleError({
+                    type: 'resource',
+                    message: `Failed to load resource: ${event.target.src || event.target.href}`,
+                    element: event.target.tagName,
+                    timestamp: new Date().toISOString()
+                });
             }
         }, true);
         
         this.isInitialized = true;
-    }
-    
-    // 判斷是否應該忽略資源載入錯誤
-    shouldIgnoreResourceError(src, tagName) {
-        // 忽略的資源類型
-        const ignoredPatterns = [
-            // PDF.js 相關資源（這些是可選的）
-            /pdf\.js/,
-            /pdf\.worker\.min\.js/,
-            // 外部 CDN 資源（網路問題時可能失敗）
-            /cdnjs\.cloudflare\.com/,
-            /unpkg\.com/,
-            // 一些常見的第三方資源
-            /googleapis\.com/,
-            /gstatic\.com/,
-            // 空的或無效的 src
-            /^$|^undefined$|^null$/,
-            // 數據 URL（通常不會失敗）
-            /^data:/,
-            // 主頁面 URL（可能是某些元素的錯誤配置）
-            /isaacwongsse\.github\.io\/ntec-bsi\/?$/,
-            // 相對路徑的根目錄
-            /^\/$|^\.\/$/
-        ];
-        
-        // 檢查是否匹配忽略模式
-        for (const pattern of ignoredPatterns) {
-            if (pattern.test(src)) {
-                if (CONFIG.isDevelopment) {
-                    console.debug(`[IGNORED] Resource matched pattern: ${pattern} for ${src}`);
-                }
-                return true;
-            }
-        }
-        
-        // 忽略某些標籤的特定錯誤
-        if (tagName === 'SCRIPT' && src.includes('pdf.js')) {
-            return true; // PDF.js 載入失敗是可接受的
-        }
-        
-        // 調試信息
-        if (CONFIG.isDevelopment) {
-            console.debug(`[NOT IGNORED] Resource: ${src} (${tagName})`);
-        }
-        
-        return false;
     }
     
     handleError(errorInfo) {
