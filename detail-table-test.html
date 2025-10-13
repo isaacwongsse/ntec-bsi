@@ -41,8 +41,9 @@
             <ul>
                 <li><strong>拖拽選擇：</strong>按住左鍵並拖拽可以選擇多個字段（垂直/水平）</li>
                 <li><strong>複製點：</strong>選中字段後會在右下角顯示橙色點</li>
-                <li><strong>拖拽複製：</strong>將鼠標懸停在橙色點上，按住左鍵拖拽到其他字段可以複製內容</li>
+                <li><strong>多選複製：</strong>將鼠標懸停在橙色點上，按住左鍵拖拽到其他字段，所有選中的字段值都會被複製到目標位置</li>
                 <li><strong>單擊選擇：</strong>單擊字段可以選擇單個字段</li>
+                <li><strong>範圍複製：</strong>選中多個字段後，拖拽複製會保持相同的排列模式複製到目標位置</li>
             </ul>
         </div>
 
@@ -207,7 +208,16 @@
             console.log('Try the following:');
             console.log('1. Click and drag to select multiple cells');
             console.log('2. Look for orange dots in selected cells');
-            console.log('3. Drag from orange dots to copy values');
+            console.log('3. Drag from orange dots to copy ALL selected values');
+            console.log('4. The copied values will maintain their relative positions');
+            
+            // 添加一些測試數據變化監聽
+            const tables = document.querySelectorAll('.detail-table');
+            tables.forEach(table => {
+                table.addEventListener('dataChanged', (e) => {
+                    console.log('Table data changed:', e.target.id);
+                });
+            });
         }, 1000);
     </script>
 </body>

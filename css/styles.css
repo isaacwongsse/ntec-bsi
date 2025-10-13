@@ -3210,6 +3210,27 @@ header h1, .subtitle {
     word-wrap: break-word;
 }
 
+/* 多選拖拽預覽樣式 */
+.detail-table-drag-preview.multi-select-preview {
+    background: rgba(255, 140, 0, 0.95);
+    padding: 8px 12px;
+    border-radius: 6px;
+    min-width: 150px;
+}
+
+.detail-table-drag-preview .preview-header {
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 2px;
+}
+
+.detail-table-drag-preview .preview-content {
+    font-size: 11px;
+    opacity: 0.9;
+}
+
 /* 拖拽目標高亮 */
 .detail-table-drop-target {
     background-color: rgba(255, 140, 0, 0.2) !important;

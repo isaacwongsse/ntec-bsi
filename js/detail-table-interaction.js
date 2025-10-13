@@ -159,16 +159,22 @@ class DetailTableInteractionManager {
         // 添加拖拽樣式
         document.body.classList.add('detail-table-dragging');
         
-        // 創建拖拽預覽
-        this.createDragPreview(sourceCell, e);
+        // 創建多選拖拽預覽
+        this.createMultiSelectDragPreview(e);
         
         e.preventDefault();
     }
 
-    createDragPreview(sourceCell, e) {
+    createMultiSelectDragPreview(e) {
         const preview = document.createElement('div');
-        preview.className = 'detail-table-drag-preview';
-        preview.textContent = this.getCellValue(sourceCell);
+        preview.className = 'detail-table-drag-preview multi-select-preview';
+        
+        // 顯示選中字段的數量
+        const selectedCount = this.selectedCells.size;
+        preview.innerHTML = `
+            <div class="preview-header">${selectedCount} selected field${selectedCount > 1 ? 's' : ''}</div>
+            <div class="preview-content">Drag to copy all values</div>
+        `;
         
         document.body.appendChild(preview);
         
@@ -178,11 +184,11 @@ class DetailTableInteractionManager {
         // 添加移動事件
         const moveHandler = (e) => {
             this.updateDragPreview(preview, e);
-            this.highlightDropTarget(e);
+            this.highlightMultiSelectDropTarget(e);
         };
         
         const upHandler = (e) => {
-            this.endDragCopy();
+            this.endMultiSelectDragCopy();
             document.body.removeChild(preview);
             document.removeEventListener('mousemove', moveHandler);
             document.removeEventListener('mouseup', upHandler);
@@ -197,7 +203,7 @@ class DetailTableInteractionManager {
         preview.style.top = e.clientY - 10 + 'px';
     }
 
-    highlightDropTarget(e) {
+    highlightMultiSelectDropTarget(e) {
         const targetCell = document.elementFromPoint(e.clientX, e.clientY)?.closest('td');
         
         // 清除之前的高亮
@@ -205,17 +211,111 @@ class DetailTableInteractionManager {
             cell.classList.remove('detail-table-drop-target');
         });
         
-        if (targetCell && targetCell !== this.dragSourceCell) {
-            targetCell.classList.add('detail-table-drop-target');
+        if (targetCell) {
+            // 計算目標位置範圍
+            const targetRange = this.calculateTargetRange(targetCell);
+            
+            // 高亮目標範圍內的所有單元格
+            targetRange.forEach(cell => {
+                cell.classList.add('detail-table-drop-target');
+            });
+            
             this.dragTargetCell = targetCell;
+            this.dragTargetRange = targetRange;
         } else {
             this.dragTargetCell = null;
+            this.dragTargetRange = null;
         }
     }
 
-    endDragCopy() {
-        if (this.dragTargetCell && this.dragSourceCell) {
-            this.copyCellValue(this.dragSourceCell, this.dragTargetCell);
+    calculateTargetRange(startCell) {
+        if (!startCell || this.selectedCells.size === 0) return [startCell];
+        
+        const startRow = startCell.parentElement;
+        const table = startRow.closest('table');
+        
+        const startRowIndex = Array.from(table.querySelectorAll('tr')).indexOf(startRow);
+        const startCellIndex = Array.from(startRow.querySelectorAll('td')).indexOf(startCell);
+        
+        // 獲取選中字段的範圍
+        const selectedCellsArray = Array.from(this.selectedCells);
+        const selectedRanges = this.getSelectedRanges(selectedCellsArray);
+        
+        const targetCells = [];
+        
+        selectedRanges.forEach(range => {
+            const { minRow, maxRow, minCell, maxCell } = range;
+            const rowSpan = maxRow - minRow + 1;
+            const colSpan = maxCell - minCell + 1;
+            
+            // 計算目標範圍
+            const targetMinRow = startRowIndex;
+            const targetMaxRow = Math.min(startRowIndex + rowSpan - 1, table.querySelectorAll('tr').length - 1);
+            const targetMinCell = startCellIndex;
+            const targetMaxCell = Math.min(startCellIndex + colSpan - 1, startRow.querySelectorAll('td').length - 1);
+            
+            // 添加目標範圍內的單元格
+            for (let rowIndex = targetMinRow; rowIndex <= targetMaxRow; rowIndex++) {
+                const row = table.querySelectorAll('tr')[rowIndex];
+                if (row) {
+                    const rowCells = row.querySelectorAll('td');
+                    for (let cellIndex = targetMinCell; cellIndex <= targetMaxCell; cellIndex++) {
+                        if (rowCells[cellIndex]) {
+                            targetCells.push(rowCells[cellIndex]);
+                        }
+                    }
+                }
+            }
+        });
+        
+        return targetCells;
+    }
+
+    getSelectedRanges(selectedCells) {
+        const ranges = [];
+        const processedCells = new Set();
+        
+        selectedCells.forEach(cell => {
+            if (processedCells.has(cell)) return;
+            
+            const range = this.getCellRange(cell, cell);
+            const rangeCells = new Set(range);
+            
+            // 找到與當前範圍重疊的所有選中單元格
+            const overlappingCells = selectedCells.filter(c => rangeCells.has(c));
+            
+            if (overlappingCells.length > 0) {
+                const minMax = this.getMinMaxFromCells(overlappingCells);
+                ranges.push(minMax);
+                overlappingCells.forEach(c => processedCells.add(c));
+            }
+        });
+        
+        return ranges;
+    }
+
+    getMinMaxFromCells(cells) {
+        const table = cells[0].closest('table');
+        let minRow = Infinity, maxRow = -Infinity;
+        let minCell = Infinity, maxCell = -Infinity;
+        
+        cells.forEach(cell => {
+            const row = cell.parentElement;
+            const rowIndex = Array.from(table.querySelectorAll('tr')).indexOf(row);
+            const cellIndex = Array.from(row.querySelectorAll('td')).indexOf(cell);
+            
+            minRow = Math.min(minRow, rowIndex);
+            maxRow = Math.max(maxRow, rowIndex);
+            minCell = Math.min(minCell, cellIndex);
+            maxCell = Math.max(maxCell, cellIndex);
+        });
+        
+        return { minRow, maxRow, minCell, maxCell };
+    }
+
+    endMultiSelectDragCopy() {
+        if (this.dragTargetRange && this.selectedCells.size > 0) {
+            this.copyMultiSelectValues();
         }
         
         // 清除樣式
@@ -226,6 +326,40 @@ class DetailTableInteractionManager {
         
         this.dragSourceCell = null;
         this.dragTargetCell = null;
+        this.dragTargetRange = null;
+    }
+
+    copyMultiSelectValues() {
+        const selectedCellsArray = Array.from(this.selectedCells);
+        const targetCellsArray = this.dragTargetRange;
+        
+        // 創建選中字段的值映射
+        const sourceValues = selectedCellsArray.map(cell => this.getCellValue(cell));
+        
+        // 將值複製到目標字段
+        targetCellsArray.forEach((targetCell, index) => {
+            if (index < sourceValues.length) {
+                const sourceValue = sourceValues[index];
+                this.setCellValue(targetCell, sourceValue);
+            }
+        });
+        
+        // 觸發保存事件
+        const table = targetCellsArray[0]?.closest('table');
+        if (table) {
+            table.dispatchEvent(new Event('dataChanged', { bubbles: true }));
+        }
+    }
+
+    setCellValue(cell, value) {
+        const input = cell.querySelector('input, textarea, select');
+        if (input) {
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+            cell.textContent = value;
+        }
     }
 
     selectCell(cell) {
