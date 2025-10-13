@@ -4435,9 +4435,13 @@ function restorePhotoAssignmentStatus() {
 
 // 確保頁面和容器樣式正確的函數
 function ensurePageStyles() {
+    console.log('🔧 ensurePageStyles: Starting to restore page styles');
+    
     // 確保 body 背景樣式
     const body = document.body;
+    console.log('🔧 ensurePageStyles: Body element found:', !!body);
     if (body) {
+        console.log('🔧 ensurePageStyles: Current body background:', body.style.background);
         body.style.background = 'linear-gradient(135deg, #49543a 0%, #232d1b 100%)';
         body.style.backgroundAttachment = 'fixed';
         body.style.minHeight = '100vh';
@@ -4445,12 +4449,17 @@ function ensurePageStyles() {
         body.style.margin = '0';
         body.style.width = '100%';
         body.style.boxSizing = 'border-box';
+        console.log('🔧 ensurePageStyles: Body background styles applied:', body.style.background);
         window.logger.log('Body background styles forcefully restored');
+    } else {
+        console.log('🔧 ensurePageStyles: Body element not found!');
     }
     
     // 確保容器樣式
     const container = document.querySelector('.container');
+    console.log('🔧 ensurePageStyles: Container element found:', !!container);
     if (container) {
+        console.log('🔧 ensurePageStyles: Current container background:', container.style.background);
         container.style.background = 'rgba(255, 255, 255, 0.35)';
         container.style.borderRadius = '12px';
         container.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.2)';
@@ -4464,16 +4473,31 @@ function ensurePageStyles() {
         container.style.flexDirection = 'column';
         container.style.boxSizing = 'border-box';
         container.style.overflow = 'hidden';
+        console.log('🔧 ensurePageStyles: Container background styles applied:', container.style.background);
         window.logger.log('Container styles forcefully restored');
+    } else {
+        console.log('🔧 ensurePageStyles: Container element not found!');
     }
+    
+    console.log('🔧 ensurePageStyles: Function completed');
 }
 
 // 在頁面載入完成後確保頁面和容器樣式
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 DOMContentLoaded: Event fired, setting up page style restoration');
     // 延遲執行以確保所有樣式都已載入
-    setTimeout(ensurePageStyles, 100);
-    setTimeout(ensurePageStyles, 500);
-    setTimeout(ensurePageStyles, 1000);
+    setTimeout(() => {
+        console.log('🔧 DOMContentLoaded: First timeout (100ms) - calling ensurePageStyles');
+        ensurePageStyles();
+    }, 100);
+    setTimeout(() => {
+        console.log('🔧 DOMContentLoaded: Second timeout (500ms) - calling ensurePageStyles');
+        ensurePageStyles();
+    }, 500);
+    setTimeout(() => {
+        console.log('🔧 DOMContentLoaded: Third timeout (1000ms) - calling ensurePageStyles');
+        ensurePageStyles();
+    }, 1000);
 });
 
 // Load data from storage
@@ -4932,7 +4956,9 @@ async function loadDataFromStorage() {
     window.logger.log('Data loading completed. Categories content preserved from localStorage');
     
     // 確保頁面和容器背景樣式正確載入
+    console.log('🔧 loadDataFromStorage: About to call ensurePageStyles');
     ensurePageStyles();
+    console.log('🔧 loadDataFromStorage: ensurePageStyles called');
 }
 
 // Clear all categories content on page reload
