@@ -7767,7 +7767,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                         
                         // 關閉 PDF 縮圖
                         if (floorplanThumb) floorplanThumb.style.display = 'none';
-                        if (floorplanThumbImg) floorplanThumbImg.src = '';
+                        if (floorplanThumbImg) {
+                            // 移除 src 屬性避免空字串觸發資源載入錯誤
+                            floorplanThumbImg.removeAttribute('src');
+                        }
                         
                         // 重置資料夾名稱與狀態
                         if (folderNameDisplay) folderNameDisplay.textContent = '';

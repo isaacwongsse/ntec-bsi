@@ -37,9 +37,14 @@ class ErrorHandler {
         // 捕獲資源載入錯誤
         window.addEventListener('error', (event) => {
             if (event.target !== window) {
+                const url = event.target && (event.target.src || event.target.href);
+                // 忽略空 URL 或等於當前頁面的誤觸發
+                if (!url || url === location.href) {
+                    return;
+                }
                 this.handleError({
                     type: 'resource',
-                    message: `Failed to load resource: ${event.target.src || event.target.href}`,
+                    message: `Failed to load resource: ${url}`,
                     element: event.target.tagName,
                     timestamp: new Date().toISOString()
                 });
