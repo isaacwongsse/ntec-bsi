@@ -338,7 +338,9 @@ class KeyboardNavigationManager {
     closeModals() {
         const modals = document.querySelectorAll('.defect-window, .detail-popup, .floor-plan-overlay');
         modals.forEach(modal => {
-            if (modal.style.display !== 'none') {
+            // Check if modal is visible (either display !== 'none' or z-index !== '-3')
+            const isVisible = modal.style.display !== 'none' && modal.style.zIndex !== '-3';
+            if (isVisible) {
                 const closeBtn = modal.querySelector('.defect-close, .detail-popup-close, .floor-plan-close-text');
                 if (closeBtn) {
                     closeBtn.click();

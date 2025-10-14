@@ -43,6 +43,19 @@ body {
     color: var(--text);
     background-attachment: fixed;
     line-height: 1.6;
+    position: relative;
+}
+
+/* Earth tone deep green background layer */
+.earth-tone-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #2d4a2d 0%, #1a2e1a 100%);
+    z-index: -2;
+    pointer-events: none;
 }
 
 .skip-link {
@@ -525,6 +538,7 @@ main {
     word-break: break-all;
     padding: 5px;
     z-index: 5;
+    pointer-events: none; /* 允許雙擊事件穿透給縮圖以開啟預覽 */
 }
 
 .photo-number {
@@ -2999,21 +3013,50 @@ header h1, .subtitle {
     transition: all 0.2s ease;
     border-right: 1px solid #e0e0e0;
     border-bottom: 1px solid #dee2e6;
-    border-left: 2px solid transparent;
-    border-top: 2px solid transparent;
+    border-left: none;
+    border-top: none;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+    line-height: 1.4;
+    vertical-align: top;
 }
 
 .detail-table td:hover {
     background-color: rgba(0, 123, 255, 0.1);
-    border-left-color: rgba(0, 123, 255, 0.3);
-    border-top-color: rgba(0, 123, 255, 0.3);
 }
 
 .detail-table td.selected {
     background-color: rgba(0, 123, 255, 0.2);
-    border-left-color: transparent;
-    border-top-color: transparent;
+    border-right: 1px solid #e0e0e0;
+    border-bottom: 1px solid #dee2e6;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+    position: relative;
+}
+
+.detail-table td.selected::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background-color: #007bff;
+    border-radius: 50%;
+    z-index: 1000;
+    box-shadow: 0 0 0 1px white;
+    cursor: crosshair;
+    transition: all 0.2s ease;
+}
+
+.detail-table td.selected::after:hover {
+    background-color: #0056b3;
+    transform: scale(1.2);
 }
 
 .detail-table td.selected:hover {
@@ -3023,12 +3066,23 @@ header h1, .subtitle {
 
 .detail-table td.multi-select-range {
     background-color: rgba(0, 123, 255, 0.15);
-    border-left-color: rgba(0, 123, 255, 0.5);
-    border-top-color: rgba(0, 123, 255, 0.5);
+    border-right: 1px solid #e0e0e0;
+    border-bottom: 1px solid #dee2e6;
+    position: relative;
+}
+
+.detail-table td.multi-select-range::after {
+    display: none;
 }
 
 .detail-table td.multi-select-range:hover {
     background-color: rgba(0, 123, 255, 0.25);
+}
+
+.detail-table td.fill-preview {
+    background-color: rgba(255, 193, 7, 0.3) !important;
+    border: 2px solid #ffc107 !important;
+    box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5) !important;
 }
 
 /* 輸入字段樣式 */
@@ -3053,6 +3107,8 @@ header h1, .subtitle {
     -webkit-hyphens: auto;
     -moz-hyphens: auto;
     -ms-hyphens: auto;
+    min-height: 40px;
+    vertical-align: top;
 }
 
 .detail-table td input:focus,
@@ -3140,17 +3196,9 @@ header h1, .subtitle {
     }
 }
 
-/* 範圍選擇的連接線效果 */
+/* 範圍選擇的連接線效果 - 已移除點線效果 */
 .detail-table td.multi-select-range::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 2px dashed rgba(0, 123, 255, 0.6);
-    pointer-events: none;
-    z-index: 2;
+    display: none;
 }
 
 /* 多選提示文字 */
@@ -3159,6 +3207,18 @@ header h1, .subtitle {
     color: #6c757d;
     font-style: italic;
     margin-top: 5px;
+}
+
+/* 拖拽選擇樣式 */
+.detail-table td.drag-selecting {
+    background-color: rgba(0, 123, 255, 0.3);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.5);
+    transform: scale(1.02);
+}
+
+.detail-table td.drag-selecting:hover {
+    background-color: rgba(0, 123, 255, 0.4);
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.6);
 }
 
 
@@ -3895,6 +3955,152 @@ input:checked + .slider:before {
     border: 1px solid #ddd;
 }
 
+/* 為所有 detail-table 欄位添加文字換行功能 */
+.detail-table-container .detail-table td {
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+    line-height: 1.4;
+    vertical-align: top;
+}
+
+/* 確保缺陷項目在儲存格中分行顯示 */
+.detail-table-container .detail-table td .defect-item {
+    display: block;
+    margin-bottom: 4px;
+    padding: 2px 4px;
+    background: rgba(0, 123, 255, 0.1);
+    border-radius: 3px;
+    border-left: 3px solid #007bff;
+    color: #6c757d;
+}
+
+.detail-table-container .detail-table td .defect-item:last-child {
+    margin-bottom: 0;
+}
+
+/* 為標籤項目添加分行顯示 */
+.detail-table-container .detail-table td .label-item {
+    display: block;
+    margin-bottom: 4px;
+    padding: 2px 4px;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 3px;
+    border-left: 3px solid #28a745;
+    color: #6c757d;
+}
+
+.detail-table-container .detail-table td .label-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Defects detail table textarea 樣式 */
+.detail-table-container .detail-table textarea.defect-textarea {
+    width: 100%;
+    min-height: 60px;
+    max-height: 150px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    resize: vertical;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+    overflow-y: auto;
+    line-height: 1.4;
+    vertical-align: top;
+    background: white;
+    transition: border-color 0.2s ease;
+}
+
+.detail-table-container .detail-table textarea.defect-textarea:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.detail-table-container .detail-table textarea.defect-textarea:hover {
+    border-color: #007bff;
+}
+
+/* 只讀 textarea 樣式 */
+.detail-table-container .detail-table textarea.defect-textarea[readonly] {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+    border-color: #e9ecef;
+}
+
+.detail-table-container .detail-table textarea.defect-textarea[readonly]:focus {
+    border-color: #e9ecef;
+    box-shadow: none;
+    outline: none;
+}
+
+.detail-table-container .detail-table textarea.defect-textarea[readonly]:hover {
+    border-color: #e9ecef;
+}
+
+/* 只讀 input 欄位樣式 */
+.detail-table-container .detail-table input[readonly] {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+    border-color: #e9ecef;
+}
+
+.detail-table-container .detail-table input[readonly]:focus {
+    border-color: #e9ecef;
+    box-shadow: none;
+    outline: none;
+}
+
+.detail-table-container .detail-table input[readonly]:hover {
+    border-color: #e9ecef;
+}
+
+/* 標籤和缺陷內容容器樣式 */
+.detail-table-container .detail-table td .label-content,
+.detail-table-container .detail-table td .defect-content {
+    padding: 4px;
+    min-height: 40px;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+    line-height: 1.4;
+}
+
+/* Labels detail table 中的只讀內容容器樣式 */
+.detail-table-container .detail-table td .label-content {
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+.detail-table-container .detail-table td .defect-content {
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
 /* 重複檢查號碼的樣式 */
 .duplicate-inspection-no {
     border-bottom: 2px solid #ff0000 !important;
@@ -3907,14 +4113,13 @@ input:checked + .slider:before {
 /* Style for textarea elements in detail tables */
 .detail-table textarea {
     width: 100%;
-    height: 100%;
     min-height: 46px;
-    max-height: 46px;
+    max-height: 120px;
     padding: 8px;
     border: none;
     border-radius: 0;
     font-size: 0.9rem;
-    resize: none;
+    resize: vertical;
     box-sizing: border-box;
     word-wrap: break-word;
     white-space: normal;
@@ -3924,6 +4129,8 @@ input:checked + .slider:before {
     -moz-hyphens: auto;
     -ms-hyphens: auto;
     overflow-y: auto;
+    line-height: 1.4;
+    vertical-align: top;
 }
 
 .detail-table textarea:focus {
@@ -3958,11 +4165,21 @@ input:checked + .slider:before {
 }
 
 .detail-table td {
-    padding: 0;
+    padding: 8px;
     border-bottom: 1px solid #dee2e6;
     border-right: 1px solid #e0e0e0;
     vertical-align: top;
     position: relative;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+    line-height: 1.4;
+    min-height: 40px;
 }
 
 .detail-table td:last-child {
@@ -4033,6 +4250,24 @@ input:checked + .slider:before {
     background: white;
     transition: border-color 0.2s ease;
     box-sizing: border-box;
+    word-wrap: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+    line-height: 1.4;
+    vertical-align: top;
+    min-height: 40px;
+}
+
+/* 只讀 input 欄位樣式 - 覆蓋基本樣式 */
+.detail-table input[readonly] {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+    border-color: #e9ecef !important;
 }
 
 .detail-table input:focus {
@@ -4043,6 +4278,17 @@ input:checked + .slider:before {
 
 .detail-table input:hover {
     border-color: #007bff;
+}
+
+/* 只讀 input 欄位的焦點和懸停狀態 */
+.detail-table input[readonly]:focus {
+    outline: none !important;
+    border-color: #e9ecef !important;
+    box-shadow: none !important;
+}
+
+.detail-table input[readonly]:hover {
+    border-color: #e9ecef !important;
 }
 
 /* 缺陷標記提醒彈窗樣式 */
@@ -5288,4 +5534,21 @@ img.lazy-error {
         width: 100%;
         min-width: auto;
     }
+}
+
+/* 拖拽選擇樣式 */
+.detail-table td.drag-selecting {
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 2px solid rgba(0, 123, 255, 0.5);
+    cursor: crosshair;
+}
+
+/* 拖拽選擇時的全局樣式 */
+body.drag-selecting {
+    cursor: crosshair !important;
+    user-select: none !important;
+}
+
+body.drag-selecting * {
+    cursor: crosshair !important;
 }

@@ -352,7 +352,7 @@ const languages = {
     'en-GB': {
         // Header
         'sortToggleText': 'Sorting photo to folder',
-        'languageToggleText': 'British English',
+        'languageToggleText': 'English',
         
         // Table headers
         'defectNo': 'Defect No.',
@@ -700,13 +700,171 @@ const languages = {
     }
 };
 
-let currentLanguage = 'zh-TW'; // Default language
+let currentLanguage = 'en-GB'; // Default language
 
 // Language functions
 function getText(key) {
     return languages[currentLanguage][key] || key;
 }
 
+// 嘗試取得原始影像的 Blob（若有儲存的資料夾 handle 與 webkitRelativePath），否則回傳 null
+async function tryGetOriginalImageBlob(file) {
+    try {
+        if (file && file.webkitRelativePath && window.showDirectoryPicker && window.storageAdapter && window.storageAdapter.getItem) {
+            const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+            if (dirHandle && dirHandle.getDirectoryHandle) {
+                const pathParts = file.webkitRelativePath.split('/');
+                let currentHandle = dirHandle;
+                for (let i = 0; i < pathParts.length - 1; i++) {
+                    const part = pathParts[i];
+                    if (part) currentHandle = await currentHandle.getDirectoryHandle(part);
+                }
+                const fileHandle = await currentHandle.getFileHandle(pathParts[pathParts.length - 1]);
+                const originalFile = await fileHandle.getFile();
+                const arrayBuffer = await originalFile.arrayBuffer();
+                return new Blob([arrayBuffer], { type: originalFile.type || 'image/jpeg' });
+            }
+        }
+    } catch (e) {
+        window.logger.warn('tryGetOriginalImageBlob failed, fallback to preview dataURL:', e);
+    }
+    return null;
+}
+
+// 顯示照片預覽彈窗，帶縮放/位移動畫（雙擊縮圖開啟、雙擊彈窗關閉）
+async function showPhotoPreviewPopup(file, thumbnailEl) {
+    // 若已有開啟中的彈窗，先忽略
+    if (document.getElementById('photoPreviewOverlay')) return;
+    
+    const thumbRect = thumbnailEl.getBoundingClientRect();
+    
+    // 嘗試原始檔，否則使用 dataURL/縮圖
+    let imgSrc = '';
+    const originalBlob = await tryGetOriginalImageBlob(file);
+    let objectUrl = '';
+    if (originalBlob) {
+        objectUrl = URL.createObjectURL(originalBlob);
+        imgSrc = objectUrl;
+    } else if (file && typeof file.dataURL === 'string' && file.dataURL) {
+        imgSrc = file.dataURL;
+    } else {
+        // 從當前縮圖取用（最後退回）
+        const img = thumbnailEl.querySelector('img');
+        imgSrc = img ? img.src : '';
+    }
+    if (!imgSrc) return;
+    
+    // 建立覆蓋層
+    const overlay = document.createElement('div');
+    overlay.id = 'photoPreviewOverlay';
+    overlay.className = 'photo-preview-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+        display: block; z-index: 5000; overflow: hidden;
+    `;
+    document.body.appendChild(overlay);
+    
+    // 建立可動畫的影像元素（絕對定位，以縮圖座標起始）
+    const animImg = document.createElement('img');
+    animImg.src = imgSrc;
+    animImg.alt = file.name || '';
+    animImg.style.cssText = `
+        position: fixed; top: ${thumbRect.top}px; left: ${thumbRect.left}px;
+        width: ${thumbRect.width}px; height: ${thumbRect.height}px;
+        object-fit: contain; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        transition: top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease, border-radius 300ms ease;
+        will-change: top, left, width, height;
+        background: #111;
+    `;
+    overlay.appendChild(animImg);
+    
+    // 載入完成後計算最終尺寸（90vw/90vh 內等比顯示）
+    await new Promise((resolve) => {
+        if (animImg.complete) return resolve();
+        animImg.onload = () => resolve();
+        animImg.onerror = () => resolve();
+    });
+    
+    const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    const maxW = Math.floor(vw * 0.9);
+    const maxH = Math.floor(vh * 0.9);
+    const naturalW = animImg.naturalWidth || thumbRect.width;
+    const naturalH = animImg.naturalHeight || thumbRect.height;
+    
+    let finalW = naturalW;
+    let finalH = naturalH;
+    const scale = Math.min(maxW / naturalW, maxH / naturalH, 1);
+    finalW = Math.round(naturalW * scale);
+    finalH = Math.round(naturalH * scale);
+    const finalLeft = Math.round((vw - finalW) / 2);
+    const finalTop = Math.round((vh - finalH) / 2);
+    
+    // 觸發動畫到中央放大
+    requestAnimationFrame(() => {
+        animImg.style.top = `${finalTop}px`;
+        animImg.style.left = `${finalLeft}px`;
+        animImg.style.width = `${finalW}px`;
+        animImg.style.height = `${finalH}px`;
+        animImg.style.borderRadius = '12px';
+    });
+    
+    // 雙擊彈窗影像，收合回縮圖並關閉
+    const closePopup = () => {
+        const currentRect = thumbnailEl.getBoundingClientRect();
+        animImg.style.top = `${currentRect.top}px`;
+        animImg.style.left = `${currentRect.left}px`;
+        animImg.style.width = `${currentRect.width}px`;
+        animImg.style.height = `${currentRect.height}px`;
+        animImg.style.borderRadius = '8px';
+        
+        const onTransitionEnd = () => {
+            animImg.removeEventListener('transitionend', onTransitionEnd);
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            overlay.remove();
+        };
+        animImg.addEventListener('transitionend', onTransitionEnd);
+    };
+    
+    // 只接受雙擊關閉（符合需求 #2），同時支援 Esc 與點擊遮罩
+    const onDblClick = (e) => { e.stopPropagation(); closePopup(); };
+    overlay.addEventListener('dblclick', onDblClick);
+    
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closePopup();
+        }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    
+    const onOverlayClick = (e) => {
+        if (e.target === overlay) {
+            closePopup();
+        }
+    };
+    overlay.addEventListener('click', onOverlayClick, true);
+    
+    // 關閉時清理監聽器
+    const originalClose = closePopup;
+    closePopup = () => {
+        const currentRect = thumbnailEl.getBoundingClientRect();
+        animImg.style.top = `${currentRect.top}px`;
+        animImg.style.left = `${currentRect.left}px`;
+        animImg.style.width = `${currentRect.width}px`;
+        animImg.style.height = `${currentRect.height}px`;
+        animImg.style.borderRadius = '8px';
+        const onTransitionEnd = () => {
+            animImg.removeEventListener('transitionend', onTransitionEnd);
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            overlay.removeEventListener('dblclick', onDblClick);
+            overlay.removeEventListener('click', onOverlayClick, true);
+            document.removeEventListener('keydown', onKeyDown);
+            overlay.remove();
+        };
+        animImg.addEventListener('transitionend', onTransitionEnd);
+    };
+}
 function setLanguage(lang) {
     currentLanguage = lang;
     localStorage.setItem('selectedLanguage', lang);
@@ -1364,7 +1522,6 @@ function updateDefectsDetailTableHeaders() {
     if (defectsDetailTable) {
         const headers = defectsDetailTable.querySelectorAll('th');
         const headerKeys = [
-            'actionsHeaderDefects',
             'defectNoHeaderDefects',
             'inspectionNoHeaderDefects',
             'imminentDangerHeaderDefects',
@@ -1903,10 +2060,13 @@ function updateDetailTableContainers() {
 }
 
 function initializeLanguageSystem() {
-    // Load saved language preference
+    // Load saved language preference, default to English if none saved
     const savedLanguage = localStorage.getItem('selectedLanguage');
     if (savedLanguage && languages[savedLanguage]) {
         currentLanguage = savedLanguage;
+    } else {
+        // Default to English if no saved preference
+        currentLanguage = 'en-GB';
     }
     
     // Set initial language toggle state
@@ -2086,7 +2246,7 @@ window.updateAllDefectMarkSizes = function() {
                 // 更新文字框大小
                 const scaledSize = window.defectMarkSizeScale * (window.currentScale || 1);
                 const scaledFontSize = Math.max(8, scaledSize * 0.4); // 文字框字體大小為縮放後圓點大小的40%
-                const scaledPadding = 10 * (window.currentScale || 1); // 縮放 padding
+                const scaledPadding = 5 * (window.currentScale || 1); // 縮放 padding
                 
                 element.style.fontSize = scaledFontSize + 'px';
                 element.style.padding = scaledPadding + 'px';
@@ -3035,15 +3195,24 @@ function renumberDefectEntries() {
         const defectNoMapping = {};
         let newDefectNo = 1;
         
-        // 為每個缺陷分配新的連續編號
+        // 為每個缺陷分配新的連續編號，但保持原始的檢查編號
         sortedEntries.forEach(entry => {
             const oldDefectNo = entry.defectNo;
             const newDefectNoStr = newDefectNo.toString();
             
+            // 記錄原始檢查編號，確保重新編號時不改變
+            const originalInspectionNo = entry.inspectionNo || entry.locationId;
+            
             defectNoMapping[oldDefectNo] = newDefectNoStr;
             entry.defectNo = newDefectNoStr;
             
-            window.logger.log(`Renumbered defect: ${oldDefectNo} -> ${newDefectNoStr}`);
+            // 確保檢查編號保持不變
+            if (originalInspectionNo) {
+                entry.inspectionNo = originalInspectionNo;
+                entry.locationId = originalInspectionNo;
+            }
+            
+            window.logger.log(`Renumbered defect: ${oldDefectNo} -> ${newDefectNoStr}, inspectionNo: ${originalInspectionNo}`);
             newDefectNo++;
         });
         
@@ -3051,7 +3220,16 @@ function renumberDefectEntries() {
         if (window.submittedDefectEntries && window.submittedDefectEntries.length > 0) {
             window.submittedDefectEntries.forEach(entry => {
                 if (defectNoMapping[entry.defectNo]) {
+                    // 記錄原始檢查編號
+                    const originalInspectionNo = entry.inspectionNo || entry.locationId;
+                    
                     entry.defectNo = defectNoMapping[entry.defectNo];
+                    
+                    // 確保檢查編號保持不變
+                    if (originalInspectionNo) {
+                        entry.inspectionNo = originalInspectionNo;
+                        entry.locationId = originalInspectionNo;
+                    }
                 }
             });
         }
@@ -3173,10 +3351,12 @@ function triggerAutoCreateDefectMark() {
     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
     if (floorPlanOverlay) {
         window.logger.log('Floor plan overlay element found:', floorPlanOverlay);
-        window.logger.log('Current display style:', floorPlanOverlay.style.display);
+        window.logger.log('Current z-index:', floorPlanOverlay.style.zIndex);
         
+        // Use z-index approach to bring floor plan to front
+        floorPlanOverlay.style.zIndex = '1000';
         floorPlanOverlay.style.display = 'flex';
-        window.logger.log('Floor plan overlay opened, new display style:', floorPlanOverlay.style.display);
+        window.logger.log('Floor plan overlay brought to front, z-index:', floorPlanOverlay.style.zIndex);
         
         // Disable close button - user must place defect mark first
         const closeBtn = document.getElementById('closeFloorPlanBtn');
@@ -5018,7 +5198,7 @@ forceResetBtn.addEventListener('click', () => {
     selectPhotoFolder();
 });
 
-// Resize image function (supports various sizes up to 600px)
+// Resize image function (supports various sizes up to 1200px long edge)
 function resizeImage(file) {
     return new Promise((resolve, reject) => {
         window.logger.log(`Processing image: ${file.name} (${file.size} bytes)`);
@@ -5065,16 +5245,28 @@ function resizeImage(file) {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // Calculate new dimensions
-                    const maxWidth = 640;
-                    const scale = maxWidth / img.width;
-                    const newWidth = maxWidth;
-                    const newHeight = img.height * scale;
+                    // Calculate new dimensions with long-edge limit 1200px
+                    const longEdgeLimit = 1200;
+                    let newWidth = img.width;
+                    let newHeight = img.height;
+                    if (img.width >= img.height) {
+                        if (img.width > longEdgeLimit) {
+                            const scale = longEdgeLimit / img.width;
+                            newWidth = longEdgeLimit;
+                            newHeight = Math.round(img.height * scale);
+                        }
+                    } else {
+                        if (img.height > longEdgeLimit) {
+                            const scale = longEdgeLimit / img.height;
+                            newHeight = longEdgeLimit;
+                            newWidth = Math.round(img.width * scale);
+                        }
+                    }
                     
                     window.logger.log(`Resizing ${file.name} from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
                     
                     // Check if dimensions are reasonable
-                    if (newWidth <= 0 || newHeight <= 0 || newHeight > 2000) {
+                    if (newWidth <= 0 || newHeight <= 0 || newWidth > 12000 || newHeight > 12000) {
                         reject(new Error(`Invalid image dimensions for ${file.name}`));
                         return;
                     }
@@ -5085,7 +5277,7 @@ function resizeImage(file) {
                     // Draw resized image
                     ctx.drawImage(img, 0, 0, newWidth, newHeight);
                     
-                    // Convert to data URL with error handling
+                    // Convert to data URL with error handling (JPEG quality 0.8)
                     try {
                         const dataURL = canvas.toDataURL('image/jpeg', 0.8);
                         window.logger.log(`Image resized successfully: ${file.name}`);
@@ -5429,7 +5621,7 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
                     // Find the location ID for this photo
                     for (const row of submittedData) {
                         if (row.photoFilenames.includes(file.name)) {
-                            statusDiv.textContent = `Submitted to ${row.locationId}`;
+                            statusDiv.textContent = `${row.locationId}`;
                             statusDiv.style.display = 'flex';
                             break;
                         }
@@ -5667,6 +5859,24 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                     ${newIconHtml}
                 `;
                 
+                // 保存相對路徑以便預覽時嘗試讀原始檔
+                if (file.webkitRelativePath) {
+                    photoItem.dataset.webkitRelativePath = file.webkitRelativePath;
+                }
+                
+                // 雙擊縮圖開啟原尺寸預覽（含動畫）
+                const imgEl = photoItem.querySelector('img');
+                if (imgEl) {
+                    imgEl.addEventListener('dblclick', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await showPhotoPreviewPopup(file, photoItem);
+                        } catch (err) {
+                            window.logger.error('Failed to open photo preview popup:', err);
+                        }
+                    });
+                }
+                
                 // Set status text if submitted
                 if (isSubmitted) {
                     const statusDiv = photoItem.querySelector('.photo-status');
@@ -5705,17 +5915,17 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                         }
                         
                         if (locationId) {
-                            statusDiv.textContent = `Submitted to ${locationId}`;
+                            statusDiv.textContent = `${locationId}`;
                             statusDiv.style.display = 'flex !important';
                             statusDiv.style.visibility = 'visible';
                             photoItem.classList.add('submitted');
-                            console.log(`🔍 Photo ${file.name} status set to: Submitted to ${locationId}`);
+                            console.log(`🔍 Photo ${file.name} status set to: ${locationId}`);
                             console.log(`🔍 DOM check - statusDiv.textContent: "${statusDiv.textContent}"`);
                             console.log(`🔍 DOM check - statusDiv.style.display: "${statusDiv.style.display}"`);
                             console.log(`🔍 DOM check - statusDiv.offsetHeight: ${statusDiv.offsetHeight}`);
                         } else {
-                            // Fallback: just show "Submitted" without location ID
-                            statusDiv.textContent = 'Submitted';
+                            // Fallback: just show empty status without location ID
+                            statusDiv.textContent = '';
                             statusDiv.style.display = 'flex !important';
                             statusDiv.style.visibility = 'visible';
                             photoItem.classList.add('submitted');
@@ -5902,6 +6112,60 @@ function assignToCategory(categoryId) {
     } else {
         showNotification('No new numbers added to this category', 'info');
     }
+}
+
+// Format defect photo numbers for display in detail tables
+function formatDefectPhotoNumbers(photoNumbers) {
+    if (!photoNumbers || photoNumbers === 'N/A') {
+        return 'N/A';
+    }
+    
+    // Split by comma and filter empty items
+    const items = photoNumbers.split(',').map(item => item.trim()).filter(item => item);
+    if (items.length === 0) {
+        return 'N/A';
+    }
+    
+    // Create photo number items with CSS class for styling
+    return items.map(item => {
+        return `<div class="defect-item">${item}</div>`;
+    }).join('');
+}
+
+// Format defect category for display in detail tables
+function formatDefectCategory(category) {
+    if (!category || category === 'N/A') {
+        return 'N/A';
+    }
+    
+    return `<div class="defect-item">${category}</div>`;
+}
+
+// Format defect type for display in detail tables
+function formatDefectType(defectType) {
+    if (!defectType || defectType === 'N/A') {
+        return 'N/A';
+    }
+    
+    return `<div class="defect-item">${defectType}</div>`;
+}
+
+// Format label items for display in detail tables
+function formatLabelItems(labelValue) {
+    if (!labelValue || labelValue === 'N/A') {
+        return 'N/A';
+    }
+    
+    // Split by comma and filter empty items
+    const items = labelValue.split(',').map(item => item.trim()).filter(item => item);
+    if (items.length === 0) {
+        return 'N/A';
+    }
+    
+    // Create label items with CSS class for styling
+    return items.map(item => {
+        return `<div class="label-item">${item}</div>`;
+    }).join('');
 }
 
 // Format numbers into ranges with improved formatting
@@ -6942,7 +7206,7 @@ function generateDefectsWithButtons(defectsString, rowId) {
     return defects.map((defect, index) => {
         const defectId = `${rowId}_defect_${index}`;
         
-        // 直接顯示缺陷文本，不添加額外編號（編號已包含在 categoriesGrid 的缺陷類別內容中）
+        // 使用新的 CSS 類別來分行顯示缺陷項目
         return `
             <div class="defect-item" data-defect-id="${defectId}" data-row-id="${rowId}" data-defect-index="${index}">
                 <span class="defect-text">${defect}</span>
@@ -7298,8 +7562,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
         const modal = document.getElementById('sessionRestoreModal');
-        if (saved && modal) {
-            // 僅在尚未載入任何資料時顯示
+        
+        // 檢查是否有實際的數據（不僅僅是空的數據結構）
+        const hasActualData = saved && (
+            (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
+            (saved.submittedData && saved.submittedData.length > 0) ||
+            (saved.floorPlanLabels && saved.floorPlanLabels.length > 0) ||
+            (saved.floorPlanDefectMarks && saved.floorPlanDefectMarks.length > 0) ||
+            (saved.photoAssignments?.labels && saved.photoAssignments.labels.length > 0) ||
+            (saved.photoAssignments?.defectMarks && saved.photoAssignments.defectMarks.length > 0) ||
+            (saved.allPhotoFilenames && saved.allPhotoFilenames.length > 0) ||
+            (saved.photoMetadata && saved.photoMetadata.length > 0) ||
+            saved.floorPlanPDF || 
+            saved.floorPlanData ||
+            localStorage.getItem('pne_floorplan_base64') ||
+            localStorage.getItem('pne_floorplan_data')
+        );
+        
+        if (hasActualData && modal) {
+            // 僅在有實際數據時顯示
+            console.log('Previous session data detected, showing restore modal');
             modal.style.display = 'flex';
             const restoreBtn = document.getElementById('restoreSessionBtn');
             const startFreshBtn = document.getElementById('startFreshBtn');
@@ -7529,8 +7811,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 };
             }
         } else {
-            // 沒有保存數據時，確保照片預覽區域顯示空狀態
-            if (!saved && photoGrid) {
+            // 沒有實際數據時，確保照片預覽區域顯示空狀態
+            if (!hasActualData && photoGrid) {
                 photoGrid.innerHTML = `
                     <div class="empty-preview">
                         <i class="fas fa-images fa-4x"></i>
@@ -7540,7 +7822,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </button>
                     </div>
                 `;
-                window.logger.log('No saved data found. Displaying empty state.');
+                window.logger.log('No actual data found. Displaying empty state.');
             }
         }
     } catch (e) { 
@@ -8009,11 +8291,26 @@ async function updateAllTablesAfterStartFresh() {
         
         // 3. 更新分類表格 (Category Tables A-I)
         categories.forEach(category => {
-            if (category.id !== 'j') { // 排除缺陷分類，它有自己的處理邏輯
+            if (category.id !== 'j') { // 排除缺陷分類,它有自己的處理邏輯
                 updateCategoryDisplay(category.id);
                 console.log(`分類 ${category.id.toUpperCase()} 表格已更新`);
             }
         });
+        
+        // 3a. 清空分類記錄表格 (Category Records Tables)
+        if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+            window.updateCategoryTablesFromInspectionRecords();
+            console.log('分類記錄表格已更新');
+        } else {
+            // 手動清空分類記錄表格
+            categoryTableIds.forEach(cat => {
+                const tbody = document.querySelector(`#category-table-${cat.id} tbody`);
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    console.log(`分類 ${cat.id.toUpperCase()} 記錄表格已清空`);
+                }
+            });
+        }
         
         // 4. 更新標籤詳細表格 (Labels Detail)
         const labelsDetailTableBody = document.getElementById('labelsDetailTableBody');
@@ -9243,6 +9540,11 @@ function addAutoSaveListeners(type) {
         
         if (isNaN(index) || !field) return;
         
+        // 檢查欄位是否為只讀，如果是則不進行保存
+        if (input.readOnly) {
+            return;
+        }
+        
         let value;
         if (input.type === 'checkbox') {
             value = input.checked;
@@ -9495,7 +9797,53 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
                 deleteDefectRecordComprehensive(defectNoToDelete, 'labels detail table');
             });
             
-            // 刪除完成，直接返回（deleteDefectRecordComprehensive 會處理表格重新顯示）
+            // 缺陷刪除完成後，繼續刪除標籤本身
+            // 在刪除標籤前，先清理相關的照片分配記錄
+            cleanupPhotoAssignmentsOnLabelDelete(label);
+            
+            window.labels.splice(labelIndex, 1);
+            
+            // 保存標籤到本地存儲
+            if (typeof window.saveLabelsToStorage === 'function') {
+                window.saveLabelsToStorage();
+            }
+            
+            // 只在繪圖模式下重新渲染標籤（因為非繪圖模式下沒有地圖顯示）
+            if (drawingMode && typeof window.redrawLabels === 'function') {
+                window.redrawLabels();
+            }
+            
+            // 同步到 defects detail-table-container（檢查缺陷記錄的變化）
+            syncLabelsToDefectsDetailTable();
+            
+            // 更新缺陷摘要表格
+            if (typeof window.updateDefectSummaryTable === 'function') {
+                window.updateDefectSummaryTable();
+                window.logger.log('Defect summary table updated after label deletion');
+            }
+            
+            // 更新分類表格
+            if (typeof window.updateCategoryTablesFromInspectionRecords === 'function') {
+                window.updateCategoryTablesFromInspectionRecords();
+                window.logger.log('Category tables updated after label deletion');
+            }
+            
+            // 更新照片狀態
+            if (typeof updatePhotoStatusFromLabels === 'function') {
+                updatePhotoStatusFromLabels();
+            }
+            
+            // 重新排列缺陷編號 - 在標籤刪除完成後進行
+            renumberDefectEntries();
+            
+            // 重新顯示標籤詳細表格
+            if (typeof window.showLabelsDetailPopup === 'function') {
+                window.showLabelsDetailPopup();
+            }
+            
+            // 顯示完成通知
+            showNotification(`標籤記錄 ${label.inspectionNo} 及其相關缺陷已完全刪除`, 'success');
+            
             return;
         } else {
             // 如果沒有缺陷編號，只刪除標籤
@@ -9535,6 +9883,9 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
                 updatePhotoStatusFromLabels();
             }
             
+            // 重新排列缺陷編號 - 在標籤刪除完成後進行
+            renumberDefectEntries();
+            
             // 重新顯示標籤詳細表格
             if (typeof window.showLabelsDetailPopup === 'function') {
                 window.showLabelsDetailPopup();
@@ -9545,33 +9896,11 @@ window.deleteLabelFromDetailTable = function(labelId, index) {
     }
 }
 
-// 從詳細表格中刪除缺陷記錄
+// 從詳細表格中刪除缺陷記錄 - 已禁用用戶手動刪除
+// 缺陷記錄只能由系統在刪除標籤時自動刪除
 window.deleteDefectFromDetailTable = function(defectId, defectNo, index) {
-    window.logger.log('Deleting defect from detail table:', defectId, defectNo, index);
-    
-    // 檢測是否在繪圖模式
-    const drawingMode = isDrawingMode();
-    window.logger.log('Delete defect from detail table - Drawing mode:', drawingMode);
-    
-    // 根據模式顯示不同的確認訊息
-    let confirmMessage;
-    if (drawingMode) {
-        confirmMessage = `確定要刪除缺陷記錄 ${defectNo} 嗎？此操作將同時刪除樓層平面圖中對應的缺陷標記。`;
-    } else {
-        confirmMessage = `確定要刪除缺陷記錄 ${defectNo} 嗎？`;
-    }
-    
-    if (!confirm(confirmMessage)) {
-        return;
-    }
-    
-    // 使用統一的刪除函數進行全面刪除
-    deleteDefectRecordComprehensive(defectNo, 'defects detail table');
-    
-    // 重新顯示缺陷詳細表格
-    if (typeof window.showDefectsDetailPopup === 'function') {
-        window.showDefectsDetailPopup();
-    }
+    window.logger.log('User attempted to delete defect from detail table - operation blocked');
+    showNotification('缺陷記錄只能通過刪除相關標籤來移除', 'info');
 }
 
 // Save data to storage (with fallback) - 與 .pne 檔案格式完全一致
@@ -10664,6 +10993,30 @@ async function exportPhotosToZipPneStyle(zip) {
                     const photoData = allPhotos.find(f => f.name === filename);
                     window.logger.log('Looking for file:', filename, 'found:', !!photoData, 'size:', photoData?.size);
                     
+                    // 優先使用原始檔（若可透過 File System Access API 取得）
+                    if (photoData && photoData.webkitRelativePath && window.showDirectoryPicker) {
+                        try {
+                            const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+                            if (dirHandle && dirHandle.getDirectoryHandle) {
+                                const pathParts = photoData.webkitRelativePath.split('/');
+                                let currentHandle = dirHandle;
+                                for (let i = 0; i < pathParts.length - 1; i++) {
+                                    const part = pathParts[i];
+                                    if (part) currentHandle = await currentHandle.getDirectoryHandle(part);
+                                }
+                                const fileHandle = await currentHandle.getFileHandle(pathParts[pathParts.length - 1]);
+                                const file = await fileHandle.getFile();
+                                const arrayBuffer = await file.arrayBuffer();
+                                const originalBlob = new Blob([arrayBuffer], { type: file.type || 'image/jpeg' });
+                                folderInZip.file(photoData.name, originalBlob);
+                                window.logger.log('Added original photo via File System Access API:', filename);
+                                continue;
+                            }
+                        } catch (e) {
+                            window.logger.warn('Failed to read original file via FS API, fallback to cached dataURL/Blob:', filename, e);
+                        }
+                    }
+                    
                     if (photoData && photoData.blob) {
                         // 使用存儲的 Blob 對象（已經調整過大小）
                         folderInZip.file(photoData.name, photoData.blob);
@@ -10689,7 +11042,7 @@ async function exportPhotosToZipPneStyle(zip) {
                         const byteArray = new Uint8Array(byteNumbers);
                         const placeholderBlob = new Blob([byteArray], {type: 'image/png'});
                         
-                        folderInZip.file(filename, placeholderBlob);
+            folderInZip.file(photoData?.name || filename, placeholderBlob);
                     }
                 }
             }
@@ -12400,7 +12753,7 @@ function updatePhotoStatusFromLabels() {
             // Update status display
             const statusDiv = photoItem.querySelector('.photo-status');
             if (statusDiv) {
-                statusDiv.textContent = `Submitted to ${photoLocationMap.get(filename) || ''}`;
+                statusDiv.textContent = `${photoLocationMap.get(filename) || ''}`;
                 statusDiv.style.display = 'flex';
                 statusDiv.style.zIndex = '10'; // Ensure status is above placeholder
             }
@@ -12464,7 +12817,10 @@ function updatePhotoStatusFromLabels() {
                         }
                         const statusDiv = photoItem.querySelector('.photo-status');
                         if (statusDiv) {
-                            statusDiv.textContent = 'Submitted';
+                            // Preserve inspection number if already set, otherwise show 'Submitted'
+                            if (!statusDiv.textContent || statusDiv.textContent.trim() === '') {
+                                statusDiv.textContent = 'Submitted';
+                            }
                             statusDiv.style.display = 'flex';
                             statusDiv.style.zIndex = '10';
                         }
@@ -12573,7 +12929,7 @@ function updatePhotoStatusFromInspectionRecords() {
                     // Update status display
                     const statusDiv = photoItem.querySelector('.photo-status');
                     if (statusDiv) {
-                        statusDiv.textContent = `Submitted to ${record.locationId}`;
+                        statusDiv.textContent = `${record.locationId}`;
                         statusDiv.style.display = 'flex';
                         statusDiv.style.zIndex = '10'; // Ensure status is above placeholder
                     }
@@ -12639,7 +12995,10 @@ function updatePhotoStatusFromInspectionRecords() {
                         }
                         const statusDiv = photoItem.querySelector('.photo-status');
                         if (statusDiv) {
-                            statusDiv.textContent = 'Submitted';
+                            // Preserve inspection number if already set, otherwise show 'Submitted'
+                            if (!statusDiv.textContent || statusDiv.textContent.trim() === '') {
+                                statusDiv.textContent = 'Submitted';
+                            }
                             statusDiv.style.display = 'flex';
                             statusDiv.style.zIndex = '10';
                         }
@@ -12993,7 +13352,7 @@ openPNEBtn.addEventListener('click', function() {
                         setTimeout(() => {
                             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                             if (floorPlanOverlay) {
-                                floorPlanOverlay.style.display = 'flex';
+                                showFloorPlan();
                                 window.logger.log('Drawing mode opened automatically');
                                 
                                 // 調用必要的初始化函數
@@ -14533,6 +14892,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     const floorPlanFileInput = document.getElementById('floorPlanFileInput');
     const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
     const floorPlanViewer = document.getElementById('floorPlanViewer');
+    
+    // Initialize floor plan overlay with hidden state (z-index approach)
+    if (floorPlanOverlay) {
+        floorPlanOverlay.style.zIndex = '-3'; // Start hidden behind earth tone background layer
+        floorPlanOverlay.style.display = 'flex'; // Keep in DOM but hidden
+        console.log('🔍 Floor plan initialized with z-index approach behind earth tone background');
+    }
     const floorPlanCanvas = document.getElementById('floorPlanCanvas');
 
 
@@ -14549,7 +14915,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
     }
 
-    // Close floor plan overlay (do not reset or clear anything)
+    // Close floor plan overlay using z-index (preserves DOM state and prevents photo re-rendering)
     function closeFloorPlan() {
         // Check if user is waiting to place defect mark
         if (window.isWaitingForDefectMarkPlacement) {
@@ -14558,7 +14924,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        floorPlanOverlay.style.display = 'none';
+        // Hide floor plan by moving it behind the earth tone background layer instead of removing it
+        floorPlanOverlay.style.zIndex = '-3';
+        floorPlanOverlay.style.display = 'flex'; // Keep it in DOM but hidden behind earth tone background
         
         // Reset Quick Label Switch when closing floor plan
         const quickLabelSwitch = document.getElementById('quickLabelSwitch');
@@ -14585,49 +14953,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (labelsDataReminder) labelsDataReminder.style.display = 'none';
         if (uploadPlaceholder) uploadPlaceholder.style.display = 'block';
         
-        // Re-render photos to ensure submission status is correct
-        if (allPhotos && allPhotos.length > 0) {
-            console.log('🔍 Re-rendering photos after closing floor plan');
-            console.log('🔍 submittedData status:', submittedData ? submittedData.length : 'null');
-            console.log('🔍 window.labels status:', window.labels ? window.labels.length : 'null');
-            console.log('🔍 submittedFilenames status:', submittedFilenames ? submittedFilenames.size : 'null');
-            const lazyObserver = typeof initLazyLoading === 'function' ? initLazyLoading() : null;
-            renderPhotos(allPhotos, lazyObserver);
-            
-            // 延遲確保狀態設置不會被其他函數覆蓋
-            setTimeout(() => {
-                console.log('🔍 Final photo status check after delay');
-                document.querySelectorAll('.photo-item.submitted').forEach(item => {
-                    const statusDiv = item.querySelector('.photo-status');
-                    if (statusDiv && statusDiv.textContent.includes('Submitted to')) {
-                        console.log(`🔍 Photo status preserved: ${statusDiv.textContent}`);
-                    } else {
-                        console.log(`🔍 Photo status missing, re-applying`);
-                        // 重新應用狀態
-                        const filename = item.getAttribute('data-filename');
-                        if (filename && submittedFilenames.has(filename)) {
-                            // 從 submittedData 查找檢查編號
-                            let locationId = null;
-                            if (submittedData && submittedData.length > 0) {
-                                for (const row of submittedData) {
-                                    if (row.photoFilenames && row.photoFilenames.includes(filename)) {
-                                        locationId = row.locationId;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (locationId) {
-                                statusDiv.textContent = `Submitted to ${locationId}`;
-                                statusDiv.style.display = 'flex !important';
-                                statusDiv.style.visibility = 'visible';
-                                item.classList.add('submitted');
-                                console.log(`🔍 Re-applied status: Submitted to ${locationId}`);
-                            }
-                        }
-                    }
-                });
-            }, 500);
-        }
+        // Skip photo re-rendering when closing floor plan to preserve photo submission status
+        // Photos will maintain their current status without being overwritten
+        console.log('🔍 Closing floor plan - preserving photo status without re-rendering');
     }
 
     // Close button event
@@ -14635,9 +14963,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         closeFloorPlanBtn.addEventListener('click', closeFloorPlan);
     }
 
+    // Show floor plan overlay using z-index (preserves DOM state and prevents photo re-rendering)
+    function showFloorPlan() {
+        floorPlanOverlay.style.zIndex = '1000'; // Bring it to front
+        floorPlanOverlay.style.display = 'flex';
+        console.log('🔍 Showing floor plan - preserving photo status without re-rendering');
+    }
+
     // ESC key event
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && floorPlanOverlay.style.display !== 'none') {
+        if (e.key === 'Escape' && floorPlanOverlay.style.zIndex !== '-3') {
             closeFloorPlan();
         }
     });
@@ -14677,8 +15012,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 commandKeyPressCount = 0;
                 
                 // Open Drawing mode
-                if (floorPlanOverlay.style.display === 'none' || !floorPlanOverlay.style.display) {
-                    floorPlanOverlay.style.display = 'flex';
+                if (floorPlanOverlay.style.zIndex === '-3' || !floorPlanOverlay.style.zIndex) {
+                    showFloorPlan();
                     checkLabelsDataAndShowContent();
                     
                     // 初始化滑塊功能
@@ -15522,10 +15857,10 @@ if (typeof window.updateAllLabelPositions === 'function') {
         textboxElement.style.fontSize = fontSize;
         
         // 設置固定的 padding 和 border-radius，不隨縮放變化
-        textboxElement.style.padding = '10px';
+        textboxElement.style.padding = '5px';
         textboxElement.style.borderRadius = '4px';
         
-        // 設置文字框為自動調整大小，保持 10px 邊距
+        // 設置文字框為自動調整大小，保持 5px 邊距
         textboxElement.style.width = 'auto';
         textboxElement.style.height = 'auto';
         textboxElement.style.minWidth = 'fit-content';
@@ -15593,8 +15928,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
         // 更新文字框字體大小和樣式
         textboxElement.style.fontSize = scaledTextboxFontSize + 'px';
         
-        // 設置文字框為自動調整大小，保持 10px 邊距
-        const scaledPadding = 10 * (window.currentScale || 1); // 縮放 padding
+        // 設置文字框為自動調整大小，保持 5px 邊距
+        const scaledPadding = 5 * (window.currentScale || 1); // 縮放 padding
         textboxElement.style.padding = scaledPadding + 'px';
         textboxElement.style.borderRadius = '4px';
         textboxElement.style.width = 'auto';
@@ -15987,21 +16322,21 @@ if (typeof window.updateAllLabelPositions === 'function') {
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
-                    <td><input type="text" value="${label.inspectionNo || ''}" data-field="inspectionNo" data-index="${index}"></td>
+                    <td><input type="text" value="${label.inspectionNo || ''}" data-field="inspectionNo" data-index="${index}" readonly></td>
                     <td><input type="text" value="${label.floor || ''}" data-field="floor" data-index="${index}"></td>
                     <td><input type="text" value="${label.areaName || ''}" data-field="areaName" data-index="${index}"></td>
                     <td><input type="text" value="${label.roomNo || ''}" data-field="roomNo" data-index="${index}"></td>
                     <td><input type="date" value="${label.inspectionDate || ''}" data-field="inspectionDate" data-index="${index}"></td>
-                    <td><input type="text" value="${label.a || ''}" data-field="a" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.b || ''}" data-field="b" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.c || ''}" data-field="c" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.d || ''}" data-field="d" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.e || ''}" data-field="e" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.f || ''}" data-field="f" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.g || ''}" data-field="g" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.h || ''}" data-field="h" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${label.i || ''}" data-field="i" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${getDefectsFromDefectsDetailTable(label.inspectionNo)}" data-field="j" data-index="${index}" readonly></td>
+                    <td><div class="label-content">${formatLabelItems(label.a || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.b || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.c || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.d || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.e || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.f || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.g || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.h || '')}</div></td>
+                    <td><div class="label-content">${formatLabelItems(label.i || '')}</div></td>
+                    <td><div class="defect-content">${generateDefectsWithButtons(getDefectsFromDefectsDetailTable(label.inspectionNo), label.id)}</div></td>
                 `;
                 tableBody.appendChild(row);
             });
@@ -16058,11 +16393,6 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 };
                 
                 row.innerHTML = `
-                    <td class="action-buttons">
-                        <button class="btn-delete-defect" onclick="deleteDefectFromDetailTable('${defect.id}', '${defect.defectNo}', ${index})" title="刪除缺陷記錄">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
                     <td><input type="text" value="${defect.defectNo || ''}" data-field="defectNo" data-index="${index}" readonly></td>
                     <td><input type="text" value="${defect.locationId || defect.inspectionNo || ''}" data-field="locationId" data-index="${index}" readonly></td>
                      <td><input type="text" value="${defect.imminentDanger ? 'Yes' : 'No'}" data-field="imminentDanger" data-index="${index}" readonly></td>
@@ -16070,18 +16400,18 @@ if (typeof window.updateAllLabelPositions === 'function') {
                     <td><input type="text" value="${defect.floor || ''}" data-field="floor" data-index="${index}" readonly></td>
                     <td><input type="text" value="${defect.areaName || ''}" data-field="areaName" data-index="${index}" readonly></td>
                     <td><input type="text" value="${defect.roomNo || ''}" data-field="roomNo" data-index="${index}" readonly></td>
-                    <td><input type="text" value="${defect.photoNumbers || ''}" data-field="photoNumbers" data-index="${index}"></td>
-                    <td><input type="text" value="${getCategoryName(defect.category) || ''}" data-field="category" data-index="${index}"></td>
-                    <td><input type="text" value="${defect.defectType || defect.description || ''}" data-field="defectType" data-index="${index}"></td>
-                    <td><textarea data-field="descriptionConstruction" data-index="${index}">${defect.descriptionConstruction || ''}</textarea></td>
-                    <td><input type="text" value="${defect.existingCondition || ''}" data-field="existingCondition" data-index="${index}"></td>
-                    <td><input type="text" value="${defect.humidity || ''}" data-field="humidity" data-index="${index}"></td>
-                    <td><input type="text" value="${defect.moisture || ''}" data-field="moisture" data-index="${index}"></td>
-                    <td><input type="text" value="${defect.chloride || ''}" data-field="chloride" data-index="${index}"></td>
-                    <td><input type="text" value="${defect.carbonation || ''}" data-field="carbonation" data-index="${index}"></td>
-                    <td><textarea data-field="remedialWorks" data-index="${index}">${defect.remedialWorks || ''}</textarea></td>
-                    <td><textarea data-field="preventiveWorks" data-index="${index}">${defect.preventiveWorks || ''}</textarea></td>
-                    <td><textarea data-field="remarks" data-index="${index}">${defect.remarks || ''}</textarea></td>
+                    <td><div class="defect-content">${formatDefectPhotoNumbers(defect.photoNumbers || '')}</div></td>
+                    <td><div class="defect-content">${formatDefectCategory(getCategoryName(defect.category) || '')}</div></td>
+                    <td><div class="defect-content">${formatDefectType(defect.defectType || defect.description || '')}</div></td>
+                    <td><textarea data-field="descriptionConstruction" data-index="${index}" class="defect-textarea" readonly>${defect.descriptionConstruction || ''}</textarea></td>
+                    <td><input type="text" value="${defect.existingCondition || ''}" data-field="existingCondition" data-index="${index}" readonly></td>
+                    <td><input type="text" value="${defect.humidity || ''}" data-field="humidity" data-index="${index}" readonly></td>
+                    <td><input type="text" value="${defect.moisture || ''}" data-field="moisture" data-index="${index}" readonly></td>
+                    <td><input type="text" value="${defect.chloride || ''}" data-field="chloride" data-index="${index}" readonly></td>
+                    <td><input type="text" value="${defect.carbonation || ''}" data-field="carbonation" data-index="${index}" readonly></td>
+                    <td><textarea data-field="remedialWorks" data-index="${index}" class="defect-textarea" readonly>${defect.remedialWorks || ''}</textarea></td>
+                    <td><textarea data-field="preventiveWorks" data-index="${index}" class="defect-textarea" readonly>${defect.preventiveWorks || ''}</textarea></td>
+                    <td><textarea data-field="remarks" data-index="${index}" class="defect-textarea" readonly>${defect.remarks || ''}</textarea></td>
                 `;
                 tableBody.appendChild(row);
             });
@@ -16120,8 +16450,13 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 value = input.value.trim();
             }
             
+            // 檢查欄位是否為只讀，如果是則不進行保存
+            if (input.readOnly) {
+                return;
+            }
+            
             // 處理所有字段，但跳過只讀的分類字段（a-j）
-            const editableFields = ['inspectionNo', 'floor', 'areaName', 'roomNo', 'inspectionDate', 'imminentDanger'];
+            const editableFields = ['floor', 'areaName', 'roomNo', 'inspectionDate', 'imminentDanger'];
             if (window.labels && window.labels[index] && editableFields.includes(field)) {
                 if (window.labels[index][field] !== value) {
                     window.labels[index][field] = value;
@@ -16180,6 +16515,12 @@ if (typeof window.updateAllLabelPositions === 'function') {
         inputs.forEach(input => {
             const index = parseInt(input.dataset.index);
             const field = input.dataset.field;
+            
+            // 檢查欄位是否為只讀，如果是則不進行保存
+            if (input.readOnly) {
+                return;
+            }
+            
             const value = input.value.trim();
             
             if (!changesByIndex[index]) {
@@ -17106,7 +17447,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
             if (pneDropdown) {
                 pneDropdown.style.display = 'none';
             }
-            floorPlanOverlay.style.display = 'flex';
+            showFloorPlan();
             checkLabelsDataAndShowContent();
             
             // 初始化滑塊功能
@@ -17127,7 +17468,7 @@ if (typeof window.updateAllLabelPositions === 'function') {
     if (floorplanThumb) {
         floorplanThumb.addEventListener('click', function(e) {
             e.stopPropagation();
-            floorPlanOverlay.style.display = 'flex';
+            showFloorPlan();
             checkLabelsDataAndShowContent();
             
             // 初始化滑塊功能
@@ -18664,7 +19005,8 @@ if (typeof window.updateAllLabelPositions === 'function') {
             
             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
             if (floorPlanOverlay) {
-                floorPlanOverlay.style.display = 'none';
+                floorPlanOverlay.style.zIndex = '-3';
+                floorPlanOverlay.style.display = 'flex'; // Keep it in DOM but hidden behind earth tone background
                 window.logger.log('Floor plan content closed');
                 
                 // Reset Quick Label Switch when closing floor plan
@@ -18686,12 +19028,9 @@ if (typeof window.updateAllLabelPositions === 'function') {
                 // Reset mouse tracking
                 mouseTrackingActive = false;
                 
-                // Re-render photos to ensure submission status is correct
-                if (allPhotos && allPhotos.length > 0) {
-                    console.log('🔍 Re-rendering photos after closing floor plan content');
-                    const lazyObserver = typeof initLazyLoading === 'function' ? initLazyLoading() : null;
-                    renderPhotos(allPhotos, lazyObserver);
-                }
+                // Skip photo re-rendering when closing floor plan content to preserve inspection number status
+                // Photos will maintain their current status without being overwritten
+                console.log('🔍 Closing floor plan content - preserving photo status without re-rendering');
             }
         } catch (error) {
             window.logger.error('Error closing floor plan content:', error);
@@ -19989,35 +20328,42 @@ function syncLabelsToDefectsDetailTable() {
         // 移除自動刪除邏輯，保留所有缺陷記錄
     });
     
-    // 更新缺陷記錄的字段
+    // 更新缺陷記錄的字段 - 只有在檢查編號確實匹配時才更新
     defectsToUpdate.forEach(({ index, defect, labelInfo }) => {
         const originalDefect = { ...defect };
         
-        // 更新缺陷記錄的字段
-        defect.locationId = labelInfo.inspectionNo;
-        defect.inspectionDate = labelInfo.inspectionDate;
-        defect.floor = labelInfo.floor;
-        defect.areaName = labelInfo.areaName;
-        defect.roomNo = labelInfo.roomNo;
-         // defect.imminentDanger = labelInfo.imminentDanger; // 移除：不再從標籤更新imminentDanger
+        // 檢查缺陷記錄的原始檢查編號是否與標籤的檢查編號匹配
+        const defectInspectionNo = defect.inspectionNo || defect.locationId;
+        const labelInspectionNo = labelInfo.inspectionNo;
         
-        window.logger.log(`Updated defect ${defect.defectNo} fields:`, {
-            inspectionNo: defect.locationId,
-            inspectionDate: defect.inspectionDate,
-            floor: defect.floor,
-            areaName: defect.areaName,
-            roomNo: defect.roomNo,
-             // imminentDanger: defect.imminentDanger // 移除：不再記錄imminentDanger更新
-        });
-        
-        // 同時更新 submittedDefectEntries 中的記錄
-        const submittedIndex = window.submittedDefectEntries.findIndex(entry => 
-            String(entry.defectNo) === String(defect.defectNo)
-        );
-        
-        if (submittedIndex >= 0) {
-            window.submittedDefectEntries[submittedIndex] = { ...defect };
-            window.logger.log(`Updated defect ${defect.defectNo} in submitted defects`);
+        // 只有在檢查編號匹配時才更新字段
+        if (String(defectInspectionNo) === String(labelInspectionNo)) {
+            // 更新缺陷記錄的字段
+            defect.locationId = labelInfo.inspectionNo;
+            defect.inspectionDate = labelInfo.inspectionDate;
+            defect.floor = labelInfo.floor;
+            defect.areaName = labelInfo.areaName;
+            defect.roomNo = labelInfo.roomNo;
+            
+            window.logger.log(`Updated defect ${defect.defectNo} fields (inspectionNo match):`, {
+                inspectionNo: defect.locationId,
+                inspectionDate: defect.inspectionDate,
+                floor: defect.floor,
+                areaName: defect.areaName,
+                roomNo: defect.roomNo,
+            });
+            
+            // 同時更新 submittedDefectEntries 中的記錄
+            const submittedIndex = window.submittedDefectEntries.findIndex(entry => 
+                String(entry.defectNo) === String(defect.defectNo)
+            );
+            
+            if (submittedIndex >= 0) {
+                window.submittedDefectEntries[submittedIndex] = { ...defect };
+                window.logger.log(`Updated defect ${defect.defectNo} in submitted defects`);
+            }
+        } else {
+            window.logger.log(`Skipped updating defect ${defect.defectNo} - inspectionNo mismatch: ${defectInspectionNo} vs ${labelInspectionNo}`);
         }
     });
     
@@ -20523,8 +20869,13 @@ function deleteDefectRecordComprehensive(defectNo, source = 'unknown') {
     // 7. 更新缺陷分類內容顯示
     updateCategoryDisplay('j');
     
-    // 8. 重新排列缺陷編號
-    renumberDefectEntries();
+    // 8. 重新排列缺陷編號 - 但不在從 labels detail table 刪除時調用
+    // 因為標籤刪除會導致檢查編號關聯關係丟失
+    if (source !== 'labels detail table') {
+        renumberDefectEntries();
+    } else {
+        window.logger.log('Skipping renumberDefectEntries for labels detail table deletion - will be handled by caller');
+    }
     
     // 9. 保存所有數據到本地存儲
     saveDataToStorage();
@@ -20549,13 +20900,18 @@ function deleteDefectRecordComprehensive(defectNo, source = 'unknown') {
         updatePhotoStatusFromLabels();
     }
     
-    // 14. 如果來源是 labels detail table，重新顯示標籤詳細表格
-    if (source === 'labels detail table' && typeof window.showLabelsDetailPopup === 'function') {
-        window.showLabelsDetailPopup();
-    }
+    // 14. 如果來源是 labels detail table，不重新顯示標籤詳細表格（由調用者處理）
+    // 註釋掉以避免重複顯示
+    // if (source === 'labels detail table' && typeof window.showLabelsDetailPopup === 'function') {
+    //     window.showLabelsDetailPopup();
+    // }
     
     window.logger.log(`Comprehensive deletion completed for defect ${defectNo}. Deleted from: ${deletedFrom.join(', ')}`);
-    showNotification(`缺陷記錄 ${defectNo} 已從所有相關位置刪除`, 'success');
+    
+    // 如果來源是 labels detail table，不顯示通知（由調用者處理）
+    if (source !== 'labels detail table') {
+        showNotification(`缺陷記錄 ${defectNo} 已從所有相關位置刪除`, 'success');
+    }
 }
 
 // 從缺陷詳細表格中查找對應檢查號碼的缺陷數據
