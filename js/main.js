@@ -157,6 +157,7 @@ const languages = {
         'no': '否',
         'selectFolderToPreviewPhotos': '選擇文件夾以預覽照片',
         'selectPhotoFolder': '選擇照片文件夾',
+        'pleaseEnterInspectionNumber': '請先在標題欄位填寫檢查編號，才能分配照片到分類',
         
         // Section titles
         'assignToCategories': '分配到分類',
@@ -506,6 +507,7 @@ const languages = {
         'no': 'No',
         'selectFolderToPreviewPhotos': 'Select a folder to preview photos',
         'selectPhotoFolder': 'Select Photo Folder',
+        'pleaseEnterInspectionNumber': 'Please enter Inspection No. in header fields before assigning photos',
         
         // Section titles
         'assignToCategories': 'Assign to Categories',
@@ -754,116 +756,162 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
     }
     if (!imgSrc) return;
     
-    // 建立覆蓋層
-    const overlay = document.createElement('div');
-    overlay.id = 'photoPreviewOverlay';
-    overlay.className = 'photo-preview-overlay';
-    overlay.style.cssText = `
-        position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-        display: block; z-index: 5000; overflow: hidden;
-    `;
-    document.body.appendChild(overlay);
+    // 檢查是否為360照片並使用360預覽功能
+    console.log('🔍 Checking 360 preview functions availability...');
+    console.log('🔍 detectPhoto360Panorama available:', typeof detectPhoto360Panorama === 'function');
+    console.log('🔍 openPhoto360Preview available:', typeof openPhoto360Preview === 'function');
     
-    // 建立可動畫的影像元素（絕對定位，以縮圖座標起始）
-    const animImg = document.createElement('img');
-    animImg.src = imgSrc;
-    animImg.alt = file.name || '';
-    animImg.style.cssText = `
-        position: fixed; top: ${thumbRect.top}px; left: ${thumbRect.left}px;
-        width: ${thumbRect.width}px; height: ${thumbRect.height}px;
-        object-fit: contain; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-        transition: top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease, border-radius 300ms ease;
-        will-change: top, left, width, height;
-        background: #111;
-    `;
-    overlay.appendChild(animImg);
+    if (typeof detectPhoto360Panorama === 'function' && typeof openPhoto360Preview === 'function') {
+        console.log('🔍 360 functions available, starting detection...');
+        const img = new Image();
+        img.onload = async function() {
+            try {
+                console.log('🔍 Image loaded, starting 360 detection...');
+                const isPanorama = await detectPhoto360Panorama(img);
+                console.log('🔍 360 detection result:', isPanorama, 'for image:', imgSrc.substring(0, 50));
+                if (isPanorama) {
+                    console.log('✅ Opening 360 preview');
+                    openPhoto360Preview(imgSrc);
+                    if (objectUrl) URL.revokeObjectURL(objectUrl);
+                    return;
+                }
+                console.log('📷 Opening normal preview');
+                // 如果不是360照片，繼續使用原來的預覽方式
+                showOriginalPhotoPreview();
+            } catch (error) {
+                console.error('❌ Error in 360 detection:', error);
+                // 出錯時使用原來的預覽方式
+                showOriginalPhotoPreview();
+            }
+        };
+        img.onerror = function() {
+            console.warn('⚠️ Image load error, using normal preview');
+            showOriginalPhotoPreview();
+        };
+        img.src = imgSrc;
+        return;
+    }
     
-    // 載入完成後計算最終尺寸（90vw/90vh 內等比顯示）
-    await new Promise((resolve) => {
-        if (animImg.complete) return resolve();
-        animImg.onload = () => resolve();
-        animImg.onerror = () => resolve();
-    });
+    console.log('⚠️ 360 preview functions not available, using normal preview');
+    // 原來的預覽方式
+    showOriginalPhotoPreview();
     
-    const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-    const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-    const maxW = Math.floor(vw * 0.9);
-    const maxH = Math.floor(vh * 0.9);
-    const naturalW = animImg.naturalWidth || thumbRect.width;
-    const naturalH = animImg.naturalHeight || thumbRect.height;
-    
-    let finalW = naturalW;
-    let finalH = naturalH;
-    const scale = Math.min(maxW / naturalW, maxH / naturalH, 1);
-    finalW = Math.round(naturalW * scale);
-    finalH = Math.round(naturalH * scale);
-    const finalLeft = Math.round((vw - finalW) / 2);
-    const finalTop = Math.round((vh - finalH) / 2);
-    
-    // 觸發動畫到中央放大
-    requestAnimationFrame(() => {
-        animImg.style.top = `${finalTop}px`;
-        animImg.style.left = `${finalLeft}px`;
-        animImg.style.width = `${finalW}px`;
-        animImg.style.height = `${finalH}px`;
-        animImg.style.borderRadius = '12px';
-    });
-    
-    // 雙擊彈窗影像，收合回縮圖並關閉
-    const closePopup = () => {
-        const currentRect = thumbnailEl.getBoundingClientRect();
-        animImg.style.top = `${currentRect.top}px`;
-        animImg.style.left = `${currentRect.left}px`;
-        animImg.style.width = `${currentRect.width}px`;
-        animImg.style.height = `${currentRect.height}px`;
-        animImg.style.borderRadius = '8px';
+    function showOriginalPhotoPreview() {
+        // 建立覆蓋層
+        const overlay = document.createElement('div');
+        overlay.id = 'photoPreviewOverlay';
+        overlay.className = 'photo-preview-overlay';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            display: block; z-index: 7000; overflow: hidden;
+        `;
+        document.body.appendChild(overlay);
         
-        const onTransitionEnd = () => {
-            animImg.removeEventListener('transitionend', onTransitionEnd);
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-            overlay.remove();
+        // 建立可動畫的影像元素（絕對定位，以縮圖座標起始）
+        const animImg = document.createElement('img');
+        animImg.src = imgSrc;
+        animImg.alt = file.name || '';
+        animImg.style.cssText = `
+            position: fixed; top: ${thumbRect.top}px; left: ${thumbRect.left}px;
+            width: ${thumbRect.width}px; height: ${thumbRect.height}px;
+            object-fit: contain; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            transition: top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease, border-radius 300ms ease;
+            will-change: top, left, width, height;
+            background: #111;
+        `;
+        overlay.appendChild(animImg);
+        
+        // 載入完成後計算最終尺寸（90vw/90vh 內等比顯示）
+        const loadAndAnimate = async () => {
+            await new Promise((resolve) => {
+                if (animImg.complete) return resolve();
+                animImg.onload = () => resolve();
+                animImg.onerror = () => resolve();
+            });
+            
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const maxW = Math.floor(vw * 0.9);
+            const maxH = Math.floor(vh * 0.9);
+            const naturalW = animImg.naturalWidth || thumbRect.width;
+            const naturalH = animImg.naturalHeight || thumbRect.height;
+            
+            let finalW = naturalW;
+            let finalH = naturalH;
+            const scale = Math.min(maxW / naturalW, maxH / naturalH, 1);
+            finalW = Math.round(naturalW * scale);
+            finalH = Math.round(naturalH * scale);
+            const finalLeft = Math.round((vw - finalW) / 2);
+            const finalTop = Math.round((vh - finalH) / 2);
+            
+            // 觸發動畫到中央放大
+            requestAnimationFrame(() => {
+                animImg.style.top = `${finalTop}px`;
+                animImg.style.left = `${finalLeft}px`;
+                animImg.style.width = `${finalW}px`;
+                animImg.style.height = `${finalH}px`;
+                animImg.style.borderRadius = '12px';
+            });
         };
-        animImg.addEventListener('transitionend', onTransitionEnd);
-    };
-    
-    // 只接受雙擊關閉（符合需求 #2），同時支援 Esc 與點擊遮罩
-    const onDblClick = (e) => { e.stopPropagation(); closePopup(); };
-    overlay.addEventListener('dblclick', onDblClick);
-    
-    const onKeyDown = (e) => {
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            closePopup();
-        }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    
-    const onOverlayClick = (e) => {
-        if (e.target === overlay) {
-            closePopup();
-        }
-    };
-    overlay.addEventListener('click', onOverlayClick, true);
-    
-    // 關閉時清理監聽器
-    const originalClose = closePopup;
-    closePopup = () => {
-        const currentRect = thumbnailEl.getBoundingClientRect();
-        animImg.style.top = `${currentRect.top}px`;
-        animImg.style.left = `${currentRect.left}px`;
-        animImg.style.width = `${currentRect.width}px`;
-        animImg.style.height = `${currentRect.height}px`;
-        animImg.style.borderRadius = '8px';
-        const onTransitionEnd = () => {
-            animImg.removeEventListener('transitionend', onTransitionEnd);
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-            overlay.removeEventListener('dblclick', onDblClick);
-            overlay.removeEventListener('click', onOverlayClick, true);
-            document.removeEventListener('keydown', onKeyDown);
-            overlay.remove();
+        
+        loadAndAnimate();
+        
+        // 雙擊彈窗影像，收合回縮圖並關閉
+        let closePopup = () => {
+            const currentRect = thumbnailEl.getBoundingClientRect();
+            animImg.style.top = `${currentRect.top}px`;
+            animImg.style.left = `${currentRect.left}px`;
+            animImg.style.width = `${currentRect.width}px`;
+            animImg.style.height = `${currentRect.height}px`;
+            animImg.style.borderRadius = '8px';
+            
+            const onTransitionEnd = () => {
+                animImg.removeEventListener('transitionend', onTransitionEnd);
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                overlay.remove();
+            };
+            animImg.addEventListener('transitionend', onTransitionEnd);
         };
-        animImg.addEventListener('transitionend', onTransitionEnd);
-    };
+        
+        // 只接受雙擊關閉（符合需求 #2），同時支援 Esc 與點擊遮罩
+        const onDblClick = (e) => { e.stopPropagation(); closePopup(); };
+        overlay.addEventListener('dblclick', onDblClick);
+        
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closePopup();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        
+        const onOverlayClick = (e) => {
+            if (e.target === overlay) {
+                closePopup();
+            }
+        };
+        overlay.addEventListener('click', onOverlayClick, true);
+        
+        // 關閉時清理監聽器
+        const originalClose = closePopup;
+        closePopup = () => {
+            const currentRect = thumbnailEl.getBoundingClientRect();
+            animImg.style.top = `${currentRect.top}px`;
+            animImg.style.left = `${currentRect.left}px`;
+            animImg.style.width = `${currentRect.width}px`;
+            animImg.style.height = `${currentRect.height}px`;
+            animImg.style.borderRadius = '8px';
+            const onTransitionEnd = () => {
+                animImg.removeEventListener('transitionend', onTransitionEnd);
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                overlay.removeEventListener('dblclick', onDblClick);
+                overlay.removeEventListener('click', onOverlayClick, true);
+                document.removeEventListener('keydown', onKeyDown);
+                overlay.remove();
+            };
+            animImg.addEventListener('transitionend', onTransitionEnd);
+        };
+    }
 }
 function setLanguage(lang) {
     currentLanguage = lang;
@@ -3019,6 +3067,9 @@ categories.forEach(category => {
 // Store submitted data
 let submittedData = [];
 
+// Initialize global inspection records (same reference as submittedData)
+window.inspectionRecords = submittedData;
+
 // Store selected photos
 let selectedPhotos = [];
 
@@ -3657,6 +3708,11 @@ function updateDefectPhotoNumbers() {
 function showDefectWindow() {
     if (selectedPhotos.length === 0) {
         showNotification('Please select photos first', 'warning');
+        return;
+    }
+    
+    // 檢查檢查編號是否已填寫
+    if (!validateInspectionNumber()) {
         return;
     }
     
@@ -4579,38 +4635,135 @@ function restorePhotoAssignmentStatus() {
     
     // 遍歷所有照片項目
     const photoItems = document.querySelectorAll('.photo-item');
+    console.log('📋 restorePhotoAssignmentStatus:', {
+        photoItemsFound: photoItems.length,
+        assignedPhotosCategories: Object.keys(assignedPhotos).length,
+        totalAssignedPhotos: Object.values(assignedPhotos).reduce((sum, set) => sum + set.size, 0),
+        assignedPhotosByCategory: Object.fromEntries(
+            Object.entries(assignedPhotos).map(([cat, set]) => [cat, set.size])
+        )
+    });
+    
+    let restoredCount = 0;
+    const assignedPhotosList = [];
+    const notFoundPhotos = [];
+    
+    // 收集所有應該被分配的照片名稱
+    const allAssignedFilenames = new Set();
+    for (const categoryId in assignedPhotos) {
+        assignedPhotos[categoryId].forEach(filename => {
+            allAssignedFilenames.add(filename);
+        });
+    }
+    console.log('📋 Photos that should be assigned:', Array.from(allAssignedFilenames));
+    
     photoItems.forEach((photoItem, index) => {
         const filename = photoItem.dataset.filename;
         if (!filename) return;
         
-        // 檢查照片是否已分配給任何分類
-        let isAssigned = false;
+        // 🔧 收集照片被分配到的所有類別
+        const assignedCategories = [];
         for (const categoryId in assignedPhotos) {
             if (assignedPhotos[categoryId].has(filename)) {
-                isAssigned = true;
-                photoItem.classList.add('assigned');
-                
-                // 設置照片的視覺狀態
-                const img = photoItem.querySelector('img');
-                if (img) {
-                    img.style.filter = 'grayscale(100%)';
-                    img.style.opacity = '0.3';
-                }
-                break;
+                assignedCategories.push(categoryId);
             }
         }
         
-        // 如果照片未分配，確保移除分配狀態
-        if (!isAssigned) {
-            photoItem.classList.remove('assigned');
+        // 如果照片被分配到至少一個類別
+        if (assignedCategories.length > 0) {
+            // 🔧 檢查照片是否已經 submitted (已提交)
+            // submitted 照片的狀態由 updatePhotoStatusFromInspectionRecords 處理,不應該被覆蓋
+            const isSubmitted = photoItem.classList.contains('submitted');
+            
+            photoItem.classList.add('assigned');
+            
+            // 設置照片的視覺狀態
             const img = photoItem.querySelector('img');
             if (img) {
-                img.style.filter = '';
-                img.style.opacity = '';
+                img.style.filter = 'grayscale(100%)';
+                img.style.opacity = '0.3';
             }
+            
+            // 🔧 只有未提交的照片才顯示分配的類別
+            // 已提交的照片應該顯示 inspection no.,優先級: submitted > assigned
+            if (!isSubmitted) {
+                const statusDiv = photoItem.querySelector('.photo-status');
+                if (statusDiv) {
+                    // 創建類別名稱映射(簡短版本,用於狀態顯示)
+                    const categoryNameMap = {
+                        'a': 'A: Metalwork',
+                        'b': 'B: Structural',
+                        'c': 'C: External',
+                        'd': 'D: Suspended',
+                        'e': 'E: Internal',
+                        'f': 'F: Gates/Doors',
+                        'g': 'G: Windows',
+                        'h': 'H: Drainage',
+                        'i': 'I: Fire Safety',
+                        'j': 'J: Defect'
+                    };
+                    
+                    // 組合類別名稱
+                    const categoryNames = assignedCategories
+                        .map(cat => categoryNameMap[cat] || cat.toUpperCase())
+                        .join(' & ');
+                    
+                    statusDiv.textContent = categoryNames;
+                    statusDiv.style.display = 'flex';
+                    statusDiv.style.zIndex = '10';
+                    statusDiv.title = `Assigned to: ${categoryNames}`; // Tooltip 顯示完整信息
+                    // 保持原來的 CSS 樣式(灰色背景),不覆蓋背景色
+                }
+            }
+            
+            restoredCount++;
+            assignedPhotosList.push(`${filename} (${assignedCategories.join(', ')})`);
+        } else {
+            // 如果照片未分配，確保移除分配狀態
+            // 🔧 但不要清除 submitted 照片的狀態!
+            const isSubmitted = photoItem.classList.contains('submitted');
+            
+            if (!isSubmitted) {
+                // 只清除未提交照片的狀態
+                photoItem.classList.remove('assigned');
+                const img = photoItem.querySelector('img');
+                if (img) {
+                    img.style.filter = '';
+                    img.style.opacity = '';
+                }
+                
+                // 清除 status div
+                const statusDiv = photoItem.querySelector('.photo-status');
+                if (statusDiv) {
+                    statusDiv.textContent = '';
+                    statusDiv.style.display = 'none';
+                }
+            }
+            // submitted 照片保持原狀,不做任何修改
         }
     });
     
+    // 找出哪些照片應該被分配但在 DOM 中沒找到
+    allAssignedFilenames.forEach(filename => {
+        const found = document.querySelector(`.photo-item[data-filename="${filename}"]`);
+        if (!found) {
+            notFoundPhotos.push(filename);
+        }
+    });
+    
+    // 計算唯一照片數量(一張照片可能被分配到多個類別)
+    const uniquePhotos = new Set();
+    for (const categoryId in assignedPhotos) {
+        assignedPhotos[categoryId].forEach(filename => {
+            uniquePhotos.add(filename);
+        });
+    }
+    
+    console.log('✅ Photos successfully marked as assigned:', assignedPhotosList);
+    if (notFoundPhotos.length > 0) {
+        console.log('⚠️ Photos that should be assigned but not found in DOM:', notFoundPhotos);
+    }
+    console.log(`✅ Photo assignment status restored: ${restoredCount} unique photos marked as assigned (${Object.values(assignedPhotos).reduce((sum, set) => sum + set.size, 0)} total assignments)`);
     window.logger.log('Photo assignment status restored');
 }
 
@@ -4633,13 +4786,23 @@ async function loadDataFromStorage() {
             
             // 載入基本數據 - 兼容新舊格式
             submittedData = parsedData.inspectionRecords || parsedData.submittedData || [];
+            window.inspectionRecords = submittedData; // 設置全局變量供其他功能使用
+            console.log('🔍 Loaded inspection records:', window.inspectionRecords.length);
             rowIdCounter = parsedData.rowIdCounter || 0;
             photoFolders = parsedData.photoFolders || [];
             
             // Load defect entries for persistence - 兼容新舊格式
             window.defectEntries = parsedData.photoAssignments?.defectEntries || parsedData.defectEntries || [];
             window.submittedDefectEntries = parsedData.submittedDefectEntries || [];
+            console.log('🔍 Loading defect data:', {
+                defectEntriesLength: window.defectEntries.length,
+                submittedDefectEntriesLength: window.submittedDefectEntries.length,
+                hasPhotoAssignments: !!parsedData.photoAssignments,
+                hasDefectEntries: !!parsedData.defectEntries,
+                hasSubmittedDefectEntries: !!parsedData.submittedDefectEntries
+            });
             window.logger.log('Page reload: Loaded defect entries from storage:', window.defectEntries.length, 'entries');
+            window.logger.log('Page reload: Loaded submittedDefectEntries from storage:', window.submittedDefectEntries.length, 'entries');
             
             // 載入 header 欄位 - 新格式
             if (parsedData.headerFields) {
@@ -4713,9 +4876,12 @@ async function loadDataFromStorage() {
                 // 載入類別編號
                 if (pa.categoryNumbers) {
                     Object.keys(pa.categoryNumbers).forEach(categoryId => {
-                        if (categoryNumbers[categoryId]) {
-                            categoryNumbers[categoryId] = [...(pa.categoryNumbers[categoryId] || [])];
+                        // 🔧 即使 categoryId 不存在,也要創建並載入
+                        if (!categoryNumbers[categoryId]) {
+                            console.log(`⚠️ Category ${categoryId} not found in categoryNumbers, creating it`);
+                            categoryNumbers[categoryId] = [];
                         }
+                        categoryNumbers[categoryId] = [...(pa.categoryNumbers[categoryId] || [])];
                     });
                     window.logger.log('Page reload: Loaded category numbers from photoAssignments');
                 }
@@ -4735,10 +4901,23 @@ async function loadDataFromStorage() {
                         window.logger.warn('Array format assignedPhotos not yet supported, skipping');
                     } else if (typeof pa.assignedPhotos === 'object') {
                         // 舊格式：assignedPhotos 是物件
+                        let totalAssignedPhotos = 0;
+                        const skippedCategories = [];
                         Object.keys(pa.assignedPhotos).forEach(categoryId => {
-                            if (assignedPhotos[categoryId]) {
-                                assignedPhotos[categoryId] = new Set(pa.assignedPhotos[categoryId] || []);
+                            // 🔧 即使 categoryId 不存在,也要創建並載入
+                            if (!assignedPhotos[categoryId]) {
+                                console.log(`⚠️ Category ${categoryId} not found in assignedPhotos, creating it`);
+                                assignedPhotos[categoryId] = new Set();
+                                skippedCategories.push(categoryId);
                             }
+                            assignedPhotos[categoryId] = new Set(pa.assignedPhotos[categoryId] || []);
+                            totalAssignedPhotos += assignedPhotos[categoryId].size;
+                        });
+                        console.log('📋 Loaded assigned photos from photoAssignments:', {
+                            totalCategories: Object.keys(pa.assignedPhotos).length,
+                            totalAssignedPhotos: totalAssignedPhotos,
+                            categoriesWithPhotos: Object.keys(pa.assignedPhotos).filter(k => pa.assignedPhotos[k] && pa.assignedPhotos[k].length > 0),
+                            skippedCategories: skippedCategories.length > 0 ? skippedCategories : 'none'
                         });
                         window.logger.log('Page reload: Loaded assigned photos object from photoAssignments (legacy format)');
                     }
@@ -4753,17 +4932,23 @@ async function loadDataFromStorage() {
                 // 向後相容：讀取頂層欄位
             if (parsedData.assignedPhotos) {
                 Object.keys(parsedData.assignedPhotos).forEach(categoryId => {
-                    if (assignedPhotos[categoryId]) {
-                        assignedPhotos[categoryId] = new Set(parsedData.assignedPhotos[categoryId]);
+                    // 🔧 即使 categoryId 不存在,也要創建並載入
+                    if (!assignedPhotos[categoryId]) {
+                        console.log(`⚠️ Category ${categoryId} not found in assignedPhotos (legacy), creating it`);
+                        assignedPhotos[categoryId] = new Set();
                     }
+                    assignedPhotos[categoryId] = new Set(parsedData.assignedPhotos[categoryId]);
                 });
                     window.logger.log('Page reload: Loaded assigned photos from storage (legacy)');
             }
             if (parsedData.categoryNumbers) {
                 Object.keys(parsedData.categoryNumbers).forEach(categoryId => {
-                    if (categoryNumbers[categoryId]) {
-                        categoryNumbers[categoryId] = [...parsedData.categoryNumbers[categoryId]];
+                    // 🔧 即使 categoryId 不存在,也要創建並載入
+                    if (!categoryNumbers[categoryId]) {
+                        console.log(`⚠️ Category ${categoryId} not found in categoryNumbers (legacy), creating it`);
+                        categoryNumbers[categoryId] = [];
                     }
+                    categoryNumbers[categoryId] = [...parsedData.categoryNumbers[categoryId]];
                 });
                     window.logger.log('Page reload: Loaded category numbers from storage (legacy)');
                 }
@@ -4771,6 +4956,12 @@ async function loadDataFromStorage() {
             
             // 若已用 FSA handle 載入照片，需要合併 IndexedDB 中的額外照片（例如通過 Add photos 添加的）
             const alreadyLoadedPhotos = Array.isArray(allPhotos) && allPhotos.length > 0 && window.loadedFromHandles === true;
+            console.log('🔍 alreadyLoadedPhotos check:', {
+                isArray: Array.isArray(allPhotos),
+                length: allPhotos ? allPhotos.length : 0,
+                loadedFromHandles: window.loadedFromHandles,
+                alreadyLoadedPhotos: alreadyLoadedPhotos
+            });
             
             // 載入已提交的檔案名稱
             if (parsedData.submittedFilenames) {
@@ -4782,6 +4973,17 @@ async function loadDataFromStorage() {
             }
             
             // 載入照片元資料
+            console.log('🔍 Checking photoMetadata:', {
+                exists: !!parsedData.photoMetadata,
+                isArray: Array.isArray(parsedData.photoMetadata),
+                length: parsedData.photoMetadata ? parsedData.photoMetadata.length : 0,
+                sample: parsedData.photoMetadata && parsedData.photoMetadata.length > 0 ? {
+                    name: parsedData.photoMetadata[0].name,
+                    hasDataURL: !!parsedData.photoMetadata[0].dataURL,
+                    dataURLLength: parsedData.photoMetadata[0].dataURL ? parsedData.photoMetadata[0].dataURL.length : 0
+                } : null
+            });
+            
             if (parsedData.photoMetadata) {
                 window.logger.log('Loading photo metadata from IndexedDB:', parsedData.photoMetadata.length);
                 
@@ -4806,44 +5008,173 @@ async function loadDataFromStorage() {
                 
                 if (alreadyLoadedPhotos) {
                     // 如果已從 FSA handle 載入照片，需要合併 IndexedDB 中的照片
-                    window.logger.log('Merging photos from FSA handle with IndexedDB...');
+                    console.log('🔄 Merging photos from FSA handle with IndexedDB...');
+                    console.log('📊 Current allPhotos count:', allPhotos.length);
+                    console.log('📊 photosFromStorage count:', photosFromStorage.length);
                     const existingPhotoNames = new Set(allPhotos.map(p => p.name));
+                    console.log('📊 Existing photo names:', Array.from(existingPhotoNames));
                     
                     // 找出 IndexedDB 中有但 FSA handle 沒有的照片（通過 Add photos 添加的）
                     const additionalPhotos = photosFromStorage.filter(p => !existingPhotoNames.has(p.name) && p.dataURL);
+                    console.log('📊 Additional photos found:', additionalPhotos.length);
+                    if (additionalPhotos.length > 0) {
+                        console.log('📋 Additional photo names:', additionalPhotos.map(p => p.name));
+                    }
                     
                     if (additionalPhotos.length > 0) {
-                        window.logger.log(`Found ${additionalPhotos.length} additional photos in IndexedDB (added via Add photos)`);
+                        console.log(`✅ Found ${additionalPhotos.length} additional photos in IndexedDB (added via Add photos)`);
+                        
+                        // 檢查這些照片的 dataURL
+                        additionalPhotos.forEach((photo, idx) => {
+                            console.log(`🔍 Additional photo ${idx + 1}/${additionalPhotos.length}:`, {
+                                name: photo.name,
+                                hasDataURL: !!photo.dataURL,
+                                dataURLType: typeof photo.dataURL,
+                                dataURLLength: photo.dataURL ? photo.dataURL.length : 0,
+                                dataURLPrefix: photo.dataURL ? photo.dataURL.substring(0, 30) : 'N/A'
+                            });
+                        });
+                        
                         allPhotos.push(...additionalPhotos);
+                        console.log('📊 Total photos after merge:', allPhotos.length);
+                        
+                        // 驗證合併後的照片是否還有 dataURL
+                        console.log('🔍 Verifying dataURL after merge...');
+                        const photosAfterMerge = allPhotos.slice(-12); // 檢查最後 12 張（剛添加的）
+                        photosAfterMerge.forEach((photo, idx) => {
+                            console.log(`🔍 allPhotos[${allPhotos.length - 12 + idx}]:`, {
+                                name: photo.name,
+                                hasDataURL: !!photo.dataURL,
+                                dataURLType: typeof photo.dataURL,
+                                dataURLLength: photo.dataURL ? photo.dataURL.length : 0
+                            });
+                        });
                         
                         // 重新渲染所有照片
                         setTimeout(async () => {
                             try {
+                                // 檢查最後一張照片（避免索引越界）
+                                const lastPhotoIndex = allPhotos.length - 1;
+                                console.log('🔍 Before renderPhotos - checking last photo:',{
+                                    index: lastPhotoIndex,
+                                    name: allPhotos[lastPhotoIndex]?.name,
+                                    hasDataURL: !!allPhotos[lastPhotoIndex]?.dataURL,
+                                    dataURLLength: allPhotos[lastPhotoIndex]?.dataURL ? allPhotos[lastPhotoIndex].dataURL.length : 0
+                                });
                                 const lazyObserver = initLazyLoading();
                                 await renderPhotos(allPhotos, lazyObserver);
-                                window.logger.log('Photos re-rendered with additional photos from IndexedDB');
+                                console.log('✅ Photos re-rendered with additional photos from IndexedDB');
+                                
+                                // 🔧 照片渲染完成後,恢復照片分配狀態
+                                setTimeout(() => {
+                                    console.log('🔄 Restoring photo assignment status after merge and render...');
+                                    
+                                    // 先更新照片提交狀態 (submitted)
+                                    if (typeof updatePhotoStatusFromInspectionRecords === 'function') {
+                                        updatePhotoStatusFromInspectionRecords();
+                                        window.logger.log('Photo submission status updated from inspection records');
+                                    }
+                                    
+                                    // 然後恢復照片分配狀態 (assigned) - 必須在 updatePhotoStatusFromInspectionRecords 之後
+                                    if (typeof restorePhotoAssignmentStatus === 'function') {
+                                        restorePhotoAssignmentStatus();
+                                        window.logger.log('Photo assignment status restored after merge');
+                                    }
+                                    
+                                    // 🔧 不調用 updatePhotoStatusFromLabels,因為它會覆蓋 restorePhotoAssignmentStatus 的設置
+                                    // updatePhotoStatusFromLabels 會清除所有 assigned class 並重新設置
+                                    // 我們的 restorePhotoAssignmentStatus 已經正確處理了多類別分配的顯示
+                                }, 300);
                             } catch (error) {
                                 window.logger.error('Error re-rendering photos:', error);
                             }
                         }, 100);
+                    } else {
+                        console.log('⚠️ No additional photos to merge');
+                        
+                        // 即使沒有額外照片需要合併，也需要確保照片已經渲染
+                        // 檢查照片是否已經在 DOM 中顯示
+                        const photoItems = document.querySelectorAll('.photo-item');
+                        if (photoItems.length === 0 && allPhotos.length > 0) {
+                            console.log('🔍 No photos rendered yet, triggering renderPhotos...');
+                            setTimeout(async () => {
+                                try {
+                                    const lazyObserver = initLazyLoading();
+                                    await renderPhotos(allPhotos, lazyObserver);
+                                    console.log('✅ Photos rendered after merge check');
+                                    
+                                    // 恢復照片分配狀態
+                                    setTimeout(() => {
+                                        if (typeof updatePhotoStatusFromInspectionRecords === 'function') {
+                                            updatePhotoStatusFromInspectionRecords();
+                                        }
+                                        if (typeof restorePhotoAssignmentStatus === 'function') {
+                                            restorePhotoAssignmentStatus();
+                                        }
+                                    }, 300);
+                                } catch (error) {
+                                    console.error('❌ Error rendering photos after merge check:', error);
+                                }
+                            }, 100);
+                        } else {
+                            console.log('🔍 Photos already rendered, count:', photoItems.length);
+                        }
                     }
                 } else {
                     // 沒有從 FSA handle 載入，直接使用 IndexedDB 的照片
                     allPhotos = photosFromStorage;
-                    window.logger.log('Loaded photos with dataURL:', allPhotos.filter(p => p.dataURL).length, 'of', allPhotos.length);
+                    const photosWithDataURL = allPhotos.filter(p => p.dataURL && p.dataURL.trim() !== '');
+                    console.log('🔍 Photos loaded from IndexedDB:', {
+                        total: allPhotos.length,
+                        withDataURL: photosWithDataURL.length,
+                        withoutDataURL: allPhotos.length - photosWithDataURL.length,
+                        samplePhoto: allPhotos.length > 0 ? {
+                            name: allPhotos[0].name,
+                            hasDataURL: !!allPhotos[0].dataURL,
+                            dataURLPrefix: allPhotos[0].dataURL ? allPhotos[0].dataURL.substring(0, 50) + '...' : 'N/A'
+                        } : null
+                    });
+                    window.logger.log('Loaded photos with dataURL:', photosWithDataURL.length, 'of', allPhotos.length);
                     
-                    // 渲染載入的照片
-                    if (allPhotos.length > 0 && allPhotos.some(p => p.dataURL)) {
+                    // 渲染載入的照片 - 修復：放寬條件，總是嘗試渲染有照片的情況
+                    if (allPhotos.length > 0) {
                         window.logger.log('Rendering loaded photos from storage...');
+                        console.log('🔍 About to render photos, allPhotos:', allPhotos.length);
+                        console.log('🔍 Photos with dataURL:', allPhotos.filter(p => p.dataURL).length);
                         setTimeout(async () => {
                             try {
                                 const lazyObserver = initLazyLoading();
                                 await renderPhotos(allPhotos, lazyObserver);
                                 window.logger.log('Photos rendered successfully from storage');
+                                console.log('✅ Photos rendered successfully');
+                                
+                                // 🔧 照片渲染完成後,恢復照片分配狀態
+                                setTimeout(() => {
+                                    console.log('🔄 Restoring photo assignment status after render...');
+                                    
+                                    // 先更新照片提交狀態 (submitted)
+                                    if (typeof updatePhotoStatusFromInspectionRecords === 'function') {
+                                        updatePhotoStatusFromInspectionRecords();
+                                        window.logger.log('Photo submission status updated from inspection records');
+                                    }
+                                    
+                                    // 然後恢復照片分配狀態 (assigned) - 必須在 updatePhotoStatusFromInspectionRecords 之後
+                                    if (typeof restorePhotoAssignmentStatus === 'function') {
+                                        restorePhotoAssignmentStatus();
+                                        window.logger.log('Photo assignment status restored after render');
+                                    }
+                                    
+                                    // 🔧 不調用 updatePhotoStatusFromLabels,因為它會覆蓋 restorePhotoAssignmentStatus 的設置
+                                    // updatePhotoStatusFromLabels 會清除所有 assigned class 並重新設置
+                                    // 我們的 restorePhotoAssignmentStatus 已經正確處理了多類別分配的顯示
+                                }, 300);
                             } catch (error) {
                                 window.logger.error('Error rendering photos from storage:', error);
+                                console.error('❌ Error rendering photos:', error);
                             }
                         }, 100);
+                    } else {
+                        console.log('⚠️ No photos to render - allPhotos is empty');
                     }
                 }
             } else if (!alreadyLoadedPhotos && parsedData.allPhotoFilenames) {
@@ -4854,6 +5185,8 @@ async function loadDataFromStorage() {
                     size: 0,
                     type: 'image/jpeg'
                 }));
+            } else {
+                console.log('⚠️ No photoMetadata or allPhotoFilenames found in savedData');
             }
             
             // 載入樓層平面圖數據
@@ -4978,31 +5311,23 @@ async function loadDataFromStorage() {
                 window.logger.log('Page reload: Updated category tables from inspection records');
             }
             
-            // 恢復照片分配狀態
-            if (!alreadyLoadedPhotos && allPhotos && allPhotos.length > 0) {
-                setTimeout(() => {
-                    // 首先更新照片提交狀態（從 submittedData 和 submittedFilenames）
-                    if (typeof updatePhotoStatusFromInspectionRecords === 'function') {
-                        updatePhotoStatusFromInspectionRecords();
-                        window.logger.log('Page reload: Updated photo submission status from inspection records');
-                    }
-                    
-                    restorePhotoAssignmentStatus();
-                    // 驗證照片狀態是否與當前標籤數據一致
-                    if (typeof updatePhotoStatusFromLabels === 'function') {
-                        updatePhotoStatusFromLabels();
-                    }
-                }, 100);
-            }
+            // 🔧 照片分配狀態的恢復現在在 renderPhotos 完成後才進行
+            // 確保照片元素已經渲染到 DOM 中才能設置分配狀態
+            // (見上面 renderPhotos 完成後的 setTimeout 回調)
             
             // 更新缺陷分類顯示
             updateCategoryDisplay('j');
             
             // 顯示重新選擇訊息（如果有提交的資料且資料夾名稱存在）
+            // 但是要避免在照片已經渲染時顯示不必要的 reselection 訊息
+            const photoItems = document.querySelectorAll('.photo-item');
+            const hasPhotosRendered = photoItems.length > 0;
+            
             if (folderNameDisplay.textContent && 
                 folderNameDisplay.textContent !== '' && 
                 submittedData.length > 0 &&
-                !folderNameDisplay.textContent.includes('Selected Files')) {
+                !folderNameDisplay.textContent.includes('Selected Files') &&
+                !hasPhotosRendered) {
                 showReselectMessage();
             } else {
                 // 如果沒有提交的資料，顯示正常空狀態
@@ -5239,31 +5564,47 @@ function resizeImage(file) {
                 reject(new Error(`Failed to load image: ${file.name}`));
             };
             
-            img.onload = function() {
+            img.onload = async function() {
                 window.logger.log(`Image loaded successfully: ${file.name} (${img.width}x${img.height})`);
                 try {
+                    // Check if this is a 360 panorama photo
+                    const aspectRatio = img.width / img.height;
+                    const is360Photo = aspectRatio >= 1.9 && aspectRatio <= 2.1;
+                    
+                    if (is360Photo) {
+                        window.logger.log(`🌐 Detected 360 panorama photo: ${file.name}, preserving full resolution`);
+                    }
+                    
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // Calculate new dimensions with long-edge limit 1200px
-                    const longEdgeLimit = 1200;
                     let newWidth = img.width;
                     let newHeight = img.height;
-                    if (img.width >= img.height) {
-                        if (img.width > longEdgeLimit) {
-                            const scale = longEdgeLimit / img.width;
-                            newWidth = longEdgeLimit;
-                            newHeight = Math.round(img.height * scale);
-                        }
-                    } else {
-                        if (img.height > longEdgeLimit) {
-                            const scale = longEdgeLimit / img.height;
-                            newHeight = longEdgeLimit;
-                            newWidth = Math.round(img.width * scale);
-                        }
-                    }
+                    let quality = 0.8;
                     
-                    window.logger.log(`Resizing ${file.name} from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
+                    // For 360 photos, preserve full resolution and use higher quality
+                    if (is360Photo) {
+                        // Keep original dimensions
+                        quality = 0.95; // Higher quality for 360 photos
+                        window.logger.log(`🌐 Using full resolution for 360 photo: ${newWidth}x${newHeight}, quality: ${quality}`);
+                    } else {
+                        // For normal photos, apply size limit
+                        const longEdgeLimit = 1200;
+                        if (img.width >= img.height) {
+                            if (img.width > longEdgeLimit) {
+                                const scale = longEdgeLimit / img.width;
+                                newWidth = longEdgeLimit;
+                                newHeight = Math.round(img.height * scale);
+                            }
+                        } else {
+                            if (img.height > longEdgeLimit) {
+                                const scale = longEdgeLimit / img.height;
+                                newHeight = longEdgeLimit;
+                                newWidth = Math.round(img.width * scale);
+                            }
+                        }
+                        window.logger.log(`Resizing ${file.name} from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
+                    }
                     
                     // Check if dimensions are reasonable
                     if (newWidth <= 0 || newHeight <= 0 || newWidth > 12000 || newHeight > 12000) {
@@ -5274,13 +5615,13 @@ function resizeImage(file) {
                     canvas.width = newWidth;
                     canvas.height = newHeight;
                     
-                    // Draw resized image
+                    // Draw image
                     ctx.drawImage(img, 0, 0, newWidth, newHeight);
                     
-                    // Convert to data URL with error handling (JPEG quality 0.8)
+                    // Convert to data URL with appropriate quality
                     try {
-                        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-                        window.logger.log(`Image resized successfully: ${file.name}`);
+                        const dataURL = canvas.toDataURL('image/jpeg', quality);
+                        window.logger.log(`Image processed successfully: ${file.name} (${is360Photo ? '360 panorama' : 'standard'})`);
                         resolve(dataURL);
                     } catch (canvasError) {
                         window.logger.warn(`Canvas failed for ${file.name}, using original:`, canvasError);
@@ -5288,8 +5629,8 @@ function resizeImage(file) {
                         resolve(e.target.result);
                     }
                 } catch (error) {
-                    window.logger.warn(`Resizing failed for ${file.name}, using original:`, error);
-                    // Fallback: return original data URL if resizing fails
+                    window.logger.warn(`Processing failed for ${file.name}, using original:`, error);
+                    // Fallback: return original data URL if processing fails
                     resolve(e.target.result);
                 }
             };
@@ -5388,6 +5729,16 @@ function selectMultipleFiles() {
             // Update button visibility
             updateAddPhotosButtonVisibility();
             
+            // 等待一小段時間確保所有 dataURL 都已經生成並附加到 File 對象上
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 立即保存照片數據（包含 dataURL）到 IndexedDB
+            console.log('💾 Saving photos after multiple file selection...');
+            const photosWithDataURL = allPhotos.filter(p => p.dataURL).length;
+            console.log(`📊 Photos with dataURL: ${photosWithDataURL} / ${allPhotos.length}`);
+            await saveDataToStorage();
+            console.log('✅ Photos saved to IndexedDB');
+            
             showNotification(`Successfully loaded ${imageFiles.length} images!`, 'success');
         } else {
             window.logger.log('No files selected');
@@ -5445,6 +5796,17 @@ async function selectPhotoFolder() {
             await renderPhotos(allPhotos, lazyObserver);
             updateFolderDisplay();
             updateAddPhotosButtonVisibility();
+            
+            // 等待一小段時間確保所有 dataURL 都已經生成並附加到 File 對象上
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 立即保存照片數據（包含 dataURL）到 IndexedDB
+            console.log('💾 Saving photos after folder selection...');
+            const photosWithDataURL = allPhotos.filter(p => p.dataURL).length;
+            console.log(`📊 Photos with dataURL: ${photosWithDataURL} / ${allPhotos.length}`);
+            await saveDataToStorage();
+            console.log('✅ Photos saved to IndexedDB');
+            
             showNotification('Photos loaded from folder!', 'success');
             return;
         } catch (e) {
@@ -5511,6 +5873,16 @@ async function selectPhotoFolder() {
                 
                 // Update button visibility
                 updateAddPhotosButtonVisibility();
+                
+                // 等待一小段時間確保所有 dataURL 都已經生成並附加到 File 對象上
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 立即保存照片數據（包含 dataURL）到 IndexedDB
+                console.log('💾 Saving photos after folder selection...');
+                const photosWithDataURL = allPhotos.filter(p => p.dataURL).length;
+                console.log(`📊 Photos with dataURL: ${photosWithDataURL} / ${allPhotos.length}`);
+                await saveDataToStorage();
+                console.log('✅ Photos saved to IndexedDB');
                 
                 showNotification(`Successfully loaded ${imageFiles.length} images from folder: ${folder}`, 'success');
             } else {
@@ -5731,6 +6103,7 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
 // Render photos in the grid with lazy loading and resizing
 async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
     window.logger.log('renderPhotos called with', photos.length, 'photos');
+    console.log('🔍 renderPhotos called with', photos.length, 'photos');
     
     // Clear the grid
     photoGrid.innerHTML = '';
@@ -5739,7 +6112,13 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
     if (photos.length === 0) {
         window.logger.log('No photos to render, showing empty state');
         // Show reselect message if we have submitted data OR defect entries (indicating previous work)
-        if (folderNameDisplay.textContent && folderNameDisplay.textContent !== '' && (submittedData.length > 0 || window.defectEntries.length > 0)) {
+        // 但是要避免在 PNE 文件載入過程中顯示不必要的 reselection 訊息
+        const isPNELoading = window.isPNELoading || false;
+        const hasPhotosInStorage = window.allPhotos && window.allPhotos.length > 0;
+        
+        if (folderNameDisplay.textContent && folderNameDisplay.textContent !== '' && 
+            (submittedData.length > 0 || window.defectEntries.length > 0) && 
+            !isPNELoading && !hasPhotosInStorage) {
             showReselectMessage();
         } else {
             // Show initial empty state
@@ -5872,7 +6251,7 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                         try {
                             await showPhotoPreviewPopup(file, photoItem);
                         } catch (err) {
-                            window.logger.error('Failed to open photo preview popup:', err);
+                            console.error('Failed to open photo preview popup:', err);
                         }
                     });
                 }
@@ -5916,9 +6295,13 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                         
                         if (locationId) {
                             statusDiv.textContent = `${locationId}`;
-                            statusDiv.style.display = 'flex !important';
+                            statusDiv.style.display = 'flex';
                             statusDiv.style.visibility = 'visible';
+                            statusDiv.style.opacity = '1';
+                            statusDiv.style.zIndex = '10';
                             photoItem.classList.add('submitted');
+                            // 🔧 強制觸發重排以確保樣式生效
+                            void statusDiv.offsetHeight;
                             console.log(`🔍 Photo ${file.name} status set to: ${locationId}`);
                             console.log(`🔍 DOM check - statusDiv.textContent: "${statusDiv.textContent}"`);
                             console.log(`🔍 DOM check - statusDiv.style.display: "${statusDiv.style.display}"`);
@@ -5926,8 +6309,10 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                         } else {
                             // Fallback: just show empty status without location ID
                             statusDiv.textContent = '';
-                            statusDiv.style.display = 'flex !important';
+                            statusDiv.style.display = 'flex';
                             statusDiv.style.visibility = 'visible';
+                            statusDiv.style.opacity = '1';
+                            statusDiv.style.zIndex = '10';
                             photoItem.classList.add('submitted');
                             console.log(`🔍 Photo ${file.name} status set to: Submitted (no location ID found)`);
                         }
@@ -6032,12 +6417,20 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
     
     window.logger.log('renderPhotos completed successfully');
     
-    // 確保照片狀態與當前檢查記錄同步
+    // 🔧 照片狀態同步已移至 loadDataFromStorage 的 setTimeout 中處理
+    // 這裡不再調用 updatePhotoStatusFromInspectionRecords,避免覆蓋 assigned 狀態
+    // setTimeout(() => {
+    //     if (typeof updatePhotoStatusFromInspectionRecords === 'function') {
+    //         updatePhotoStatusFromInspectionRecords();
+    //     }
+    // }, 100);
+    
+    // 檢查並添加 360 圖標
     setTimeout(() => {
-        if (typeof updatePhotoStatusFromInspectionRecords === 'function') {
-            updatePhotoStatusFromInspectionRecords();
+        if (typeof addAll360Badges === 'function') {
+            addAll360Badges();
         }
-    }, 100);
+    }, 500);
 }
 
 // Update photo selection UI
@@ -6057,14 +6450,283 @@ function updatePhotoSelection() {
     }
 }
 
+// Photo drag selection functionality
+class PhotoDragSelector {
+    constructor() {
+        this.isDragging = false;
+        this.startPhoto = null;
+        this.endPhoto = null;
+        this.dragStartPosition = null;
+        this.selectedPhotos = new Set();
+        this.globalEventsAttached = false;
+        this.dragIndicator = null;
+        
+        this.init();
+    }
+    
+    init() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.attachEventListeners());
+        } else {
+            this.attachEventListeners();
+        }
+    }
+    
+    attachEventListeners() {
+        const photoGrid = document.getElementById('photoGrid');
+        if (!photoGrid) return;
+        
+        // 防止重複添加事件監聽器
+        if (photoGrid.dataset.dragSelectorAttached) return;
+        photoGrid.dataset.dragSelectorAttached = 'true';
+        
+        // 使用事件委託在照片網格級別監聽事件
+        photoGrid.addEventListener('mousedown', (e) => {
+            const photoItem = e.target.closest('.photo-item');
+            if (photoItem && photoItem.closest('#photoGrid') === photoGrid) {
+                this.handleMouseDown(e, photoItem);
+            }
+        });
+        
+        photoGrid.addEventListener('mousemove', (e) => {
+            const photoItem = e.target.closest('.photo-item');
+            if (photoItem && photoItem.closest('#photoGrid') === photoGrid && this.isDragging) {
+                this.handleMouseMove(e, photoItem);
+            }
+        });
+        
+        photoGrid.addEventListener('mouseup', (e) => {
+            const photoItem = e.target.closest('.photo-item');
+            if (photoItem && photoItem.closest('#photoGrid') === photoGrid && this.isDragging) {
+                this.handleMouseUp(e, photoItem);
+            }
+        });
+        
+        // 防止默認的文本選擇行為
+        photoGrid.addEventListener('selectstart', (e) => {
+            if (this.isDragging) {
+                e.preventDefault();
+            }
+        });
+        
+        // 全局鼠標事件（處理跨照片拖拽）
+        if (!this.globalEventsAttached) {
+            document.addEventListener('mousemove', (e) => {
+                this.handleGlobalMouseMove(e);
+            });
+            document.addEventListener('mouseup', (e) => {
+                this.handleGlobalMouseUp(e);
+            });
+            
+            this.globalEventsAttached = true;
+        }
+    }
+    
+    handleMouseDown(e, photoItem) {
+        // 只處理左鍵
+        if (e.button !== 0) return;
+        
+        // 跳過已分配或已提交的照片
+        if (photoItem.classList.contains('assigned') || photoItem.classList.contains('submitted')) {
+            return;
+        }
+        
+        // 檢查是否按住了 Ctrl/Cmd 鍵（多選模式）
+        if (e.ctrlKey || e.metaKey) {
+            return; // 讓現有的多選邏輯處理
+        }
+        
+        // 檢查是否按住了 Shift 鍵（範圍選擇）
+        if (e.shiftKey) {
+            return; // 讓現有的範圍選擇邏輯處理
+        }
+        
+        // 立即開始拖拽選擇
+        this.startDragSelection(e, photoItem);
+    }
+    
+    handleMouseMove(e, photoItem) {
+        if (!this.isDragging || !this.startPhoto) return;
+        
+        e.preventDefault();
+        
+        this.endPhoto = photoItem;
+        
+        // 更新選擇範圍
+        this.updateSelectionRange();
+    }
+    
+    handleGlobalMouseMove(e) {
+        if (!this.isDragging || !this.startPhoto) return;
+        
+        // 找到鼠標位置下的照片
+        const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
+        const photoBelow = elementBelow ? elementBelow.closest('.photo-item') : null;
+        
+        if (photoBelow && photoBelow.closest('#photoGrid') === document.getElementById('photoGrid')) {
+            this.endPhoto = photoBelow;
+            this.updateSelectionRange();
+        }
+    }
+    
+    handleMouseUp(e, photoItem) {
+        if (!this.isDragging) return;
+        this.finishSelection();
+    }
+    
+    handleGlobalMouseUp(e) {
+        if (!this.isDragging) return;
+        this.finishSelection();
+    }
+    
+    // 開始拖拽選擇
+    startDragSelection(e, photoItem) {
+        this.isDragging = true;
+        this.startPhoto = photoItem;
+        this.endPhoto = photoItem;
+        
+        // 阻止默認行為
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // 清除之前的選擇
+        this.clearSelection();
+        
+        // 選擇起始照片
+        this.selectPhoto(this.startPhoto);
+        
+        // 添加拖拽樣式
+        this.startPhoto.classList.add('drag-selecting');
+        
+        // 防止文本選擇
+        document.body.style.userSelect = 'none';
+        
+        // 不顯示拖拽指示器，只使用照片邊框
+        
+        window.logger.log('Photo drag selection started:', this.startPhoto.dataset.filename);
+    }
+    
+    updateSelectionRange() {
+        if (!this.startPhoto || !this.endPhoto) return;
+        
+        // 清除之前的選擇
+        this.clearSelection();
+        
+        // 計算選擇範圍（按索引順序）
+        const startIndex = parseInt(this.startPhoto.dataset.index);
+        const endIndex = parseInt(this.endPhoto.dataset.index);
+        
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+        
+        // 選擇範圍內的所有照片
+        for (let i = minIndex; i <= maxIndex; i++) {
+            const photoItem = document.querySelector(`.photo-item[data-index="${i}"]`);
+            if (photoItem && !photoItem.classList.contains('assigned') && !photoItem.classList.contains('submitted')) {
+                this.selectPhoto(photoItem);
+                
+                // 為拖拽過程中的照片添加拖拽樣式
+                if (this.isDragging) {
+                    photoItem.classList.add('drag-selecting');
+                }
+            }
+        }
+        
+        // 不需要更新拖拽指示器
+    }
+    
+    selectPhoto(photoItem) {
+        const index = parseInt(photoItem.dataset.index);
+        this.selectedPhotos.add(index);
+        
+        // 同步到現有的選擇系統
+        if (!selectedPhotos.includes(index)) {
+            selectedPhotos.push(index);
+        }
+    }
+    
+    clearSelection() {
+        this.selectedPhotos.forEach(index => {
+            const photoItem = document.querySelector(`.photo-item[data-index="${index}"]`);
+            if (photoItem) {
+                photoItem.classList.remove('selected', 'drag-selecting');
+            }
+        });
+        this.selectedPhotos.clear();
+        
+        // 同步清除現有選擇系統的選擇
+        selectedPhotos.length = 0;
+    }
+    
+    finishSelection() {
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.startPhoto = null;
+            this.endPhoto = null;
+            this.dragStartPosition = null;
+            
+            // 移除拖拽樣式
+            const dragPhotos = document.querySelectorAll('.photo-item.drag-selecting');
+            dragPhotos.forEach(photo => photo.classList.remove('drag-selecting'));
+            
+            // 不需要移除拖拽指示器
+            
+            // 恢復文本選擇
+            document.body.style.userSelect = '';
+            
+            // 更新選擇UI
+            updatePhotoSelection();
+            updateSelectedCount();
+            
+            window.logger.log('Photo drag selection finished, selected:', this.selectedPhotos.size, 'photos');
+        }
+    }
+    
+    // 拖拽反饋方法已移除，只使用照片邊框顯示選擇狀態
+}
+
+// 創建全局實例
+window.photoDragSelector = new PhotoDragSelector();
+
 // Update selected photo count
 function updateSelectedCount() {
     selectedCount.textContent = selectedPhotos.length;
 }
+
+// 檢查檢查編號是否已填寫
+function validateInspectionNumber() {
+    const locationIdInput = document.getElementById('locationId');
+    const inspectionNo = locationIdInput ? locationIdInput.value.trim() : '';
+    
+    if (!inspectionNo) {
+        showNotification(getText('pleaseEnterInspectionNumber') || 'Please enter Inspection No. in header fields before assigning photos', 'warning');
+        
+        // 高亮顯示檢查編號輸入框
+        if (locationIdInput) {
+            locationIdInput.focus();
+            locationIdInput.style.border = '2px solid #ff6b6b';
+            setTimeout(() => {
+                locationIdInput.style.border = '';
+            }, 2000);
+        }
+        
+        return false;
+    }
+    
+    return true;
+}
+
 // Assign selected photos to a category
 function assignToCategory(categoryId) {
     if (selectedPhotos.length === 0) {
         showNotification('Please select photos first', 'warning');
+        return;
+    }
+    
+    // 檢查檢查編號是否已填寫
+    if (!validateInspectionNumber()) {
         return;
     }
     
@@ -6561,11 +7223,15 @@ function clearDefectEntry(entryId) {
             // Update the inspection record's row
             const rowElement = document.querySelector(`tr[data-id="${inspectionRecord.id}"]`);
             if (rowElement) {
-                rowElement.children[13].textContent = inspectionRecord.j;
+                if (rowElement.children.length > 13 && rowElement.children[13]) {
+                    rowElement.children[13].textContent = inspectionRecord.j;
+                }
                 // Check if there are any remaining imminent danger defects
                 const hasRemainingImminentDanger = filteredDefects.some(defect => defect.trim().startsWith('* '));
                 inspectionRecord.hasImminentDanger = hasRemainingImminentDanger;
-                rowElement.children[14].textContent = hasRemainingImminentDanger ? 'Yes' : 'No';
+                if (rowElement.children.length > 14 && rowElement.children[14]) {
+                    rowElement.children[14].textContent = hasRemainingImminentDanger ? 'Yes' : 'No';
+                }
             }
         }
     }
@@ -6758,6 +7424,30 @@ function resetHeaderCheckboxes() {
     window.logger.log('Header checkboxes and fields reset to initial state');
 }
 
+// 新增函數：清除所有 header fields（只在繪圖模式下使用）
+function clearAllHeaderFields() {
+    const headerFields = [
+        'locationId',
+        'inspectionDate',
+        'floorHeader', 
+        'areaNameHeader',
+        'roomNo'
+    ];
+    
+    // 清除所有 header fields 的值
+    headerFields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.value = '';
+        }
+    });
+    
+    // 重置所有 checkboxes
+    resetHeaderCheckboxes();
+    
+    window.logger.log('All header fields cleared (drawing mode)');
+}
+
 // Header checkbox validation function
 function checkHeaderCheckboxes() {
     const checkboxes = [
@@ -6831,6 +7521,13 @@ function updateAddPhotosButtonVisibility() {
 
 // Submit data to table
 submitBtn.addEventListener('click', () => {
+    // 檢查是否為編輯模式（從 Add More Photos 進入）
+    const isEditMode = window.currentEditingLabel && window.currentEditingLabel.isEditMode;
+    
+    if (isEditMode) {
+        console.log('📝 Edit mode detected, will merge data with existing label');
+    }
+    
     // Check if all header checkboxes are checked
     if (!checkHeaderCheckboxes()) {
         showNotification('Please check all header fields before submitting', 'error');
@@ -7018,8 +7715,19 @@ submitBtn.addEventListener('click', () => {
     // Clear room number for next entry
     roomNoInput.value = '';
     
-    // Reset header-fields checkboxes to unchecked state
-    resetHeaderCheckboxes();
+    // 檢查是否在繪圖模式下，如果是則清除所有 header fields
+    const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+    const isDrawingMode = floorPlanOverlay && floorPlanOverlay.style.display === 'flex';
+    
+    if (isDrawingMode) {
+        // 繪圖模式：清除所有 header fields
+        clearAllHeaderFields();
+        window.logger.log('Drawing mode detected - all header fields cleared');
+    } else {
+        // 非繪圖模式：只重置 checkboxes（保持現有行為）
+        resetHeaderCheckboxes();
+        window.logger.log('Non-drawing mode - only checkboxes reset');
+    }
     
     // 不再更新檢查記錄表格計數，只更新文件夾顯示
     // updateTableCount(); // 移除檢查記錄表格計數更新
@@ -7032,39 +7740,60 @@ submitBtn.addEventListener('click', () => {
     window.skipDefectMarksLoad = false;
     window.logger.log('Submit completed: Reset skipDefectMarksLoad flag to allow defect marks loading');
     
-    // Show success message
-    showNotification('Data submitted to labels detail table!', 'success');
+    // 清除編輯模式標記
+    if (isEditMode) {
+        window.currentEditingLabel = null;
+        console.log('✅ Edit mode cleared');
+        showNotification('Data merged with existing label successfully!', 'success');
+    } else {
+        showNotification('Data submitted to labels detail table!', 'success');
+    }
+    
     // 不再更新檢查記錄表格，只更新分類表格
     setTimeout(updateCategoryTablesFromInspectionRecords, 100);
 });
 
 // 提交數據到標籤詳細表格
 function submitToLabelsDetailTable(rowData) {
+    // 檢查是否為編輯模式
+    const isEditMode = window.currentEditingLabel && window.currentEditingLabel.isEditMode;
+    const existingLabel = isEditMode ? window.currentEditingLabel : null;
+    
     // 創建標籤記錄（從分類內容提交時，標記為已提交）
     const labelRecord = {
-        id: Date.now() + Math.random(),
+        id: existingLabel ? existingLabel.id : (Date.now() + Math.random()),
         inspectionNo: rowData.locationId,
         floor: rowData.floor,
         areaName: rowData.areaName,
         roomNo: rowData.roomNo,
         inspectionDate: rowData.inspectionDateRaw,
-        a: rowData.a,
-        b: rowData.b,
-        c: rowData.c,
-        d: rowData.d,
-        e: rowData.e,
-        f: rowData.f,
-        g: rowData.g,
-        h: rowData.h,
-        i: rowData.i,
-        j: rowData.j,
+        a: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.a, rowData.a) : rowData.a,
+        b: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.b, rowData.b) : rowData.b,
+        c: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.c, rowData.c) : rowData.c,
+        d: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.d, rowData.d) : rowData.d,
+        e: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.e, rowData.e) : rowData.e,
+        f: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.f, rowData.f) : rowData.f,
+        g: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.g, rowData.g) : rowData.g,
+        h: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.h, rowData.h) : rowData.h,
+        i: isEditMode && existingLabel ? mergePhotoNumbers(existingLabel.i, rowData.i) : rowData.i,
+        j: isEditMode && existingLabel ? mergeDefectItems(existingLabel.j, rowData.j) : rowData.j,
         // imminentDanger 不應該在標籤層面設置，只由缺陷表單控制
-        photoFilenames: rowData.photoFilenames,
+        photoFilenames: isEditMode && existingLabel ? 
+            [...new Set([...(existingLabel.photoFilenames || []), ...rowData.photoFilenames])] : 
+            rowData.photoFilenames,
         folderName: rowData.folderName,
         // 標記為已提交（藍色標籤）
         submitted: true,
         submittedAt: new Date().toISOString()
     };
+    
+    if (isEditMode) {
+        console.log('📝 Merging data with existing label:', {
+            existingLabel,
+            newData: rowData,
+            mergedLabel: labelRecord
+        });
+    }
 
     // 添加到標籤數組（若已存在同 inspectionNo 的標籤，改為更新 submitted 狀態）
     if (!window.labels) {
@@ -7483,6 +8212,13 @@ function checkInspectionNoDuplicate(inspectionNo, excludeIndex = -1, isFromLabel
         return false;
     }
     
+    // 🔧 如果在繪圖模式下（floor plan overlay 顯示中），允許重複的 inspection no.
+    const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+    if (floorPlanOverlay && floorPlanOverlay.style.display === 'flex') {
+        window.logger.log('Drawing mode active - allowing duplicate inspection number:', inspectionNo);
+        return false;
+    }
+    
     const trimmedNo = inspectionNo.trim();
     
     // 檢查標籤詳細表格中的重複
@@ -7564,7 +8300,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         const modal = document.getElementById('sessionRestoreModal');
         
         // 檢查是否有實際的數據（不僅僅是空的數據結構）
-        const hasActualData = saved && (
+        // 注意：不檢查 localStorage 中的數據，因為它們可能已經遷移到 IndexedDB
+        // 如果已經完成 Start Fresh，則不顯示恢復模態框
+        const hasActualData = !window.startFreshCompleted && saved && (
             (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
             (saved.submittedData && saved.submittedData.length > 0) ||
             (saved.floorPlanLabels && saved.floorPlanLabels.length > 0) ||
@@ -7575,8 +8313,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             (saved.photoMetadata && saved.photoMetadata.length > 0) ||
             saved.floorPlanPDF || 
             saved.floorPlanData ||
-            localStorage.getItem('pne_floorplan_base64') ||
-            localStorage.getItem('pne_floorplan_data')
+            saved.embeddedPDF ||
+            saved.floorPlanBase64
         );
         
         if (hasActualData && modal) {
@@ -7625,6 +8363,28 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 if (imageFiles.length > 0) {
                                     window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
                                     allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                                    
+                                    // 🔧 從 IndexedDB 載入 photoMetadata 以恢復 dataURL
+                                    console.log('📥 Loading photoMetadata to restore dataURLs...');
+                                    const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
+                                    if (savedData && savedData.photoMetadata) {
+                                        const photoMetadataMap = new Map(savedData.photoMetadata.map(meta => [meta.name, meta.dataURL]));
+                                        console.log(`📦 Found ${photoMetadataMap.size} photos in IndexedDB with dataURL`);
+                                        
+                                        // 將 dataURL 附加到從 FSA handle 讀取的 File 對象上
+                                        let restoredCount = 0;
+                                        for (const photo of allPhotos) {
+                                            const dataURL = photoMetadataMap.get(photo.name);
+                                            if (dataURL && dataURL.trim() !== '') {
+                                                photo.dataURL = dataURL;
+                                                restoredCount++;
+                                            }
+                                        }
+                                        console.log(`✅ Restored dataURL for ${restoredCount} / ${allPhotos.length} photos`);
+                                    } else {
+                                        console.log('⚠️ No photoMetadata found in IndexedDB, photos will be re-processed');
+                                    }
+                                    
                                     const lazyObserver = initLazyLoading();
                                     await renderPhotos(allPhotos, lazyObserver);
                                     updateFolderDisplay();
@@ -7767,10 +8527,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         
                         // 關閉 PDF 縮圖
                         if (floorplanThumb) floorplanThumb.style.display = 'none';
-                        if (floorplanThumbImg) {
-                            // 移除 src 屬性避免空字串觸發資源載入錯誤
-                            floorplanThumbImg.removeAttribute('src');
-                        }
+                        if (floorplanThumbImg) floorplanThumbImg.src = '';
                         
                         // 重置資料夾名稱與狀態
                         if (folderNameDisplay) folderNameDisplay.textContent = '';
@@ -7801,6 +8558,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                         
                         console.log('Start Fresh 完成 - 所有數據已清除，應用程式已重置');
                         showNotification('All saved data cleared. Starting fresh.', 'success');
+                        
+                        // 設置標誌防止重新顯示恢復模態框
+                        window.startFreshCompleted = true;
                         
                     } catch (error) {
                         console.error('Start Fresh 過程中發生錯誤:', error);
@@ -8435,6 +9195,9 @@ clearBtn.addEventListener('click', () => {
 
 // Save data when the page is about to unload
 window.addEventListener('beforeunload', function() {
+    console.log('💾 Page is unloading, saving data...');
+    console.log('💾 Current allPhotos count:', allPhotos ? allPhotos.length : 0);
+    console.log('💾 Photos with dataURL:', allPhotos ? allPhotos.filter(p => p.dataURL).length : 0);
     saveDataToStorage();
 });
 
@@ -8559,6 +9322,10 @@ function syncLabelsToInspectionRecords() {
         const bNo = parseInt(b.locationId) || 0;
         return aNo - bNo;
     });
+    
+    // 同步到全局變量供其他功能使用
+    window.inspectionRecords = submittedData;
+    console.log('🔍 Synced window.inspectionRecords:', window.inspectionRecords.length, 'records');
     
     // 清空表格並重新添加排序後的數據
     if (dataTableBody) {
@@ -10028,14 +10795,36 @@ window.saveDataToStorage = async function() {
                 }
             }
             
-            return {
-            name: file.name,
-            size: file.size,
-            type: file.type,
+            // 調試：確保 dataURL 是字符串且不為空
+            if (dataURL && typeof dataURL !== 'string') {
+                console.warn('⚠️ dataURL is not a string for', file.name, '- type:', typeof dataURL);
+                dataURL = '';
+            }
+            
+            // 確保 dataURL 是有效的 base64 圖片數據
+            if (dataURL && !dataURL.startsWith('data:image/')) {
+                console.warn('⚠️ Invalid dataURL format for', file.name, '- prefix:', dataURL.substring(0, 20));
+                dataURL = '';
+            }
+            
+            // 創建純 JavaScript 對象（不是 File 對象），確保可以正確序列化
+            const photoMetadata = {
+                name: file.name,
+                size: file.size,
+                type: file.type,
                 lastModified: file.lastModified || Date.now(),
                 webkitRelativePath: file.webkitRelativePath || '',
                 dataURL: dataURL
             };
+            
+            // 調試：驗證 dataURL 長度
+            if (dataURL) {
+                console.log(`📸 Saving ${file.name} with dataURL length: ${dataURL.length}`);
+            } else {
+                console.warn(`⚠️ ${file.name} has NO dataURL!`);
+            }
+            
+            return photoMetadata;
         }),
 
         // 主資料表 - 與 .pne 檔案一致
@@ -10046,13 +10835,23 @@ window.saveDataToStorage = async function() {
         defectTypes: defectTypes || [],
 
         // 照片分配資料 - 與 .pne 檔案一致
-        photoAssignments: {
-            categoryNumbers: categoryNumbers || {},
-            assignedPhotos: Object.fromEntries(
+        photoAssignments: (() => {
+            const assignedPhotosArray = Object.fromEntries(
                 Object.entries(assignedPhotos || {}).map(([key, value]) => [key, Array.from(value || [])])
-            ),
-            defectEntries: window.defectEntries || []
-        },
+            );
+            const totalAssigned = Object.values(assignedPhotosArray).reduce((sum, arr) => sum + arr.length, 0);
+            console.log('💾 saveDataToStorage - assignedPhotos:', {
+                totalCategories: Object.keys(assignedPhotosArray).length,
+                totalAssignedPhotos: totalAssigned,
+                categoriesWithPhotos: Object.keys(assignedPhotosArray).filter(k => assignedPhotosArray[k] && assignedPhotosArray[k].length > 0),
+                assignedPhotosArray
+            });
+            return {
+                categoryNumbers: categoryNumbers || {},
+                assignedPhotos: assignedPhotosArray,
+                defectEntries: window.defectEntries || []
+            };
+        })(),
 
         // App 狀態 - 與 .pne 檔案一致
         uploadedFolderPath: (document.getElementById('folderNameDisplay') && document.getElementById('folderNameDisplay').textContent) || '',
@@ -10113,11 +10912,24 @@ window.saveDataToStorage = async function() {
     };
     
     // 詳細日誌
+    const photosWithDataURL = dataToSave.photoMetadata.filter(p => p.dataURL && p.dataURL.length > 0);
+    console.log('💾 Saving data to IndexedDB:', {
+        version: dataToSave.version,
+        totalPhotos: dataToSave.totalPhotos,
+        photosWithDataURL: photosWithDataURL.length,
+        photosWithoutDataURL: dataToSave.totalPhotos - photosWithDataURL.length,
+        samplePhoto: dataToSave.photoMetadata.length > 0 ? {
+            name: dataToSave.photoMetadata[0].name,
+            hasDataURL: !!dataToSave.photoMetadata[0].dataURL,
+            dataURLLength: dataToSave.photoMetadata[0].dataURL ? dataToSave.photoMetadata[0].dataURL.length : 0,
+            dataURLPrefix: dataToSave.photoMetadata[0].dataURL ? dataToSave.photoMetadata[0].dataURL.substring(0, 50) + '...' : 'N/A'
+        } : null
+    });
     window.logger.log('saveDataToStorage: Preparing to save data with PNE-compatible structure');
     window.logger.log(`- Version: ${dataToSave.version}`);
     window.logger.log(`- Total photos: ${dataToSave.totalPhotos}`);
     window.logger.log(`- Total assignments: ${dataToSave.totalAssignments}`);
-    window.logger.log(`- Photos with dataURL: ${dataToSave.photoMetadata.filter(p => p.dataURL && p.dataURL.length > 0).length}`);
+    window.logger.log(`- Photos with dataURL: ${photosWithDataURL.length}`);
     window.logger.log(`- Floor plan labels: ${dataToSave.floorPlanLabels.length}`);
     window.logger.log(`- Floor plan defect marks: ${dataToSave.floorPlanDefectMarks.length}`);
     window.logger.log(`- Has embedded PDF: ${dataToSave.embeddedPDF ? 'Yes' : 'No'}`);
@@ -12465,30 +13277,51 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
     if (window.pendingViewStateRestore) {
         window.logger.log('Applying pending view state restore after PDF load');
         
-        // 等待一小段時間確保 PDF 完全渲染
-        setTimeout(() => {
+        // 使用更可靠的恢復機制
+        const attemptViewStateRestore = (attempts = 0) => {
+            if (attempts >= 10) {
+                window.logger.warn('Failed to restore view state after 10 attempts');
+                window.pendingViewStateRestore = false;
+                return;
+            }
+            
             if (typeof window.applyTransform === 'function') {
-                window.applyTransform();
-                window.logger.log('Pending view state applied successfully');
+                window.logger.log(`Attempting view state restore (attempt ${attempts + 1})`);
+                
+                // 確保 PDF canvas 存在且已渲染
+                const floorPlanCanvas = document.getElementById('floorPlanCanvas');
+                if (floorPlanCanvas && floorPlanCanvas.width > 0 && floorPlanCanvas.height > 0) {
+                    window.applyTransform();
+                    window.logger.log('Pending view state applied successfully');
+                    
+                    // 更新標籤和缺陷標記大小 UI
+                    if (window.labelSizeScale && typeof updateLabelSizeUI === 'function') {
+                        updateLabelSizeUI();
+                    }
+                    if (window.defectMarkSizeScale && typeof updateDefectMarkSizeUI === 'function') {
+                        updateDefectMarkSizeUI();
+                    }
+                    
+                    // 重新設置雙擊事件監聽器，確保缺陷標記創建功能正常
+                    if (typeof setupDoubleClickHandler === 'function') {
+                        setupDoubleClickHandler();
+                        window.logger.log('Double-click handler re-initialized after PDF load');
+                    }
+                    
+                    // 清除標記
+                    window.pendingViewStateRestore = false;
+                } else {
+                    // Canvas 還沒準備好，重試
+                    setTimeout(() => attemptViewStateRestore(attempts + 1), 100);
+                }
+            } else {
+                // applyTransform 還沒定義，重試
+                setTimeout(() => attemptViewStateRestore(attempts + 1), 100);
             }
-            
-            // 更新標籤和缺陷標記大小 UI
-            if (window.labelSizeScale && typeof updateLabelSizeUI === 'function') {
-                updateLabelSizeUI();
-            }
-            if (window.defectMarkSizeScale && typeof updateDefectMarkSizeUI === 'function') {
-                updateDefectMarkSizeUI();
-            }
-            
-            // 重新設置雙擊事件監聽器，確保缺陷標記創建功能正常
-            if (typeof setupDoubleClickHandler === 'function') {
-                setupDoubleClickHandler();
-                window.logger.log('Double-click handler re-initialized after PDF load');
-            }
-            
-            // 清除標記
-            window.pendingViewStateRestore = false;
-        }, 300);
+        };
+        
+        // 開始恢復嘗試
+        attemptViewStateRestore();
     }
     
     window.logger.log('PDF loaded successfully from base64 data');
@@ -12897,19 +13730,29 @@ function handleLabelsRealtimeUpdate(event) {
 function updatePhotoStatusFromInspectionRecords() {
     window.logger.log('Updating photo status from inspection records');
     
-    // 清除所有照片狀態，然後重新設置
+    // 🔧 只清除 submitted 狀態,保留 assigned 狀態
+    // assigned 狀態由 restorePhotoAssignmentStatus() 管理
     document.querySelectorAll('.photo-item').forEach(item => {
-        item.classList.remove('submitted', 'assigned');
-        const img = item.querySelector('img');
-        if (img) {
-            img.style.filter = '';
-            img.style.opacity = '';
+        // 只移除 submitted,不移除 assigned
+        item.classList.remove('submitted');
+        
+        // 只有當照片沒有被 assigned 時,才清除視覺樣式和狀態顯示
+        // 如果照片已經 assigned,保留灰階效果和狀態顯示
+        if (!item.classList.contains('assigned')) {
+            const img = item.querySelector('img');
+            if (img) {
+                img.style.filter = '';
+                img.style.opacity = '';
+            }
+            
+            // 只有非 assigned 照片才清除狀態顯示
+            const statusDiv = item.querySelector('.photo-status');
+            if (statusDiv) {
+                statusDiv.textContent = '';
+                statusDiv.style.display = 'none';
+            }
         }
-        const statusDiv = item.querySelector('.photo-status');
-        if (statusDiv) {
-            statusDiv.textContent = '';
-            statusDiv.style.display = 'none';
-        }
+        // 如果照片是 assigned,保留其狀態顯示(由 restorePhotoAssignmentStatus 設置)
     });
     
     // 處理已提交的照片（優先級最高）
@@ -13075,6 +13918,13 @@ async function autoLoadPhotosFromPaths(photoFilePaths, photoMetadata) {
                     updateFolderDisplay();
                     updateAddPhotosButtonVisibility();
                     
+                    // 🔧 保存照片數據到 IndexedDB
+                    console.log('💾 Saving photos to IndexedDB after PNE file load (file:// protocol)...');
+                    setTimeout(async () => {
+                        await saveDataToStorage();
+                        console.log('✅ Photos saved to IndexedDB after PNE file load');
+                    }, 500);
+                    
                     showNotification(`從 PNE 檔案快取中恢復了 ${allPhotos.length} 張照片 (file:// 協議)`, 'success');
                     return;
                 } else {
@@ -13121,6 +13971,13 @@ async function autoLoadPhotosFromPaths(photoFilePaths, photoMetadata) {
             updateFolderDisplay();
             updateAddPhotosButtonVisibility();
             
+            // 🔧 保存照片數據到 IndexedDB
+            console.log('💾 Saving photos to IndexedDB after PNE file load (cached dataURLs)...');
+            setTimeout(async () => {
+                await saveDataToStorage();
+                console.log('✅ Photos saved to IndexedDB after PNE file load');
+            }, 500);
+            
             showNotification(`從 PNE 檔案快取中恢復了 ${allPhotos.length} 張照片`, 'success');
             return;
         } else {
@@ -13160,6 +14017,13 @@ async function autoLoadPhotosFromPaths(photoFilePaths, photoMetadata) {
                     updateFolderDisplay();
                     updateAddPhotosButtonVisibility();
                     
+                    // 🔧 保存照片數據到 IndexedDB
+                    console.log('💾 Saving photos to IndexedDB after PNE file load (FSA API)...');
+                    setTimeout(async () => {
+                        await saveDataToStorage();
+                        console.log('✅ Photos saved to IndexedDB after PNE file load');
+                    }, 500);
+                    
                     showNotification(`從選定目錄載入了 ${files.length} 張照片`, 'success');
                     return;
                 }
@@ -13193,6 +14057,9 @@ openPNEBtn.addEventListener('click', function() {
     input.addEventListener('change', async (e) => {
         if (e.target.files.length > 0) {
             const file = e.target.files[0];
+            
+            // 設置 PNE 載入標誌
+            window.isPNELoading = true;
             
             // 保存PDF base64數據，避免被清除
             const pdfBase64Data = localStorage.getItem('pne_floorplan_base64');
@@ -13257,25 +14124,40 @@ openPNEBtn.addEventListener('click', function() {
                     rowIdCounter = data.rowIdCounter;
                 }
                 
-                // 新增：還原照片分配資料
+                // 新增:還原照片分配資料
                 if (data.photoAssignments) {
                     window.logger.log('Restoring photo assignments from PNE file');
                     
                     // 還原分類編號
                     if (data.photoAssignments.categoryNumbers) {
                         Object.keys(data.photoAssignments.categoryNumbers).forEach(categoryId => {
-                            if (categoryNumbers[categoryId]) {
-                                categoryNumbers[categoryId] = data.photoAssignments.categoryNumbers[categoryId] || [];
+                            if (!categoryNumbers[categoryId]) {
+                                console.log(`⚠️ PNE load: Category ${categoryId} not found in categoryNumbers, creating it`);
+                                categoryNumbers[categoryId] = [];
                             }
+                            categoryNumbers[categoryId] = data.photoAssignments.categoryNumbers[categoryId] || [];
                         });
+                        console.log('📋 PNE load: Restored categoryNumbers:', Object.keys(categoryNumbers).map(k => ({
+                            category: k,
+                            count: categoryNumbers[k].length
+                        })));
                     }
                     
                     // 還原已分配的照片
                     if (data.photoAssignments.assignedPhotos) {
+                        let totalAssigned = 0;
                         Object.keys(data.photoAssignments.assignedPhotos).forEach(categoryId => {
-                            if (assignedPhotos[categoryId]) {
-                                assignedPhotos[categoryId] = new Set(data.photoAssignments.assignedPhotos[categoryId] || []);
+                            if (!assignedPhotos[categoryId]) {
+                                console.log(`⚠️ PNE load: Category ${categoryId} not found in assignedPhotos, creating it`);
+                                assignedPhotos[categoryId] = new Set();
                             }
+                            assignedPhotos[categoryId] = new Set(data.photoAssignments.assignedPhotos[categoryId] || []);
+                            totalAssigned += assignedPhotos[categoryId].size;
+                        });
+                        console.log('📋 PNE load: Restored assignedPhotos:', {
+                            totalCategories: Object.keys(assignedPhotos).length,
+                            totalAssignedPhotos: totalAssigned,
+                            categoriesWithPhotos: Object.keys(assignedPhotos).filter(k => assignedPhotos[k] && assignedPhotos[k].size > 0)
                         });
                     }
                     
@@ -13355,7 +14237,9 @@ openPNEBtn.addEventListener('click', function() {
                         setTimeout(() => {
                             const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                             if (floorPlanOverlay) {
-                                showFloorPlan();
+                                // Show floor plan overlay
+                                floorPlanOverlay.style.zIndex = '1000';
+                                floorPlanOverlay.style.display = 'flex';
                                 window.logger.log('Drawing mode opened automatically');
                                 
                                 // 調用必要的初始化函數
@@ -13566,21 +14450,21 @@ openPNEBtn.addEventListener('click', function() {
                     } catch(_) {}
                 }
 
-                // 保存所有恢復的數據到 IndexedDB
-                window.logger.log('Saving restored data to IndexedDB...');
+                // 🔧 使用完整的 saveDataToStorage 保存所有恢復的數據
+                // 包括照片分配 (assignedPhotos, categoryNumbers) 和所有其他數據
+                window.logger.log('💾 Saving all restored PNE data to IndexedDB (including photo assignments)...');
                 
-                // 保存主要數據
-                const mainData = {
-                    submittedData: submittedData,
-                    rowIdCounter: rowIdCounter,
-                    photoFolders: photoFolders,
-                    submittedDefectEntries: submittedDefectEntries,
-                    photoMetadata: allPhotos,
-                    folderName: folderNameDisplay.textContent || '',
-                    submittedFilenames: Array.from(submittedFilenames || new Set())
-                };
-                await window.storageAdapter.setItemDirect('photoNumberExtractorData', mainData);
-                window.logger.log('Main data saved to IndexedDB');
+                // 延遲保存,確保 autoLoadPhotosFromPaths 已經完成並且 allPhotos 已更新
+                setTimeout(async () => {
+                    await saveDataToStorage();
+                    window.logger.log('✅ All PNE data saved to IndexedDB successfully');
+                    console.log('📊 Saved data includes:', {
+                        submittedData: submittedData.length,
+                        allPhotos: allPhotos.length,
+                        assignedPhotosCategories: Object.keys(assignedPhotos).length,
+                        totalAssignedPhotos: Object.values(assignedPhotos).reduce((sum, set) => sum + set.size, 0)
+                    });
+                }, 1000); // 延遲 1 秒確保照片已加載
                 
                 // 保存樓層平面標籤和缺陷標記到 localStorage
                 if (window.labels && window.labels.length > 0) {
@@ -13595,6 +14479,9 @@ openPNEBtn.addEventListener('click', function() {
                 }
                 
                 window.logger.log('All data successfully saved to localStorage');
+                
+                // 清除 PNE 載入標誌
+                window.isPNELoading = false;
                 
                 // 恢復樓層平面圖視圖狀態和註解，並自動載入PDF
                 if (data.floorPlanViewState || (window.labels && window.labels.length > 0) || (window.defectMarks && window.defectMarks.length > 0)) {
@@ -13908,10 +14795,14 @@ function updateInspectionRecordPhotoColumns(inspectionRecord) {
             // Update the column with formatted numbers (same as updateCategoryDisplay)
             if (photoNumbers.length > 0) {
                 const formattedNumbers = formatNumbers(photoNumbers.sort((a, b) => parseInt(a) - parseInt(b)));
-                recordRowElement.children[columnIndex].textContent = formattedNumbers;
+                if (recordRowElement.children.length > columnIndex && recordRowElement.children[columnIndex]) {
+                    recordRowElement.children[columnIndex].textContent = formattedNumbers;
+                }
                 inspectionRecord[cat] = formattedNumbers;
             } else {
-                recordRowElement.children[columnIndex].textContent = 'N/A';
+                if (recordRowElement.children.length > columnIndex && recordRowElement.children[columnIndex]) {
+                    recordRowElement.children[columnIndex].textContent = 'N/A';
+                }
                 inspectionRecord[cat] = 'N/A';
             }
         });
@@ -14283,11 +15174,16 @@ function updateInspectionRecordsDefects(inspectionNo, defectEntry, oldInspection
             // Update the old record's row
             const oldRowElement = document.querySelector(`tr[data-id="${oldInspectionRecord.id}"]`);
             if (oldRowElement) {
-                oldRowElement.children[13].innerHTML = generateDefectsWithButtons(oldInspectionRecord.j, oldInspectionRecord.id);
+                // Check if the row has enough columns before updating
+                if (oldRowElement.children.length > 13 && oldRowElement.children[13]) {
+                    oldRowElement.children[13].innerHTML = generateDefectsWithButtons(oldInspectionRecord.j, oldInspectionRecord.id);
+                }
                 // Check if there are any remaining imminent danger defects
                 const hasRemainingImminentDanger = filteredDefects.some(defect => defect.trim().startsWith('* '));
                 oldInspectionRecord.hasImminentDanger = hasRemainingImminentDanger;
-                oldRowElement.children[14].textContent = hasRemainingImminentDanger ? 'Yes' : 'No';
+                if (oldRowElement.children.length > 14 && oldRowElement.children[14]) {
+                    oldRowElement.children[14].textContent = hasRemainingImminentDanger ? 'Yes' : 'No';
+                }
                 window.logger.log('Updated old record row in table');
             }
         }
@@ -14344,9 +15240,13 @@ function updateInspectionRecordsDefects(inspectionNo, defectEntry, oldInspection
         const rowElement = document.querySelector(`tr[data-id="${inspectionRecord.id}"]`);
         if (rowElement) {
             // Update the defects column (column 13, index 13)
-            rowElement.children[13].innerHTML = generateDefectsWithButtons(inspectionRecord.j, inspectionRecord.id);
+            if (rowElement.children.length > 13 && rowElement.children[13]) {
+                rowElement.children[13].innerHTML = generateDefectsWithButtons(inspectionRecord.j, inspectionRecord.id);
+            }
             // Update the imminent danger column (column 14, index 14)
-            rowElement.children[14].textContent = inspectionRecord.hasImminentDanger ? 'Yes' : 'No';
+            if (rowElement.children.length > 14 && rowElement.children[14]) {
+                rowElement.children[14].textContent = inspectionRecord.hasImminentDanger ? 'Yes' : 'No';
+            }
         }
         
 
@@ -16222,6 +17122,26 @@ if (typeof window.updateAllLabelPositions === 'function') {
             window.updateAllDefectMarkPositions();
         }
         
+        // 檢查是否有待恢復的視圖狀態（用戶互動觸發的恢復）
+        if (window.pendingViewStateRestore) {
+            window.logger.log('View state restore triggered by user interaction');
+            window.pendingViewStateRestore = false;
+            
+            // 更新標籤和缺陷標記大小 UI
+            if (window.labelSizeScale && typeof updateLabelSizeUI === 'function') {
+                updateLabelSizeUI();
+            }
+            if (window.defectMarkSizeScale && typeof updateDefectMarkSizeUI === 'function') {
+                updateDefectMarkSizeUI();
+            }
+            
+            // 重新設置雙擊事件監聽器
+            if (typeof setupDoubleClickHandler === 'function') {
+                setupDoubleClickHandler();
+                window.logger.log('Double-click handler re-initialized after user interaction');
+            }
+        }
+        
         // 清除之前的防抖計時器
         if (transformDebounceTimer) {
             clearTimeout(transformDebounceTimer);
@@ -16697,12 +17617,20 @@ if (typeof window.updateAllLabelPositions === 'function') {
             }
         });
         
-        // 雙擊編輯標籤
+        // 雙擊標籤 - 根據顏色決定行為
         labelElement.addEventListener('dblclick', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            editingLabelId = labelData.id;
-            openLabelModal(labelData);
+            
+            // 檢查標籤是否已提交（藍色）
+            if (labelData.submitted) {
+                // 藍色標籤：開啟檢查詳細視窗
+                showInspectionDetailsWindow(labelData);
+            } else {
+                // 黃色標籤：開啟編輯選單
+                editingLabelId = labelData.id;
+                openLabelModal(labelData);
+            }
         });
     }
 
@@ -21133,4 +22061,749 @@ function syncDefectsToLabelsDetailTable() {
     if (typeof window.saveLabelsToStorage === 'function') {
         window.saveLabelsToStorage();
     }
+}
+
+// 顯示檢查詳細視窗（藍色標籤雙擊時）
+function showInspectionDetailsWindow(labelData) {
+    // 若已有開啟中的視窗，先忽略
+    if (document.getElementById('inspectionDetailsOverlay')) return;
+    
+    // 🔍 調試：檢查數據是否存在
+    console.log('🔍 showInspectionDetailsWindow called');
+    console.log('🔍 window.defectEntries:', window.defectEntries);
+    console.log('🔍 window.submittedDefectEntries:', window.submittedDefectEntries);
+    console.log('🔍 Type check:', {
+        defectEntriesType: typeof window.defectEntries,
+        defectEntriesIsArray: Array.isArray(window.defectEntries),
+        submittedDefectEntriesType: typeof window.submittedDefectEntries,
+        submittedDefectEntriesIsArray: Array.isArray(window.submittedDefectEntries)
+    });
+    
+    // 建立覆蓋層
+    const overlay = document.createElement('div');
+    overlay.id = 'inspectionDetailsOverlay';
+    overlay.className = 'inspection-details-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 6000; padding: 20px; box-sizing: border-box;
+    `;
+    document.body.appendChild(overlay);
+    
+    // 建立視窗容器
+    const modalWindow = document.createElement('div');
+    modalWindow.className = 'inspection-details-window';
+    modalWindow.style.cssText = `
+        background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        max-width: 90vw; max-height: 90vh; width: 800px; height: 600px;
+        display: flex; flex-direction: column; overflow: hidden;
+    `;
+    overlay.appendChild(modalWindow);
+    
+    // 建立標題列
+    const header = document.createElement('div');
+    header.id = 'inspectionDetailsHeader';
+    header.className = 'inspection-details-header';
+    header.style.cssText = `
+        padding: 16px 20px; border-bottom: 1px solid #eee;
+        display: flex; justify-content: space-between; align-items: center;
+        background: #f8f9fa;
+    `;
+    header.innerHTML = `
+        <h3 id="inspectionDetailsTitle" style="margin: 0; color: #333; font-size: 1.2em;">
+            <i class="fas fa-clipboard-list" style="margin-right: 8px; color: #007bff;"></i>
+            Inspection Details - ${labelData.inspectionNo || 'Unknown'}
+        </h3>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <button id="addMorePhotosBtn" class="inspection-details-add-btn" style="
+                background: #28a745; color: white; border: none; border-radius: 6px;
+                padding: 8px 16px; cursor: pointer; font-size: 14px; font-weight: 500;
+                display: flex; align-items: center; gap: 6px; transition: all 0.3s ease;
+            ">
+                <i class="fas fa-plus-circle"></i>
+                Add More Photos
+            </button>
+            <button id="closeInspectionDetails" class="inspection-details-close-btn" style="
+                background: #dc3545; color: white; border: none; border-radius: 6px;
+                padding: 8px 12px; cursor: pointer; font-size: 14px;
+            ">Close</button>
+        </div>
+    `;
+    modalWindow.appendChild(header);
+    
+    // 建立內容區域
+    const content = document.createElement('div');
+    content.id = 'inspectionDetailsContent';
+    content.className = 'inspection-details-content';
+    content.style.cssText = `
+        flex: 1; padding: 20px; overflow-y: auto;
+        display: flex; flex-direction: column; gap: 20px;
+    `;
+    modalWindow.appendChild(content);
+    
+    // 建立標籤資訊區塊
+    const infoSection = document.createElement('div');
+    infoSection.id = 'inspectionDetailsInfoSection';
+    infoSection.className = 'inspection-details-info-section';
+    infoSection.style.cssText = `
+        background: #f8f9fa; padding: 16px; border-radius: 8px;
+        border-left: 4px solid #007bff;
+    `;
+    infoSection.innerHTML = `
+        <h4 id="inspectionDetailsInfoTitle" style="margin: 0 0 12px 0; color: #333;">Label Information</h4>
+        <div id="inspectionDetailsInfoGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+            <div class="info-item">
+                <strong>Inspection No:</strong> <span id="inspectionDetailsInspectionNo">${labelData.inspectionNo || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+                <strong>Floor:</strong> <span id="inspectionDetailsFloor">${labelData.floor || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+                <strong>Area Name:</strong> <span id="inspectionDetailsAreaName">${labelData.areaName || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+                <strong>Room No:</strong> <span id="inspectionDetailsRoomNo">${labelData.roomNo || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+                <strong>Inspection Date:</strong> <span id="inspectionDetailsInspectionDate">${labelData.inspectionDate || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+                <strong>Status:</strong> <span id="inspectionDetailsStatus" style="color: #007bff; font-weight: bold;">Submitted</span>
+            </div>
+        </div>
+    `;
+    content.appendChild(infoSection);
+    
+    // 建立缺陷項目區塊
+    const defectsSection = document.createElement('div');
+    defectsSection.id = 'inspectionDetailsDefectsSection';
+    defectsSection.className = 'inspection-details-defects-section';
+    defectsSection.style.cssText = `
+        background: #fff8f0; padding: 16px; border-radius: 8px;
+        border-left: 4px solid #ff6b6b;
+    `;
+    
+    // 類別名稱映射
+    const categoryNameMap = {
+        'a': 'Exposed structural metalwork',
+        'b': 'Structural elements',
+        'c': 'External building elements',
+        'd': 'Suspended objects',
+        'e': 'High level internal finishes',
+        'f': 'Heavy metal gates/doors',
+        'g': 'Window and glass louvers',
+        'h': 'Drainage and Plumbing systems',
+        'i': 'Fire safety elements',
+        'j': 'Defects'
+    };
+    
+    // 解析缺陷項目 (Category J)
+    const defectString = labelData.j || '';
+    const defectItems = defectString ? defectString.split('\n').filter(item => item.trim()) : [];
+    
+    if (defectItems.length > 0) {
+        let defectsHTML = `
+            <h4 id="inspectionDetailsDefectsTitle" style="margin: 0 0 12px 0; color: #333;">
+                <i class="fas fa-exclamation-triangle" style="margin-right: 8px; color: #ff6b6b;"></i>
+                Defect Items (Category J)
+            </h4>
+            <div id="inspectionDetailsDefectsGrid" style="display: grid; gap: 12px;">
+        `;
+        
+        defectItems.forEach((defectItem, index) => {
+            // 解析缺陷項目格式：defectNo) photoNumbers_defectType
+            // 例如：1) 3708,3709_Water seepage around cable tray
+            // 或帶星號的：* 1) 3708,3709_Water seepage around cable tray
+            const match = defectItem.match(/^\*?\s*(\d+)\)\s*([0-9,\-\s]+)_(.+)$/);
+            
+            if (match) {
+                const defectNo = match[1];
+                const photoNumbersStr = match[2];
+                const defectType = match[3];
+                
+                // 從 allPhotos 中尋找對應的照片
+                const photoNumbers = photoNumbersStr.split(/[,\-]/).map(n => n.trim()).filter(n => n);
+                const photos = allPhotos.filter(photo => {
+                    const photoNum = photo.name.match(/\d+/);
+                    return photoNum && photoNumbers.includes(photoNum[0]);
+                });
+                
+                // 從 All Defects Detail Table (window.defectEntries 或 window.submittedDefectEntries) 中查找對應的缺陷類別
+                console.log(`🔍 Looking for defect - defectNo: ${defectNo}, inspectionNo: ${labelData.inspectionNo}`);
+                
+                // 優先使用 window.defectEntries，如果不存在則使用 window.submittedDefectEntries 作為備用
+                const defectEntriesSource = window.defectEntries || window.submittedDefectEntries;
+                
+                console.log(`🔍 Defect entries source:`, {
+                    usingDefectEntries: !!window.defectEntries,
+                    usingSubmittedDefectEntries: !window.defectEntries && !!window.submittedDefectEntries,
+                    totalEntries: defectEntriesSource ? defectEntriesSource.length : 0
+                });
+                
+                if (defectEntriesSource && defectEntriesSource.length > 0) {
+                    console.log(`🔍 Sample defectEntry structure:`, defectEntriesSource[0]);
+                }
+                
+                const defectEntry = defectEntriesSource && defectEntriesSource.find(entry => {
+                    // 匹配 defectNo 和 inspectionNo 確保找到正確的缺陷
+                    const matchDefectNo = String(entry.defectNo) === String(defectNo);
+                    const matchInspectionNo = String(entry.locationId) === String(labelData.inspectionNo) || 
+                                            String(entry.inspectionNo) === String(labelData.inspectionNo);
+                    
+                    console.log(`🔍 Checking entry - defectNo: ${entry.defectNo}, locationId: ${entry.locationId}, inspectionNo: ${entry.inspectionNo}, matchDefectNo: ${matchDefectNo}, matchInspectionNo: ${matchInspectionNo}`);
+                    
+                    return matchDefectNo && matchInspectionNo;
+                });
+                
+                // 如果找不到缺陷條目，記錄詳細警告
+                if (!defectEntry) {
+                    console.warn(`⚠️ Defect entry not found for defectNo: ${defectNo}, inspectionNo: ${labelData.inspectionNo}`);
+                    console.warn(`⚠️ Available defect entries:`, defectEntriesSource);
+                } else {
+                    console.log(`✅ Found defect entry:`, defectEntry);
+                }
+                
+                // 從 defectEntry 獲取類別和 Imminent Danger 狀態（All Defects Detail Table 中的缺陷必定有類別）
+                const defectCategoryKey = defectEntry && defectEntry.category ? defectEntry.category.toLowerCase() : null;
+                const defectCategoryName = defectCategoryKey ? categoryNameMap[defectCategoryKey] : null;
+                const defectCategoryLabel = (defectCategoryKey && defectCategoryName) 
+                    ? (defectCategoryKey.toUpperCase() + ': ' + defectCategoryName) 
+                    : null;
+                
+                // 獲取 Imminent Danger 狀態
+                const imminentDanger = defectEntry && defectEntry.imminentDanger ? true : false;
+                const imminentDangerText = imminentDanger ? 'Yes' : 'No';
+                const imminentDangerColor = imminentDanger ? '#dc3545' : '#28a745';
+                
+                defectsHTML += `
+                    <div id="inspectionDetailsDefectItem${index}" class="defect-item-card" style="
+                        background: white; padding: 12px; border-radius: 6px;
+                        border: 1px solid #ffe0d9; display: flex; flex-direction: column; gap: 12px;
+                    ">
+                        <div class="defect-info" style="width: 100%;">
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 0.9rem;">
+                                <strong>Defect No:</strong>
+                                <span>${defectNo}</span>
+                                
+                                <strong>Imminent Danger:</strong>
+                                <span style="font-weight: 600; color: ${imminentDangerColor};">${imminentDangerText}</span>
+                                
+                                ${defectCategoryLabel ? `
+                                <strong>Category:</strong>
+                                <span>${defectCategoryLabel}</span>
+                                ` : ''}
+                                
+                                <strong>Type:</strong>
+                                <span>${defectType}</span>
+                                
+                                <strong>Photos:</strong>
+                                <span>${photoNumbers.join(', ')}</span>
+                            </div>
+                        </div>
+                        <div class="defect-photo-thumbnail" style="width: 100%; display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${photos.length > 0 ? photos.map(photo => {
+                                const photoNum = photo.name.match(/\d+/);
+                                const photoNumber = photoNum ? photoNum[0] : '';
+                                return `
+                 <div class="photo-item inspection-details-photo-item" 
+                      ondblclick="(async function(event) {
+                         try {
+                             await showPhotoPreviewPopup({name: '${photo.name}', dataURL: '${photo.dataURL || photo.src}'}, event.currentTarget);
+                         } catch(err) { console.error(err); }
+                      }).call(this, event)">
+                                    <img src="${photo.dataURL || photo.src}" alt="Defect ${defectNo}">
+                                    <div class="photo-number">${photoNumber}</div>
+                                </div>
+                            `;}).join('') : `
+                                <div class="photo-item inspection-details-photo-item" style="opacity: 0.5;">
+                                    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #f0f0f0;">
+                                        <i class="fas fa-image" style="font-size: 24px; color: #999;"></i>
+                                    </div>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 如果格式不匹配，顯示原始文本
+                defectsHTML += `
+                    <div id="inspectionDetailsDefectItem${index}" class="defect-item-card" style="
+                        background: white; padding: 12px; border-radius: 6px;
+                        border: 1px solid #ffe0d9;
+                    ">
+                        <p style="margin: 0; font-size: 0.9rem;">${defectItem}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        defectsHTML += `</div>`;
+        defectsSection.innerHTML = defectsHTML;
+        content.appendChild(defectsSection);
+    }
+    
+    // 建立照片分類區塊
+    const photosSection = document.createElement('div');
+    photosSection.id = 'inspectionDetailsPhotosSection';
+    photosSection.className = 'inspection-details-photos-section';
+    photosSection.style.cssText = `
+        background: rgba(255,255,255,0.35);
+        border-radius: var(--border-radius);
+        padding: 15px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+        backdrop-filter: blur(12px) saturate(160%);
+        -webkit-backdrop-filter: blur(12px) saturate(160%);
+        border: 1px solid #e0e0e0;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        transition: var(--transition);
+        position: relative;
+    `;
+    photosSection.innerHTML = `
+        <div id="inspectionDetailsPhotosHeader" class="preview-header" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+            <h4 id="inspectionDetailsPhotosTitle" class="preview-title" style="margin: 0; color: #333; font-size: 1.2rem;">
+                <i class="fas fa-images" style="margin-right: 8px;"></i>
+                Submitted Photos by Category
+            </h4>
+        </div>
+    `;
+    content.appendChild(photosSection);
+    
+    // 獲取已提交的照片並按分類分組
+    const submittedPhotos = getSubmittedPhotosByCategory(labelData);
+    
+    if (submittedPhotos.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.id = 'inspectionDetailsEmptyState';
+        emptyDiv.className = 'inspection-details-empty-state';
+        emptyDiv.style.cssText = `
+            text-align: center; padding: 40px; color: #666;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 1;
+        `;
+        emptyDiv.innerHTML = `
+            <i class="fas fa-image" style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;"></i>
+            <p id="inspectionDetailsEmptyMessage">No submitted photos found for this inspection.</p>
+        `;
+        photosSection.appendChild(emptyDiv);
+    } else {
+        // 按分類分組顯示照片
+        const categories = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const categoryNames = {
+            'A': 'A: 外露結構金屬件',
+            'B': 'B: 結構元素', 
+            'C': 'C: 外部建築元素',
+            'D': 'D: 懸掛物件',
+            'E': 'E: 高層內部裝修',
+            'F': 'F: 重型金屬門/閘門',
+            'G': 'G: 窗戶和玻璃百葉',
+            'H': 'H: 排水和管道系統',
+            'I': 'I: 消防安全元素',
+            'J': 'J: 缺陷'
+        };
+        
+        categories.forEach(category => {
+            // Skip Category J (Defects) as it's shown in the defects section below
+            if (category === 'J') {
+                return;
+            }
+            
+            const categoryPhotos = submittedPhotos.filter(photo => 
+                photo.category === category || photo.category === category.toLowerCase()
+            );
+            
+            // 對照片進行排序（按檔名中的數字順序）
+            categoryPhotos.sort((a, b) => {
+                const numA = a.name.match(/\d+/);
+                const numB = b.name.match(/\d+/);
+                if (numA && numB) {
+                    return parseInt(numA[0]) - parseInt(numB[0]);
+                }
+                return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
+            });
+            
+            if (categoryPhotos.length > 0) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.id = `inspectionDetailsCategory${category}`;
+                categoryDiv.className = `inspection-details-category-${category.toLowerCase()}`;
+                categoryDiv.style.cssText = `
+                    margin-bottom: 20px; padding: 15px; 
+                    background: rgba(255,255,255,0.2);
+                    border-radius: var(--border-radius);
+                    border: 1px solid rgba(255,255,255,0.3);
+                `;
+                
+                categoryDiv.innerHTML = `
+                    <h5 id="inspectionDetailsCategoryTitle${category}" class="preview-title" style="margin: 0 0 15px 0; color: #333; font-size: 1em; font-weight: 700;">
+                        ${categoryNames[category]} (${categoryPhotos.length} photos)
+                    </h5>
+                    <div id="inspectionDetailsCategoryGrid${category}" class="photo-grid" style="display: grid; grid-template-columns: repeat(5, 120px); gap: 8px; padding: 5px; max-height: 300px; overflow-y: auto;">
+                    </div>
+                `;
+                
+                categoryPhotos.forEach((photo, index) => {
+                    const photoDiv = document.createElement('div');
+                    photoDiv.id = `inspectionDetailsPhoto${category}${index}`;
+                    photoDiv.className = `photo-item`;
+                    photoDiv.style.cssText = `
+                        position: relative; width: 120px; height: 120px;
+                        border-radius: 8px; overflow: hidden; cursor: pointer;
+                        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+                        transition: all 0.3s ease;
+                    `;
+                    photoDiv.innerHTML = `
+                        <img id="inspectionDetailsPhotoImg${category}${index}" src="${photo.dataURL || photo.src}" alt="${photo.name}" 
+                             style="width: 100%; height: 100%; object-fit: cover;
+                                    transition: filter 0.3s ease, opacity 0.3s ease;
+                                    background-color: #f0f0f0;">
+                        <div id="inspectionDetailsPhotoNumber${category}${index}" class="photo-number" style="position: absolute; bottom: 0; left: 0; right: 0;
+                                    background: rgba(0,0,0,0.7); color: white; font-size: 0.7rem;
+                                    padding: 3px 5px; text-align: center; font-weight: 500; z-index: 2;">
+                            ${photo.name.match(/\d+/) ? photo.name.match(/\d+/)[0] : 'N/A'}
+                        </div>
+                    `;
+                    
+                    // 確保照片物件有正確的屬性供預覽使用
+                    const photoObject = {
+                        name: photo.name,
+                        dataURL: photo.dataURL || photo.src,
+                        webkitRelativePath: photo.webkitRelativePath || '',
+                        size: photo.size || 0,
+                        type: photo.type || 'image/jpeg',
+                        lastModified: photo.lastModified || Date.now()
+                    };
+                    
+                    // 檢查並添加 360 圖標
+                    if (typeof add360BadgeToPhoto === 'function') {
+                        add360BadgeToPhoto(photoDiv, photo.dataURL || photo.src);
+                    }
+                    
+                    // 雙擊照片縮圖開啟預覽
+                    photoDiv.addEventListener('dblclick', async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await showPhotoPreviewPopup(photoObject, photoDiv);
+                        } catch (err) {
+                            console.error('Failed to open photo preview:', err);
+                        }
+                    });
+                    
+                    // 添加 hover 效果
+                    photoDiv.addEventListener('mouseenter', () => {
+                        photoDiv.style.transform = 'translateY(-3px)';
+                        photoDiv.style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)';
+                    });
+                    
+                    photoDiv.addEventListener('mouseleave', () => {
+                        photoDiv.style.transform = 'translateY(0)';
+                        photoDiv.style.boxShadow = '0 3px 8px rgba(0,0,0,0.12)';
+                    });
+                    
+                    // 將照片添加到對應的網格容器中
+                    const gridContainer = categoryDiv.querySelector(`#inspectionDetailsCategoryGrid${category}`);
+                    if (gridContainer) {
+                        gridContainer.appendChild(photoDiv);
+                    }
+                });
+                
+                photosSection.appendChild(categoryDiv);
+            }
+        });
+    }
+    
+    // Add More Photos 按鈕事件
+    const addMorePhotosBtn = document.getElementById('addMorePhotosBtn');
+    addMorePhotosBtn.addEventListener('click', () => {
+        // 1. 關閉繪圖模式
+        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+        if (floorPlanOverlay && floorPlanOverlay.style.display !== 'none') {
+            // 使用 z-index 方法關閉繪圖模式，保持 DOM 狀態
+            floorPlanOverlay.style.zIndex = '-3';
+            window.logger.log('Drawing mode closed for Add More Photos');
+        }
+        
+        // 2. 勾選所有 header-field 複選框
+        const headerCheckboxes = [
+            'locationIdCheck',
+            'inspectionDateCheck', 
+            'floorHeaderCheck',
+            'areaNameHeaderCheck',
+            'roomNoCheck'
+        ];
+        
+        headerCheckboxes.forEach(checkboxId => {
+            const checkbox = document.getElementById(checkboxId);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+        
+        // 4. 啟用 Submit to Table 按鈕（因為所有 checkbox 都已勾選）
+        if (typeof checkHeaderCheckboxes === 'function') {
+            checkHeaderCheckboxes();
+        }
+        
+        // 3. 填充 header fields 的數據
+        fillHeaderFieldsFromLabel(labelData);
+        
+        // 關閉 inspection details window
+        overlay.remove();
+        
+        // 顯示提示訊息
+        if (typeof showToast === 'function') {
+            showToast('Label data loaded. You can now add more photos and defects.', 'success');
+        }
+        
+        // 滾動到照片上傳區域
+        const photoUploadSection = document.getElementById('photoUploadSection');
+        if (photoUploadSection) {
+            photoUploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+    
+    // 關閉按鈕事件
+    const closeBtn = document.getElementById('closeInspectionDetails');
+    closeBtn.addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // 點擊遮罩關閉
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+    
+    // Esc 鍵關閉
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+        }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    
+    // 檢查並添加 360 圖標到所有照片
+    setTimeout(() => {
+        if (typeof add360BadgeToPhoto === 'function') {
+            // 為 Submitted Photos by Category 中的照片添加圖標
+            const categoryPhotoItems = overlay.querySelectorAll('.photo-item');
+            categoryPhotoItems.forEach(photoItem => {
+                const img = photoItem.querySelector('img');
+                if (img && img.src) {
+                    add360BadgeToPhoto(photoItem, img.src);
+                }
+            });
+            
+            // 為 Defects 部分的照片添加圖標
+            const defectPhotoItems = overlay.querySelectorAll('.inspection-details-photo-item');
+            defectPhotoItems.forEach(photoItem => {
+                const img = photoItem.querySelector('img');
+                if (img && img.src) {
+                    add360BadgeToPhoto(photoItem, img.src);
+                }
+            });
+        }
+    }, 300);
+}
+
+// 合併照片編號（用於編輯模式）
+function mergePhotoNumbers(existingNumbers, newNumbers) {
+    if (!existingNumbers && !newNumbers) return '';
+    if (!existingNumbers) return newNumbers;
+    if (!newNumbers) return existingNumbers;
+    
+    // 解析現有編號
+    const existing = existingNumbers.split(',').map(n => n.trim()).filter(n => n);
+    // 解析新編號
+    const newNums = newNumbers.split(',').map(n => n.trim()).filter(n => n);
+    
+    // 合併並去重
+    const merged = [...new Set([...existing, ...newNums])];
+    
+    // 排序
+    merged.sort((a, b) => {
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        return numA - numB;
+    });
+    
+    return merged.join(', ');
+}
+
+// 合併缺陷項目（用於編輯模式）
+function mergeDefectItems(existingDefects, newDefects) {
+    if (!existingDefects && !newDefects) return '';
+    if (!existingDefects) return newDefects;
+    if (!newDefects) return existingDefects;
+    
+    // 將現有缺陷拆分成數組
+    const existingItems = existingDefects.split('\n').filter(item => item.trim());
+    // 將新缺陷拆分成數組
+    const newItems = newDefects.split('\n').filter(item => item.trim());
+    
+    // 合併（新的缺陷會有新的編號，不需要去重）
+    const merged = [...existingItems, ...newItems];
+    
+    return merged.join('\n');
+}
+
+// 從 label 數據填充 header fields
+function fillHeaderFieldsFromLabel(labelData) {
+    console.log('🔄 Filling header fields from label:', labelData);
+    
+    // 填充 Inspection No (locationId)
+    const locationIdInput = document.getElementById('locationId');
+    if (locationIdInput) {
+        locationIdInput.value = labelData.inspectionNo || '';
+        console.log('✓ Location ID filled:', labelData.inspectionNo);
+    } else {
+        console.warn('⚠️ Location ID input not found');
+    }
+    
+    // 填充 Inspection Date
+    const inspectionDateInput = document.getElementById('inspectionDate');
+    if (inspectionDateInput) {
+        inspectionDateInput.value = labelData.inspectionDate || '';
+        console.log('✓ Inspection Date filled:', labelData.inspectionDate);
+    } else {
+        console.warn('⚠️ Inspection Date input not found');
+    }
+    
+    // 填充 Floor
+    const floorInput = document.getElementById('floorHeader');
+    if (floorInput) {
+        floorInput.value = labelData.floor || '';
+        console.log('✓ Floor filled:', labelData.floor);
+    } else {
+        console.warn('⚠️ Floor input not found');
+    }
+    
+    // 填充 Area Name
+    const areaNameInput = document.getElementById('areaNameHeader');
+    if (areaNameInput) {
+        areaNameInput.value = labelData.areaName || '';
+        console.log('✓ Area Name filled:', labelData.areaName);
+    } else {
+        console.warn('⚠️ Area Name input not found');
+    }
+    
+    // 填充 Room No
+    const roomNoInput = document.getElementById('roomNo');
+    if (roomNoInput) {
+        roomNoInput.value = labelData.roomNo || '';
+        console.log('✓ Room No filled:', labelData.roomNo);
+    } else {
+        console.warn('⚠️ Room No input not found');
+    }
+    
+    // 儲存當前的 labelData 到全局變量，用於後續合併
+    window.currentEditingLabel = {
+        ...labelData,
+        id: labelData.id,
+        isEditMode: true // 標記為編輯模式
+    };
+    
+    console.log('✅ Header fields filled successfully');
+    console.log('📝 Current editing label stored:', window.currentEditingLabel);
+}
+
+// 獲取特定標籤的已提交照片並按分類分組
+function getSubmittedPhotosByCategory(labelData) {
+    const submittedPhotos = [];
+    
+    console.log('🔍 getSubmittedPhotosByCategory called with labelData:', labelData);
+    
+    // 獲取所有已提交的檢查記錄
+    const allInspectionRecords = window.inspectionRecords || [];
+    console.log('🔍 Total inspection records:', allInspectionRecords.length);
+    
+    // 找到與當前標籤檢查編號匹配的記錄
+    const matchingRecords = allInspectionRecords.filter(record => 
+        record.locationId === labelData.inspectionNo
+    );
+    
+    console.log('🔍 Matching records for inspectionNo', labelData.inspectionNo, ':', matchingRecords.length);
+    
+    if (matchingRecords.length === 0) {
+        console.warn('⚠️ No matching inspection records found for:', labelData.inspectionNo);
+        return submittedPhotos;
+    }
+    
+    // 遍歷所有匹配的記錄
+    matchingRecords.forEach(record => {
+        // 檢查每個分類欄位
+        const categories = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+        
+        categories.forEach(categoryKey => {
+            const categoryValue = record[categoryKey];
+            if (categoryValue && categoryValue !== 'N/A' && categoryValue.trim() !== '') {
+                // 解析分類值中的照片編號
+                const photoNumbers = parsePhotoNumbers(categoryValue);
+                
+                photoNumbers.forEach(photoNumber => {
+                    // 在 allPhotos 中找到對應的照片
+                    const photo = allPhotos.find(p => {
+                        const photoNum = p.name.match(/\d+/);
+                        return photoNum && photoNum[0] === photoNumber.toString();
+                    });
+                    
+                    if (photo) {
+                        // 檢查照片是否已經在列表中（避免重複）
+                        const existingPhoto = submittedPhotos.find(p => p.name === photo.name);
+                        if (!existingPhoto) {
+                            submittedPhotos.push({
+                                name: photo.name,
+                                dataURL: photo.dataURL,
+                                src: photo.dataURL,
+                                category: categoryKey.toUpperCase(),
+                                webkitRelativePath: photo.webkitRelativePath || '',
+                                size: photo.size || 0,
+                                type: photo.type || 'image/jpeg',
+                                lastModified: photo.lastModified || Date.now()
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    });
+    
+    console.log('🔍 Total submitted photos found:', submittedPhotos.length);
+    
+    return submittedPhotos;
+}
+
+// 解析照片編號的輔助函數
+function parsePhotoNumbers(categoryValue) {
+    const photoNumbers = [];
+    
+    // 先按逗號分割，保持範圍完整
+    const parts = categoryValue.split(',').map(part => part.trim()).filter(part => part);
+    
+    parts.forEach(part => {
+        if (part.includes('-')) {
+            // 範圍格式 (例如: 1051-1054)
+            const rangeParts = part.split('-').map(p => p.trim());
+            if (rangeParts.length === 2) {
+                const start = parseInt(rangeParts[0]);
+                const end = parseInt(rangeParts[1]);
+                if (!isNaN(start) && !isNaN(end) && start <= end) {
+                    for (let i = start; i <= end; i++) {
+                        photoNumbers.push(i);
+                    }
+                }
+            }
+        } else {
+            // 單個編號
+            const num = parseInt(part);
+            if (!isNaN(num)) {
+                photoNumbers.push(num);
+            }
+        }
+    });
+    
+    return photoNumbers;
 }

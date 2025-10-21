@@ -541,6 +541,21 @@ main {
     pointer-events: none; /* 允許雙擊事件穿透給縮圖以開啟預覽 */
 }
 
+/* Photo drag selection styles - 只顯示藍色邊框輪廓 */
+.photo-item.drag-selecting {
+    outline: 3px solid rgba(0, 123, 255, 0.8);
+    outline-offset: -1px;
+}
+
+.photo-item.drag-selecting img {
+    /* 保持原始亮度，不調整 */
+}
+
+/* 移除拖拽指示器樣式 */
+.photo-drag-selection-indicator {
+    display: none;
+}
+
 .photo-number {
     position: absolute;
     bottom: 0;
@@ -5130,6 +5145,182 @@ img.lazy-error {
     }
 }
 
+/* Inspection Details Add Button */
+.inspection-details-add-btn:hover {
+    background: #218838 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.inspection-details-add-btn:active {
+    transform: translateY(0);
+}
+
+/* 360 Photo Badge */
+.photo-360-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.photo-360-badge::before {
+    content: '360°';
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.photo-360-badge-icon {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3L16.5 6.5 8.99 9.5 6.5 17.5z"/></svg>') center/contain no-repeat;
+}
+
+/* 360 Photo Preview Styles */
+.photo-preview-360-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+}
+
+.photo-preview-360-viewer {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.photo-preview-360-normal-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    z-index: 2;
+    overflow: hidden;
+}
+
+.photo-preview-360-normal-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    cursor: move;
+}
+
+.photo-preview-360-controls {
+    position: absolute;
+    bottom: 30px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    z-index: 5;
+}
+
+.photo-preview-360-control-btn {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border: none;
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin: 0 10px;
+    cursor: pointer;
+    font-size: 20px;
+    transition: all 0.3s ease;
+}
+
+.photo-preview-360-control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.photo-preview-360-mode-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 5;
+    color: white;
+}
+
+.photo-preview-360-mode-360 {
+    background: rgba(67, 97, 238, 0.8);
+}
+
+.photo-preview-360-mode-normal {
+    background: rgba(34, 197, 94, 0.8);
+}
+
+.photo-preview-360-info-panel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    max-width: 300px;
+    color: white;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.photo-preview-360-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 30px;
+    border-radius: 15px;
+    color: white;
+}
+
+.photo-preview-360-spinner {
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 5px solid #4361ee;
+    width: 50px;
+    height: 50px;
+    animation: spin360 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin360 {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* 高對比度模式 */
 @media (prefers-contrast: high) {
     :root {
@@ -5271,7 +5462,76 @@ img.lazy-error {
 .virtual-scroll-stats {
     font-size: 0.7rem;
     color: #666;
-    text-align: center;
+}
+
+/* Inspection Details Overlay Photo Grid Styles */
+.inspection-details-photo-grid,
+.photo-grid.inspection-details-photo-grid,
+#inspectionDetailsOverlay .photo-grid.inspection-details-photo-grid,
+#inspectionDetailsOverlay .inspection-details-photo-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 120px) !important;
+    gap: 8px !important;
+    overflow-y: auto !important;
+    flex: 1 !important;
+    padding: 5px !important;
+    max-height: 300px !important;
+    justify-content: start !important;
+}
+
+/* Override virtual scroll styles for inspection details */
+#inspectionDetailsOverlay .virtual-scroll-disabled .inspection-details-photo-grid,
+#inspectionDetailsOverlay .virtual-scroll-enabled .inspection-details-photo-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 120px) !important;
+    gap: 8px !important;
+    position: static !important;
+}
+
+.inspection-details-photo-item,
+.photo-item.inspection-details-photo-item,
+#inspectionDetailsOverlay .photo-item.inspection-details-photo-item {
+    position: relative !important;
+    width: 120px !important;
+    height: 120px !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    cursor: pointer !important;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.12) !important;
+    transition: all 0.3s ease !important;
+}
+
+.inspection-details-photo-item:hover,
+.photo-item.inspection-details-photo-item:hover,
+#inspectionDetailsOverlay .photo-item.inspection-details-photo-item:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+}
+
+.inspection-details-photo-item img,
+.photo-item.inspection-details-photo-item img,
+#inspectionDetailsOverlay .photo-item.inspection-details-photo-item img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transition: filter 0.3s ease, opacity 0.3s ease !important;
+    background-color: #f0f0f0 !important;
+}
+
+.inspection-details-photo-item .photo-number,
+.photo-item.inspection-details-photo-item .photo-number,
+#inspectionDetailsOverlay .photo-item.inspection-details-photo-item .photo-number {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: rgba(0,0,0,0.7) !important;
+    color: white !important;
+    font-size: 0.7rem !important;
+    padding: 3px 5px !important;
+    text-align: center !important;
+    font-weight: 500 !important;
+    z-index: 2 !important;
 }
 
 /* 響應式虛擬滾動 */

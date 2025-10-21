@@ -185,22 +185,31 @@ class PhotoOptimizer {
     // 處理單張照片
     async processPhoto(photo) {
         try {
-            // 檢查照片是否有有效的 dataURL
-            if (!photo.dataURL || typeof photo.dataURL !== 'string' || photo.dataURL.trim() === '') {
-                window.logger.warn(`Photo ${photo.name} has no valid dataURL, skipping compression`);
-                return photo; // 返回原始照片，不進行壓縮
+            console.log(`🔍 [processPhoto] Processing ${photo.name}:`, {
+                hasDataURL: !!photo.dataURL,
+                dataURLType: typeof photo.dataURL,
+                dataURLStartsWith: photo.dataURL ? photo.dataURL.substring(0, 30) : 'N/A',
+                isFileObject: photo instanceof File,
+                photoKeys: Object.keys(photo)
+            });
+            
+            // 🔧 如果照片已經有有效的 dataURL（例如從 IndexedDB 恢復的），直接使用它，不再壓縮
+            if (photo.dataURL && typeof photo.dataURL === 'string' && photo.dataURL.startsWith('data:image/')) {
+                // 照片已經有壓縮後的 dataURL，直接返回
+                console.log(`✅ Photo ${photo.name} already has dataURL, using cached version`);
+                return photo;
+            }
+            
+            // 如果照片沒有 dataURL，需要檢查是否為 File 對象
+            if (!(photo instanceof File)) {
+                console.log(`⚠️ Photo ${photo.name} has no valid dataURL and is not a File object, skipping compression`);
+                return photo;
             }
             
             // 檢查是否在 file:// 協議下運行
             if (window.location.protocol === 'file:') {
                 window.logger.log(`Skipping compression for ${photo.name} in file:// protocol`);
                 return photo; // 在 file:// 協議下跳過壓縮
-            }
-            
-            // 檢查 dataURL 是否為有效的 base64 格式
-            if (!photo.dataURL.startsWith('data:image/')) {
-                window.logger.warn(`Photo ${photo.name} has invalid dataURL format, skipping compression`);
-                return photo; // 返回原始照片，不進行壓縮
             }
             
             // 如果照片需要壓縮

@@ -85,6 +85,13 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=6.1.2">
     <link rel="icon" type="image/png" href="./favicon.ico?v=6.1.2">
     <link rel="shortcut icon" href="./favicon.ico?v=6.1.2">
+    
+    <!-- Three.js for 360 photo preview -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    
+    <!-- 360 Photo Preview Script -->
+    <script src="./js/photo-360-preview.js"></script>
 </head>
 <body>
     <!-- Earth tone deep green background layer -->
@@ -1098,6 +1105,36 @@
                     
                                 </div>
                                 </div>
+        </div>
+    </div>
+
+    <!-- 360 Photo Preview Container -->
+    <div id="photoPreview360Container" class="photo-preview-360-container">
+        <div id="photoPreview360Viewer" class="photo-preview-360-viewer"></div>
+        
+        <!-- Normal image viewer container -->
+        <div id="photoPreview360NormalViewer" class="photo-preview-360-normal-container" style="display: none;">
+            <img id="photoPreview360NormalImage" class="photo-preview-360-normal-image" src="" alt="Normal photo">
+        </div>
+        
+        <div id="photoPreview360Loading" class="photo-preview-360-loading" style="display: none;">
+            <div class="photo-preview-360-spinner"></div>
+            <p>分析照片中，请稍候...</p>
+        </div>
+        
+        <div id="photoPreview360InfoPanel" class="photo-preview-360-info-panel" style="display: none;">
+            <p id="photoPreview360ModeInfo">使用手指拖拽来旋转视角</p>
+            <p>双指缩放来调整视野</p>
+        </div>
+        
+        <div id="photoPreview360ModeIndicator" class="photo-preview-360-mode-indicator" style="display: none;">
+            <span id="photoPreview360ModeText">360° 模式</span>
+        </div>
+        
+        <div id="photoPreview360Controls" class="photo-preview-360-controls">
+            <button class="photo-preview-360-control-btn" id="photoPreview360ResetView" title="重置视图">↺</button>
+            <button class="photo-preview-360-control-btn" id="photoPreview360ToggleInfo" title="切换信息">?</button>
+            <button class="photo-preview-360-control-btn" id="photoPreview360Close" title="关闭">×</button>
         </div>
     </div>
     

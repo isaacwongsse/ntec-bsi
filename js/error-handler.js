@@ -37,14 +37,9 @@ class ErrorHandler {
         // 捕獲資源載入錯誤
         window.addEventListener('error', (event) => {
             if (event.target !== window) {
-                const url = event.target && (event.target.src || event.target.href);
-                // 忽略空 URL 或等於當前頁面的誤觸發
-                if (!url || url === location.href) {
-                    return;
-                }
                 this.handleError({
                     type: 'resource',
-                    message: `Failed to load resource: ${url}`,
+                    message: `Failed to load resource: ${event.target.src || event.target.href}`,
                     element: event.target.tagName,
                     timestamp: new Date().toISOString()
                 });
@@ -78,10 +73,15 @@ class ErrorHandler {
     logError(errorInfo) {
         const errorMessage = `[${errorInfo.type.toUpperCase()}] ${errorInfo.message}`;
         
-        if (errorInfo.filename) {
-            console.error(`${errorMessage} at ${errorInfo.filename}:${errorInfo.lineno}:${errorInfo.colno}`);
+        // 對於 file:// 協議下的資源載入失敗，使用警告級別而不是錯誤級別
+        if (errorInfo.type === 'resource' && errorInfo.message && errorInfo.message.includes('file://')) {
+            console.warn(errorMessage + ' (file:// protocol limitation)');
         } else {
-            console.error(errorMessage);
+            if (errorInfo.filename) {
+                console.error(`${errorMessage} at ${errorInfo.filename}:${errorInfo.lineno}:${errorInfo.colno}`);
+            } else {
+                console.error(errorMessage);
+            }
         }
         
         if (errorInfo.error && errorInfo.error.stack) {
@@ -102,6 +102,11 @@ class ErrorHandler {
                 userMessage = '操作失敗，請重試';
                 break;
             case 'resource':
+                // 檢查是否為 file:// 協議下的資源載入失敗
+                if (errorInfo.message && errorInfo.message.includes('file://')) {
+                    // 在 file:// 協議下，資源載入失敗是正常的，不顯示錯誤消息
+                    return;
+                }
                 userMessage = '資源載入失敗，請檢查網路連線';
                 toastType = 'warning';
                 break;
