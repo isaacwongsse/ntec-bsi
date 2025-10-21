@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片上傳測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background: #4CAF50;
+            color: white;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .test-button.secondary {
+            background: #2196F3;
+        }
+        .test-button.danger {
+            background: #f44336;
+        }
+        .log-area {
+            margin: 10px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-success {
+            color: #4CAF50;
+        }
+        .log-error {
+            color: #f44336;
+        }
+        .log-warning {
+            color: #ff9800;
+        }
+        .log-info {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>📸 照片上傳與儲存測試工具</h1>
+    
+    <div class="test-section">
+        <h2>第一步：清除舊數據（可選）</h2>
+        <button class="test-button danger" onclick="clearAllData()">清除所有數據</button>
+        <p>如果之前測試失敗，建議先清除舊數據</p>
+    </div>
+
+    <div class="test-section">
+        <h2>第二步：檢查當前狀態</h2>
+        <button class="test-button secondary" onclick="checkCurrentState()">檢查當前狀態</button>
+        <div id="state-log" class="log-area"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>第三步：返回主頁面上傳照片</h2>
+        <p>
+            <strong>操作步驟：</strong><br>
+            1. 點擊下面的按鈕返回主頁面<br>
+            2. 點擊 "Select Photo Folder" 或使用 "Add photos"<br>
+            3. 選擇包含照片的資料夾<br>
+            4. <strong>等待所有照片顯示</strong><br>
+            5. <strong>查看控制台</strong>，確認看到以下訊息：
+        </p>
+        <div class="log-area">
+            <div class="log-entry log-success">💾 Saving photos after folder selection...</div>
+            <div class="log-entry log-success">📊 Photos with dataURL: 16 / 16</div>
+            <div class="log-entry log-success">💾 saveDataToStorage: Creating photoMetadata from allPhotos</div>
+            <div class="log-entry log-success">📊 allPhotos status: {length: 16, ...}</div>
+            <div class="log-entry log-success">📸 Saving photo1.jpg with dataURL length: 350000</div>
+            <div class="log-entry log-success">✅ Photos saved to IndexedDB</div>
+        </div>
+        <button class="test-button" onclick="goToMainPage()">前往主頁面</button>
+    </div>
+
+    <div class="test-section">
+        <h2>第四步：再次檢查狀態</h2>
+        <p>上傳照片後，返回這個頁面，再次檢查狀態</p>
+        <button class="test-button secondary" onclick="checkCurrentState()">重新檢查狀態</button>
+    </div>
+
+    <div class="test-section">
+        <h2>第五步：測試頁面重載</h2>
+        <p>如果照片已正確保存，測試頁面重載是否能恢復</p>
+        <button class="test-button" onclick="testPageReload()">測試頁面重載</button>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('state-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = message;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        async function clearAllData() {
+            const logArea = document.getElementById('state-log');
+            logArea.innerHTML = '';
+            
+            try {
+                log('🗑️ 開始清除數據...', 'info');
+                
+                // 清除 IndexedDB
+                const dbName = 'PlanPNE_Database';
+                const deleteRequest = indexedDB.deleteDatabase(dbName);
+                
+                await new Promise((resolve, reject) => {
+                    deleteRequest.onsuccess = resolve;
+                    deleteRequest.onerror = reject;
+                });
+                
+                log('✅ IndexedDB 已清除', 'success');
+                
+                // 清除 localStorage
+                localStorage.clear();
+                log('✅ localStorage 已清除', 'success');
+                
+                log('🎉 所有數據已清除！請重新上傳照片', 'success');
+            } catch (error) {
+                log('❌ 清除數據失敗: ' + error.message, 'error');
+            }
+        }
+
+        async function checkCurrentState() {
+            const logArea = document.getElementById('state-log');
+            logArea.innerHTML = '';
+            
+            log('🔍 檢查當前狀態...', 'info');
+            log('', 'info');
+            
+            try {
+                // 檢查 IndexedDB
+                const dbName = 'PlanPNE_Database';
+                const request = indexedDB.open(dbName, 1);
+                
+                request.onsuccess = async (event) => {
+                    const db = event.target.result;
+                    
+                    if (!db.objectStoreNames.contains('mainData')) {
+                        log('⚠️ IndexedDB 不存在或為空', 'warning');
+                        log('📝 建議：先上傳照片', 'info');
+                        return;
+                    }
+                    
+                    const transaction = db.transaction(['mainData'], 'readonly');
+                    const store = transaction.objectStore('mainData');
+                    const getRequest = store.get('photoNumberExtractorData');
+                    
+                    getRequest.onsuccess = () => {
+                        const data = getRequest.result?.data;
+                        
+                        if (!data) {
+                            log('⚠️ IndexedDB 中沒有數據', 'warning');
+                            log('📝 建議：先上傳照片', 'info');
+                            return;
+                        }
+                        
+                        log('✅ IndexedDB 數據存在', 'success');
+                        log('', 'info');
+                        
+                        // 檢查照片數據
+                        const photoMetadata = data.photoMetadata || [];
+                        log(`📸 photoMetadata 長度: ${photoMetadata.length}`, photoMetadata.length > 0 ? 'success' : 'error');
+                        
+                        if (photoMetadata.length === 0) {
+                            log('❌ 照片數據為空！', 'error');
+                            log('📝 原因：上傳照片時 allPhotos 全局變量是空的', 'warning');
+                            log('📝 解決方案：', 'info');
+                            log('   1. 點擊下方 "清除所有數據" 按鈕', 'info');
+                            log('   2. 前往主頁面', 'info');
+                            log('   3. 選擇照片資料夾', 'info');
+                            log('   4. 等待所有照片顯示', 'info');
+                            log('   5. 確認控制台顯示 "✅ Photos saved to IndexedDB"', 'info');
+                        } else {
+                            log(`✅ 找到 ${photoMetadata.length} 張照片`, 'success');
+                            log('', 'info');
+                            
+                            // 檢查 dataURL
+                            const photosWithDataURL = photoMetadata.filter(p => p.dataURL && p.dataURL.trim() !== '');
+                            log(`📊 有 dataURL 的照片: ${photosWithDataURL.length} / ${photoMetadata.length}`, 
+                                photosWithDataURL.length === photoMetadata.length ? 'success' : 'warning');
+                            
+                            if (photosWithDataURL.length < photoMetadata.length) {
+                                log('⚠️ 部分照片沒有 dataURL', 'warning');
+                            }
+                            
+                            // 顯示前3張照片的資訊
+                            log('', 'info');
+                            log('📋 前3張照片詳情:', 'info');
+                            photoMetadata.slice(0, 3).forEach((photo, i) => {
+                                log(`   ${i + 1}. ${photo.name}`, 'info');
+                                log(`      - 大小: ${(photo.size / 1024).toFixed(2)} KB`, 'info');
+                                log(`      - 類型: ${photo.type}`, 'info');
+                                log(`      - dataURL: ${photo.dataURL ? `${(photo.dataURL.length / 1024).toFixed(2)} KB` : '無'}`, 
+                                    photo.dataURL ? 'success' : 'error');
+                            });
+                            
+                            log('', 'info');
+                            log('🎉 照片數據正常！可以測試頁面重載', 'success');
+                        }
+                        
+                        // 檢查其他數據
+                        log('', 'info');
+                        log('📊 其他數據統計:', 'info');
+                        log(`   - 檢查記錄: ${data.inspectionRecords?.length || 0}`, 'info');
+                        log(`   - 樓層平面圖標籤: ${data.floorPlanLabels?.length || 0}`, 'info');
+                        log(`   - 缺陷標記: ${data.floorPlanDefectMarks?.length || 0}`, 'info');
+                    };
+                    
+                    getRequest.onerror = () => {
+                        log('❌ 讀取 IndexedDB 失敗', 'error');
+                    };
+                };
+                
+                request.onerror = () => {
+                    log('❌ 打開 IndexedDB 失敗', 'error');
+                };
+            } catch (error) {
+                log('❌ 檢查失敗: ' + error.message, 'error');
+            }
+        }
+
+        function goToMainPage() {
+            window.location.href = './index.html';
+        }
+
+        function testPageReload() {
+            if (confirm('這將重新載入主頁面。確定要繼續嗎？')) {
+                window.location.href = './index.html';
+            }
+        }
+
+        // 頁面載入時自動檢查
+        window.addEventListener('load', () => {
+            setTimeout(checkCurrentState, 500);
+        });
+    </script>
+</body>
+</html>
+
