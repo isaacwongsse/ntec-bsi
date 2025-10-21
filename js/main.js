@@ -8664,12 +8664,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                 };
             }
         } else {
-            console.log('No previous session data found or modal not available');
+            console.log('🔍 No modal shown - checking for photo metadata...');
+            console.log('🔍 saved:', !!saved);
+            console.log('🔍 saved.photoMetadata:', saved?.photoMetadata?.length || 0);
             
             // 即使沒有顯示會話恢復模態框，也要嘗試載入照片數據
             // 這是一個備用方案，確保照片不會丟失
-            if (saved && saved.photoMetadata && saved.photoMetadata.length > 0) {
-                console.log('🔍 Found photo metadata in saved data, attempting to load photos directly...');
+            if (saved && saved.photoMetadata && Array.isArray(saved.photoMetadata) && saved.photoMetadata.length > 0) {
+                console.log(`✅ Found ${saved.photoMetadata.length} photos in metadata, loading directly...`);
                 try {
                     await loadDataFromStorage();
                     console.log('✅ Photos loaded successfully via fallback method');
@@ -8677,8 +8679,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     console.error('❌ Error loading photos via fallback method:', error);
                 }
             } else {
+                console.log('⚠️ No photo metadata found or empty');
                 // 沒有實際數據時，確保照片預覽區域顯示空狀態
-                if (!hasActualData && photoGrid) {
+                if (photoGrid) {
                     photoGrid.innerHTML = `
                         <div class="empty-preview">
                             <i class="fas fa-images fa-4x"></i>
