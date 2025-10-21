@@ -8372,10 +8372,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (restoreBtn) {
                 restoreBtn.onclick = async () => {
                     modal.style.display = 'none';
-                    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
+                    
+                    console.log('📸 使用方式二：完全依賴 IndexedDB dataURL 載入照片');
+                    
+                    // 🔧 方式二：完全依賴 IndexedDB dataURL
+                    // 不使用 FSA handles 載入照片，直接從 IndexedDB 恢復
                     let loadedWithHandles = false;
+                    
+                    // 仍然嘗試從 FSA handle 載入 PDF（如果有）
                     try {
-                        // PDF
                         const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
                         if (pdfHandle && pdfHandle.kind === 'file') {
                             const p = await pdfHandle.queryPermission?.();
@@ -8391,108 +8396,57 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     floorPlanUploadArea.style.display = 'none';
                                     floorPlanViewer.style.display = 'flex';
                                 }
-                                loadedWithHandles = true;
+                                console.log('✅ PDF loaded from FSA handle');
                             }
                         }
-                        // Photos folder
-                        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
-                        if (dirHandle && dirHandle.kind === 'directory') {
-                            const p = await dirHandle.queryPermission?.({mode: 'read'});
-                            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
-                                const imageFiles = [];
-                                for await (const [name, handle] of dirHandle.entries()) {
-                                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
-                                        const f = await handle.getFile();
-                                        imageFiles.push(f);
-                                    }
-                                }
-                                if (imageFiles.length > 0) {
-                                    window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
-                                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-                                    
-                                    // 🔧 從 IndexedDB 載入 photoMetadata 以恢復 dataURL
-                                    console.log('📥 Loading photoMetadata to restore dataURLs...');
-                                    const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
-                                    if (savedData && savedData.photoMetadata) {
-                                        const photoMetadataMap = new Map(savedData.photoMetadata.map(meta => [meta.name, meta.dataURL]));
-                                        console.log(`📦 Found ${photoMetadataMap.size} photos in IndexedDB with dataURL`);
-                                        
-                                        // 將 dataURL 附加到從 FSA handle 讀取的 File 對象上
-                                        let restoredCount = 0;
-                                        for (const photo of allPhotos) {
-                                            const dataURL = photoMetadataMap.get(photo.name);
-                                            if (dataURL && dataURL.trim() !== '') {
-                                                photo.dataURL = dataURL;
-                                                restoredCount++;
-                                            }
-                                        }
-                                        console.log(`✅ Restored dataURL for ${restoredCount} / ${allPhotos.length} photos`);
-                                    } else {
-                                        console.log('⚠️ No photoMetadata found in IndexedDB, photos will be re-processed');
-                                    }
-                                    
-                                    const lazyObserver = initLazyLoading();
-                                    await renderPhotos(allPhotos, lazyObserver);
-                                    updateFolderDisplay();
-                                    updateAddPhotosButtonVisibility();
-                                    loadedWithHandles = true;
-                                }
-                            }
-                        }
-                    } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
+                    } catch (e) { 
+                        console.log('⚠️ Failed to load PDF from FSA handle:', e.message);
+                    }
 
-                    // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
+                    // 載入所有資料（包括照片），完全依賴 IndexedDB
+                    // loadedWithHandles = false，所以 loadDataFromStorage 會使用 IndexedDB 中的 photoMetadata
+                    console.log('📥 Loading all data from IndexedDB (including photos with dataURL)...');
                     await loadDataFromStorage();
 
-                    // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
+                    // 檢查是否有嵌入的 PDF 數據（從 localStorage）
                     try {
-                        if (!loadedWithHandles) {
-                            // 檢查 localStorage 中是否有嵌入的 PDF 數據
-                            const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
-                            const pdfFilename = localStorage.getItem('pne_floorplan_filename');
-                            
-                            if (pdfBase64 && pdfFilename) {
-                                window.logger.log('Open previous: Found embedded PDF in localStorage, loading...');
-                                try {
-                                    // 將 base64 數據轉換為 ArrayBuffer
-                                    const binaryString = atob(pdfBase64);
-                                    const arrayBuffer = new ArrayBuffer(binaryString.length);
-                                    const uint8Array = new Uint8Array(arrayBuffer);
-                                    for (let i = 0; i < binaryString.length; i++) {
-                                        uint8Array[i] = binaryString.charCodeAt(i);
-                                    }
-                                    
-                                    // 載入 PDF
-                                    await loadPDFFromArrayBuffer(arrayBuffer, pdfFilename);
-                                    
-                                    // 打開繪圖模式
-                                    const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                    const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
-                                    const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
-                                    if (floorPlanUploadArea && floorPlanViewer) {
-                                        floorPlanUploadArea.style.display = 'none';
-                                        floorPlanViewer.style.display = 'flex';
-                                    }
-                                    
-                                    window.logger.log('Open previous: Embedded PDF loaded successfully');
-                                } catch (error) {
-                                    window.logger.error('Open previous: Error loading embedded PDF:', error);
-                                    // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
-                                    const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
+                        const pdfFilename = localStorage.getItem('pne_floorplan_filename');
+                        
+                        if (pdfBase64 && pdfFilename) {
+                            console.log('📄 Found embedded PDF in localStorage, loading...');
+                            try {
+                                // 將 base64 數據轉換為 ArrayBuffer
+                                const binaryString = atob(pdfBase64);
+                                const arrayBuffer = new ArrayBuffer(binaryString.length);
+                                const uint8Array = new Uint8Array(arrayBuffer);
+                                for (let i = 0; i < binaryString.length; i++) {
+                                    uint8Array[i] = binaryString.charCodeAt(i);
                                 }
-                            } else {
-                                // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                                
+                                // 載入 PDF
+                                await loadPDFFromArrayBuffer(arrayBuffer, pdfFilename);
+                                
+                                // 打開繪圖模式
+                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                                const floorPlanViewer = document.getElementById('floorPlanViewer');
+                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                if (floorPlanUploadArea && floorPlanViewer) {
+                                    floorPlanUploadArea.style.display = 'none';
+                                    floorPlanViewer.style.display = 'flex';
+                                }
+                                
+                                console.log('✅ Embedded PDF loaded successfully');
+                            } catch (error) {
+                                console.error('❌ Error loading embedded PDF:', error);
+                                // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                 if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                             }
                         }
                     } catch (e) { 
-                        window.logger.error('Open previous: Error in PDF loading logic:', e);
-                        // 至少打開繪圖模式
-                        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        console.error('❌ Error in PDF loading logic:', e);
                     }
                 };
                 }
