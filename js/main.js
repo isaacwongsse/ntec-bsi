@@ -8326,29 +8326,49 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 檢查是否有實際的數據（不僅僅是空的數據結構）
         // 注意：不檢查 localStorage 中的數據，因為它們可能已經遷移到 IndexedDB
         // 如果已經完成 Start Fresh，則不顯示恢復模態框
+        // 🔧 調整：只要有任何數據就顯示 modal，讓用戶選擇是否恢復
         const hasActualData = !window.startFreshCompleted && saved && (
+            // 有任何檢查記錄
             (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
             (saved.submittedData && saved.submittedData.length > 0) ||
+            // 有任何樓層平面圖標籤或缺陷標記
             (saved.floorPlanLabels && saved.floorPlanLabels.length > 0) ||
             (saved.floorPlanDefectMarks && saved.floorPlanDefectMarks.length > 0) ||
+            // 有任何照片分配
             (saved.photoAssignments?.labels && saved.photoAssignments.labels.length > 0) ||
             (saved.photoAssignments?.defectMarks && saved.photoAssignments.defectMarks.length > 0) ||
+            (saved.photoAssignments?.assignedPhotos && Object.keys(saved.photoAssignments.assignedPhotos).some(key => 
+                saved.photoAssignments.assignedPhotos[key] && saved.photoAssignments.assignedPhotos[key].length > 0
+            )) ||
+            // 有任何照片數據（重要！）
             (saved.allPhotoFilenames && saved.allPhotoFilenames.length > 0) ||
             (saved.photoMetadata && saved.photoMetadata.length > 0) ||
+            // 有任何 PDF 或樓層平面圖數據
             saved.floorPlanPDF || 
             saved.floorPlanData ||
             saved.embeddedPDF ||
-            saved.floorPlanBase64
+            saved.floorPlanBase64 ||
+            // 有任何 header 欄位數據
+            (saved.headerFields && (
+                saved.headerFields.inspectionNo ||
+                saved.headerFields.inspectionDate ||
+                saved.headerFields.floor ||
+                saved.headerFields.areaName ||
+                saved.headerFields.roomNo
+            ))
         );
         
         console.log('🔍 Session restore check - hasActualData:', hasActualData, 'modal exists:', !!modal);
         
-        if (hasActualData && modal) {
-            // 僅在有實際數據時顯示
-            console.log('✅ Previous session data detected, showing restore modal');
-            modal.style.display = 'flex';
-            const restoreBtn = document.getElementById('restoreSessionBtn');
-            const startFreshBtn = document.getElementById('startFreshBtn');
+        if (hasActualData) {
+            if (modal) {
+                // 有實際數據且 modal 存在，顯示恢復彈窗
+                console.log('✅ Previous session data detected, showing restore modal');
+                modal.style.display = 'flex';
+                
+                // 設置 modal 按鈕事件
+                const restoreBtn = document.getElementById('restoreSessionBtn');
+                const startFreshBtn = document.getElementById('startFreshBtn');
             if (restoreBtn) {
                 restoreBtn.onclick = async () => {
                     modal.style.display = 'none';
@@ -8475,8 +8495,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                         if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                     }
                 };
-            }
-            if (startFreshBtn) {
+                }
+                if (startFreshBtn) {
                 startFreshBtn.onclick = async () => {
                     modal.style.display = 'none';
                     
@@ -8598,10 +8618,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                         }
                     }
                 };
+                }
+            } else {
+                // 有數據但 modal 不存在，記錄錯誤並自動載入數據
+                console.warn('⚠️ Session restore modal not found, auto-loading previous data...');
+                await loadDataFromStorage();
             }
         } else {
+            console.log('ℹ️ No previous session data found or Start Fresh was completed');
             // 沒有實際數據時，確保照片預覽區域顯示空狀態
-            if (!hasActualData && photoGrid) {
+            if (photoGrid) {
                 photoGrid.innerHTML = `
                     <div class="empty-preview">
                         <i class="fas fa-images fa-4x"></i>
