@@ -8353,6 +8353,23 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 檢查是否有實際的數據（不僅僅是空的數據結構）
         // 注意：不檢查 localStorage 中的數據，因為它們可能已經遷移到 IndexedDB
         // 如果已經完成 Start Fresh，則不顯示恢復模態框
+        console.log('🔍 Checking for saved data:', {
+            startFreshCompleted: window.startFreshCompleted,
+            savedExists: !!saved,
+            savedKeys: saved ? Object.keys(saved) : [],
+            inspectionRecords: saved?.inspectionRecords?.length || 0,
+            submittedData: saved?.submittedData?.length || 0,
+            floorPlanLabels: saved?.floorPlanLabels?.length || 0,
+            floorPlanDefectMarks: saved?.floorPlanDefectMarks?.length || 0,
+            photoAssignments: saved?.photoAssignments ? Object.keys(saved.photoAssignments) : [],
+            allPhotoFilenames: saved?.allPhotoFilenames?.length || 0,
+            photoMetadata: saved?.photoMetadata?.length || 0,
+            hasFloorPlanPDF: !!saved?.floorPlanPDF,
+            hasFloorPlanData: !!saved?.floorPlanData,
+            hasEmbeddedPDF: !!saved?.embeddedPDF,
+            hasFloorPlanBase64: !!saved?.floorPlanBase64
+        });
+        
         const hasActualData = !window.startFreshCompleted && saved && (
             (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
             (saved.submittedData && saved.submittedData.length > 0) ||
@@ -8367,6 +8384,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             saved.embeddedPDF ||
             saved.floorPlanBase64
         );
+        
+        console.log('🔍 hasActualData result:', hasActualData);
         
         if (hasActualData && modal) {
             // 僅在有實際數據時顯示
@@ -8625,18 +8644,32 @@ document.addEventListener('DOMContentLoaded', async function() {
                 };
             }
         } else {
-            // 沒有實際數據時，確保照片預覽區域顯示空狀態
-            if (!hasActualData && photoGrid) {
-                photoGrid.innerHTML = `
-                    <div class="empty-preview">
-                        <i class="fas fa-images fa-4x"></i>
-                        <p>Select a folder to preview photos</p>
-                        <button id="centerFolderBtn" class="center-folder-btn" onclick="selectPhotoFolder()">
-                            <i class="fas fa-folder-open"></i> Select Photo Folder
-                        </button>
-                    </div>
-                `;
-                window.logger.log('No actual data found. Displaying empty state.');
+            console.log('No previous session data found or modal not available');
+            
+            // 即使沒有顯示會話恢復模態框，也要嘗試載入照片數據
+            // 這是一個備用方案，確保照片不會丟失
+            if (saved && saved.photoMetadata && saved.photoMetadata.length > 0) {
+                console.log('🔍 Found photo metadata in saved data, attempting to load photos directly...');
+                try {
+                    await loadDataFromStorage();
+                    console.log('✅ Photos loaded successfully via fallback method');
+                } catch (error) {
+                    console.error('❌ Error loading photos via fallback method:', error);
+                }
+            } else {
+                // 沒有實際數據時，確保照片預覽區域顯示空狀態
+                if (!hasActualData && photoGrid) {
+                    photoGrid.innerHTML = `
+                        <div class="empty-preview">
+                            <i class="fas fa-images fa-4x"></i>
+                            <p>Select a folder to preview photos</p>
+                            <button id="centerFolderBtn" class="center-folder-btn" onclick="selectPhotoFolder()">
+                                <i class="fas fa-folder-open"></i> Select Photo Folder
+                            </button>
+                        </div>
+                    `;
+                    window.logger.log('No actual data found. Displaying empty state.');
+                }
             }
         }
     } catch (e) { 
