@@ -8370,19 +8370,39 @@ document.addEventListener('DOMContentLoaded', async function() {
             hasFloorPlanBase64: !!saved?.floorPlanBase64
         });
         
-        const hasActualData = !window.startFreshCompleted && saved && (
-            (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
-            (saved.submittedData && saved.submittedData.length > 0) ||
-            (saved.floorPlanLabels && saved.floorPlanLabels.length > 0) ||
-            (saved.floorPlanDefectMarks && saved.floorPlanDefectMarks.length > 0) ||
-            (saved.photoAssignments?.labels && saved.photoAssignments.labels.length > 0) ||
-            (saved.photoAssignments?.defectMarks && saved.photoAssignments.defectMarks.length > 0) ||
-            (saved.allPhotoFilenames && saved.allPhotoFilenames.length > 0) ||
-            (saved.photoMetadata && saved.photoMetadata.length > 0) ||
-            saved.floorPlanPDF || 
-            saved.floorPlanData ||
-            saved.embeddedPDF ||
-            saved.floorPlanBase64
+        // 檢查各個條件
+        const conditions = {
+            notStartFresh: !window.startFreshCompleted,
+            hasSaved: !!saved,
+            hasInspectionRecords: saved?.inspectionRecords?.length > 0,
+            hasSubmittedData: saved?.submittedData?.length > 0,
+            hasFloorPlanLabels: saved?.floorPlanLabels?.length > 0,
+            hasFloorPlanDefectMarks: saved?.floorPlanDefectMarks?.length > 0,
+            hasPhotoAssignmentsLabels: saved?.photoAssignments?.labels?.length > 0,
+            hasPhotoAssignmentsDefectMarks: saved?.photoAssignments?.defectMarks?.length > 0,
+            hasAllPhotoFilenames: saved?.allPhotoFilenames?.length > 0,
+            hasPhotoMetadata: saved?.photoMetadata?.length > 0,
+            hasFloorPlanPDF: !!saved?.floorPlanPDF,
+            hasFloorPlanData: !!saved?.floorPlanData,
+            hasEmbeddedPDF: !!saved?.embeddedPDF,
+            hasFloorPlanBase64: !!saved?.floorPlanBase64
+        };
+        
+        console.log('🔍 Individual conditions:', conditions);
+        
+        const hasActualData = conditions.notStartFresh && conditions.hasSaved && (
+            conditions.hasInspectionRecords ||
+            conditions.hasSubmittedData ||
+            conditions.hasFloorPlanLabels ||
+            conditions.hasFloorPlanDefectMarks ||
+            conditions.hasPhotoAssignmentsLabels ||
+            conditions.hasPhotoAssignmentsDefectMarks ||
+            conditions.hasAllPhotoFilenames ||
+            conditions.hasPhotoMetadata ||
+            conditions.hasFloorPlanPDF ||
+            conditions.hasFloorPlanData ||
+            conditions.hasEmbeddedPDF ||
+            conditions.hasFloorPlanBase64
         );
         
         console.log('🔍 hasActualData result:', hasActualData);
