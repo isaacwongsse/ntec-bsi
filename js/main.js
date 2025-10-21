@@ -10792,7 +10792,21 @@ window.saveDataToStorage = async function() {
         // 照片基本與指派統計 - 與 .pne 檔案一致
         totalPhotos: (allPhotos || []).length,
         totalAssignments: Object.values(assignedPhotos || {}).reduce((sum, photos) => sum + photos.size, 0),
-        photoMetadata: (allPhotos || []).map(file => {
+        photoMetadata: (() => {
+            console.log('💾 saveDataToStorage: Creating photoMetadata from allPhotos');
+            console.log('📊 allPhotos status:', {
+                exists: !!allPhotos,
+                isArray: Array.isArray(allPhotos),
+                length: allPhotos ? allPhotos.length : 0,
+                firstPhoto: allPhotos && allPhotos[0] ? allPhotos[0].name : 'N/A'
+            });
+            
+            if (!allPhotos || allPhotos.length === 0) {
+                console.warn('⚠️ allPhotos is empty or undefined! photoMetadata will be empty.');
+                return [];
+            }
+            
+            return (allPhotos || []).map(file => {
             // 如果沒有 dataURL，嘗試從 DOM 中獲取
             let dataURL = file.dataURL || '';
             if (!dataURL) {
@@ -10835,7 +10849,8 @@ window.saveDataToStorage = async function() {
             }
             
             return photoMetadata;
-        }),
+            });
+        })(),
 
         // 主資料表 - 與 .pne 檔案一致
         inspectionRecords: submittedData || [],
