@@ -8410,6 +8410,26 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (hasActualData && modal) {
             // 僅在有實際數據時顯示
             console.log('Previous session data detected, showing restore modal');
+            
+            // 檢查是否應該自動恢復照片（如果只有照片數據，沒有其他重要數據）
+            const hasOnlyPhotos = saved.photoMetadata && saved.photoMetadata.length > 0 &&
+                                 (!saved.inspectionRecords || saved.inspectionRecords.length === 0) &&
+                                 (!saved.submittedData || saved.submittedData.length === 0);
+            
+            if (hasOnlyPhotos) {
+                // 自動恢復照片而不顯示模態框
+                console.log('🔄 Auto-restoring photos only (no other data)...');
+                modal.style.display = 'none';
+                try {
+                    await loadDataFromStorage();
+                    console.log('✅ Photos auto-restored successfully');
+                } catch (error) {
+                    console.error('❌ Error auto-restoring photos:', error);
+                }
+                return;
+            }
+            
+            // 顯示模態框讓用戶選擇
             modal.style.display = 'flex';
             const restoreBtn = document.getElementById('restoreSessionBtn');
             const startFreshBtn = document.getElementById('startFreshBtn');
