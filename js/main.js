@@ -8377,6 +8377,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                     
                     // 🔧 方式二：完全依賴 IndexedDB dataURL
                     // 不使用 FSA handles 載入照片，直接從 IndexedDB 恢復
+                    // 重要：設置全局變量為 false，確保 loadDataFromStorage 從 IndexedDB 載入所有照片
+                    window.loadedFromHandles = false;
                     let loadedWithHandles = false;
                     
                     // 仍然嘗試從 FSA handle 載入 PDF（如果有）
@@ -8576,6 +8578,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             } else {
                 // 有數據但 modal 不存在，記錄錯誤並自動載入數據
                 console.warn('⚠️ Session restore modal not found, auto-loading previous data...');
+                // 確保從 IndexedDB 載入所有照片（方式二）
+                window.loadedFromHandles = false;
                 await loadDataFromStorage();
             }
         } else {
