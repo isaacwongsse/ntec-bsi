@@ -4996,10 +4996,22 @@ async function loadDataFromStorage() {
                         dataURL = ''; // 重置為空字符串
                     }
                     
+                    // 確保 dataURL 是有效的 base64 圖片數據
+                    if (dataURL && !dataURL.startsWith('data:image/')) {
+                        window.logger.warn(`Invalid dataURL format for ${metadata.name}:`, dataURL.substring(0, 20));
+                        dataURL = '';
+                    }
+                    
+                    console.log(`🔍 Restoring photo ${metadata.name}:`, {
+                        hasDataURL: !!dataURL,
+                        dataURLLength: dataURL ? dataURL.length : 0,
+                        dataURLPrefix: dataURL ? dataURL.substring(0, 30) : 'N/A'
+                    });
+                    
                     return {
-                    name: metadata.name,
-                    size: metadata.size || 0,
-                    type: metadata.type || 'image/jpeg',
+                        name: metadata.name,
+                        size: metadata.size || 0,
+                        type: metadata.type || 'image/jpeg',
                         lastModified: metadata.lastModified || Date.now(),
                         webkitRelativePath: metadata.webkitRelativePath || '',
                         dataURL: dataURL // 恢復 dataURL 以顯示照片
@@ -5123,7 +5135,7 @@ async function loadDataFromStorage() {
                 } else {
                     // 沒有從 FSA handle 載入，直接使用 IndexedDB 的照片
                     allPhotos = photosFromStorage;
-                    const photosWithDataURL = allPhotos.filter(p => p.dataURL && p.dataURL.trim() !== '');
+                    const photosWithDataURL = allPhotos.filter(p => p.dataURL && p.dataURL.trim() !== '' && p.dataURL.startsWith('data:image/'));
                     console.log('🔍 Photos loaded from IndexedDB:', {
                         total: allPhotos.length,
                         withDataURL: photosWithDataURL.length,
@@ -5141,12 +5153,28 @@ async function loadDataFromStorage() {
                         window.logger.log('Rendering loaded photos from storage...');
                         console.log('🔍 About to render photos, allPhotos:', allPhotos.length);
                         console.log('🔍 Photos with dataURL:', allPhotos.filter(p => p.dataURL).length);
+                        
+                        // 檢查照片的 dataURL 狀態
+                        allPhotos.forEach((photo, idx) => {
+                            console.log(`🔍 Photo ${idx + 1}/${allPhotos.length}:`, {
+                                name: photo.name,
+                                hasDataURL: !!photo.dataURL,
+                                dataURLType: typeof photo.dataURL,
+                                dataURLLength: photo.dataURL ? photo.dataURL.length : 0,
+                                dataURLPrefix: photo.dataURL ? photo.dataURL.substring(0, 30) : 'N/A'
+                            });
+                        });
+                        
                         setTimeout(async () => {
                             try {
                                 const lazyObserver = initLazyLoading();
                                 await renderPhotos(allPhotos, lazyObserver);
                                 window.logger.log('Photos rendered successfully from storage');
                                 console.log('✅ Photos rendered successfully');
+                                
+                                // 更新文件夾顯示和按鈕可見性
+                                updateFolderDisplay();
+                                updateAddPhotosButtonVisibility();
                                 
                                 // 🔧 照片渲染完成後,恢復照片分配狀態
                                 setTimeout(() => {
@@ -6170,7 +6198,7 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 window.logger.log(`Creating photo item for: ${file.name}`);
                 // Check if file already has a valid dataURL, or generate one for new photos
                 let resizedImageURL;
-                if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '') {
+                if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '' && file.dataURL.startsWith('data:image/')) {
                     resizedImageURL = file.dataURL;
                     window.logger.log(`Using existing dataURL for: ${file.name}`);
                 } else if (file instanceof File) {
@@ -6179,8 +6207,31 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                     resizedImageURL = await resizeImage(file);
                     file.dataURL = resizedImageURL; // Save for future use
                 } else {
-                    window.logger.warn(`No valid dataURL for ${file.name}, cannot render photo`);
-                    continue; // 跳過這張照片
+                    // 對於從存儲恢復的照片，如果沒有有效的 dataURL，嘗試重新生成
+                    window.logger.warn(`No valid dataURL for ${file.name}, attempting to regenerate...`);
+                    
+                    // 檢查是否為從存儲恢復的照片對象
+                    if (file.name && file.size && file.type) {
+                        // 嘗試從 DOM 中獲取現有的 dataURL
+                        const photoItem = document.querySelector(`[data-filename="${file.name}"]`);
+                        if (photoItem) {
+                            const img = photoItem.querySelector('img');
+                            if (img && img.src && img.src.startsWith('data:image/')) {
+                                resizedImageURL = img.src;
+                                file.dataURL = resizedImageURL;
+                                window.logger.log(`Recovered dataURL from DOM for: ${file.name}`);
+                            }
+                        }
+                        
+                        // 如果仍然沒有 dataURL，跳過這張照片
+                        if (!resizedImageURL) {
+                            window.logger.warn(`Cannot recover dataURL for ${file.name}, skipping photo`);
+                            continue;
+                        }
+                    } else {
+                        window.logger.warn(`Invalid file object for ${file.name}, skipping photo`);
+                        continue;
+                    }
                 }
                 
                 const photoItem = document.createElement('div');
