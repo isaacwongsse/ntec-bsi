@@ -4985,6 +4985,7 @@ async function loadDataFromStorage() {
             });
             
             if (parsedData.photoMetadata) {
+                console.log('✅ photoMetadata found, loading photos...');
                 window.logger.log('Loading photo metadata from IndexedDB:', parsedData.photoMetadata.length);
                 
                 // 從元資料重建照片物件（包含 dataURL）
@@ -4996,22 +4997,10 @@ async function loadDataFromStorage() {
                         dataURL = ''; // 重置為空字符串
                     }
                     
-                    // 確保 dataURL 是有效的 base64 圖片數據
-                    if (dataURL && !dataURL.startsWith('data:image/')) {
-                        window.logger.warn(`Invalid dataURL format for ${metadata.name}:`, dataURL.substring(0, 20));
-                        dataURL = '';
-                    }
-                    
-                    console.log(`🔍 Restoring photo ${metadata.name}:`, {
-                        hasDataURL: !!dataURL,
-                        dataURLLength: dataURL ? dataURL.length : 0,
-                        dataURLPrefix: dataURL ? dataURL.substring(0, 30) : 'N/A'
-                    });
-                    
                     return {
-                        name: metadata.name,
-                        size: metadata.size || 0,
-                        type: metadata.type || 'image/jpeg',
+                    name: metadata.name,
+                    size: metadata.size || 0,
+                    type: metadata.type || 'image/jpeg',
                         lastModified: metadata.lastModified || Date.now(),
                         webkitRelativePath: metadata.webkitRelativePath || '',
                         dataURL: dataURL // 恢復 dataURL 以顯示照片
@@ -5134,8 +5123,9 @@ async function loadDataFromStorage() {
                     }
                 } else {
                     // 沒有從 FSA handle 載入，直接使用 IndexedDB 的照片
+                    console.log('📸 Loading photos directly from IndexedDB (no FSA handles)');
                     allPhotos = photosFromStorage;
-                    const photosWithDataURL = allPhotos.filter(p => p.dataURL && p.dataURL.trim() !== '' && p.dataURL.startsWith('data:image/'));
+                    const photosWithDataURL = allPhotos.filter(p => p.dataURL && p.dataURL.trim() !== '');
                     console.log('🔍 Photos loaded from IndexedDB:', {
                         total: allPhotos.length,
                         withDataURL: photosWithDataURL.length,
@@ -5150,31 +5140,16 @@ async function loadDataFromStorage() {
                     
                     // 渲染載入的照片 - 修復：放寬條件，總是嘗試渲染有照片的情況
                     if (allPhotos.length > 0) {
+                        console.log('🎨 Preparing to render photos from storage...');
                         window.logger.log('Rendering loaded photos from storage...');
                         console.log('🔍 About to render photos, allPhotos:', allPhotos.length);
                         console.log('🔍 Photos with dataURL:', allPhotos.filter(p => p.dataURL).length);
-                        
-                        // 檢查照片的 dataURL 狀態
-                        allPhotos.forEach((photo, idx) => {
-                            console.log(`🔍 Photo ${idx + 1}/${allPhotos.length}:`, {
-                                name: photo.name,
-                                hasDataURL: !!photo.dataURL,
-                                dataURLType: typeof photo.dataURL,
-                                dataURLLength: photo.dataURL ? photo.dataURL.length : 0,
-                                dataURLPrefix: photo.dataURL ? photo.dataURL.substring(0, 30) : 'N/A'
-                            });
-                        });
-                        
                         setTimeout(async () => {
                             try {
                                 const lazyObserver = initLazyLoading();
                                 await renderPhotos(allPhotos, lazyObserver);
                                 window.logger.log('Photos rendered successfully from storage');
                                 console.log('✅ Photos rendered successfully');
-                                
-                                // 更新文件夾顯示和按鈕可見性
-                                updateFolderDisplay();
-                                updateAddPhotosButtonVisibility();
                                 
                                 // 🔧 照片渲染完成後,恢復照片分配狀態
                                 setTimeout(() => {
@@ -5207,6 +5182,7 @@ async function loadDataFromStorage() {
                 }
             } else if (!alreadyLoadedPhotos && parsedData.allPhotoFilenames) {
                 // 向後相容：載入舊版本的照片檔案名稱
+                console.log('⚠️ Using legacy allPhotoFilenames (no dataURL available)');
                 window.logger.log('Loading allPhotoFilenames (legacy):', parsedData.allPhotoFilenames);
                 allPhotos = parsedData.allPhotoFilenames.map(filename => ({
                     name: filename,
@@ -5214,7 +5190,8 @@ async function loadDataFromStorage() {
                     type: 'image/jpeg'
                 }));
             } else {
-                console.log('⚠️ No photoMetadata or allPhotoFilenames found in savedData');
+                console.log('❌ No photoMetadata or allPhotoFilenames found in savedData');
+                console.log('🔍 parsedData keys:', Object.keys(parsedData || {}));
             }
             
             // 載入樓層平面圖數據
@@ -6198,7 +6175,7 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 window.logger.log(`Creating photo item for: ${file.name}`);
                 // Check if file already has a valid dataURL, or generate one for new photos
                 let resizedImageURL;
-                if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '' && file.dataURL.startsWith('data:image/')) {
+                if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '') {
                     resizedImageURL = file.dataURL;
                     window.logger.log(`Using existing dataURL for: ${file.name}`);
                 } else if (file instanceof File) {
@@ -6207,31 +6184,8 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                     resizedImageURL = await resizeImage(file);
                     file.dataURL = resizedImageURL; // Save for future use
                 } else {
-                    // 對於從存儲恢復的照片，如果沒有有效的 dataURL，嘗試重新生成
-                    window.logger.warn(`No valid dataURL for ${file.name}, attempting to regenerate...`);
-                    
-                    // 檢查是否為從存儲恢復的照片對象
-                    if (file.name && file.size && file.type) {
-                        // 嘗試從 DOM 中獲取現有的 dataURL
-                        const photoItem = document.querySelector(`[data-filename="${file.name}"]`);
-                        if (photoItem) {
-                            const img = photoItem.querySelector('img');
-                            if (img && img.src && img.src.startsWith('data:image/')) {
-                                resizedImageURL = img.src;
-                                file.dataURL = resizedImageURL;
-                                window.logger.log(`Recovered dataURL from DOM for: ${file.name}`);
-                            }
-                        }
-                        
-                        // 如果仍然沒有 dataURL，跳過這張照片
-                        if (!resizedImageURL) {
-                            window.logger.warn(`Cannot recover dataURL for ${file.name}, skipping photo`);
-                            continue;
-                        }
-                    } else {
-                        window.logger.warn(`Invalid file object for ${file.name}, skipping photo`);
-                        continue;
-                    }
+                    window.logger.warn(`No valid dataURL for ${file.name}, cannot render photo`);
+                    continue; // 跳過這張照片
                 }
                 
                 const photoItem = document.createElement('div');
@@ -8350,30 +8304,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
         const modal = document.getElementById('sessionRestoreModal');
         
-        // 檢查是否有實際的數據（不僅僅是空的數據結構）
-        // 注意：不檢查 localStorage 中的數據，因為它們可能已經遷移到 IndexedDB
-        // 如果已經完成 Start Fresh，則不顯示恢復模態框
-        console.log('🔍 Checking for saved data:', {
-            startFreshCompleted: window.startFreshCompleted,
-            savedExists: !!saved,
-            savedKeys: saved ? Object.keys(saved) : [],
-            inspectionRecords: saved?.inspectionRecords?.length || 0,
-            submittedData: saved?.submittedData?.length || 0,
-            floorPlanLabels: saved?.floorPlanLabels?.length || 0,
-            floorPlanDefectMarks: saved?.floorPlanDefectMarks?.length || 0,
-            photoAssignments: saved?.photoAssignments ? Object.keys(saved.photoAssignments) : [],
-            allPhotoFilenames: saved?.allPhotoFilenames?.length || 0,
-            photoMetadata: saved?.photoMetadata?.length || 0,
-            hasFloorPlanPDF: !!saved?.floorPlanPDF,
-            hasFloorPlanData: !!saved?.floorPlanData,
-            hasEmbeddedPDF: !!saved?.embeddedPDF,
-            hasFloorPlanBase64: !!saved?.floorPlanBase64
-        });
-        
-        // 檢查各個條件
-        const conditions = {
-            notStartFresh: !window.startFreshCompleted,
-            hasSaved: !!saved,
+        // 🔍 調試：輸出 saved 數據的詳細資訊
+        console.log('🔍 Session restore check - saved data:', {
+            exists: !!saved,
             hasInspectionRecords: saved?.inspectionRecords?.length > 0,
             hasSubmittedData: saved?.submittedData?.length > 0,
             hasFloorPlanLabels: saved?.floorPlanLabels?.length > 0,
@@ -8382,54 +8315,37 @@ document.addEventListener('DOMContentLoaded', async function() {
             hasPhotoAssignmentsDefectMarks: saved?.photoAssignments?.defectMarks?.length > 0,
             hasAllPhotoFilenames: saved?.allPhotoFilenames?.length > 0,
             hasPhotoMetadata: saved?.photoMetadata?.length > 0,
+            photoMetadataCount: saved?.photoMetadata?.length || 0,
             hasFloorPlanPDF: !!saved?.floorPlanPDF,
             hasFloorPlanData: !!saved?.floorPlanData,
             hasEmbeddedPDF: !!saved?.embeddedPDF,
-            hasFloorPlanBase64: !!saved?.floorPlanBase64
-        };
+            hasFloorPlanBase64: !!saved?.floorPlanBase64,
+            startFreshCompleted: window.startFreshCompleted
+        });
         
-        console.log('🔍 Individual conditions:', conditions);
-        
-        const hasActualData = conditions.notStartFresh && conditions.hasSaved && (
-            conditions.hasInspectionRecords ||
-            conditions.hasSubmittedData ||
-            conditions.hasFloorPlanLabels ||
-            conditions.hasFloorPlanDefectMarks ||
-            conditions.hasPhotoAssignmentsLabels ||
-            conditions.hasPhotoAssignmentsDefectMarks ||
-            conditions.hasAllPhotoFilenames ||
-            conditions.hasPhotoMetadata ||
-            conditions.hasFloorPlanPDF ||
-            conditions.hasFloorPlanData ||
-            conditions.hasEmbeddedPDF ||
-            conditions.hasFloorPlanBase64
+        // 檢查是否有實際的數據（不僅僅是空的數據結構）
+        // 注意：不檢查 localStorage 中的數據，因為它們可能已經遷移到 IndexedDB
+        // 如果已經完成 Start Fresh，則不顯示恢復模態框
+        const hasActualData = !window.startFreshCompleted && saved && (
+            (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
+            (saved.submittedData && saved.submittedData.length > 0) ||
+            (saved.floorPlanLabels && saved.floorPlanLabels.length > 0) ||
+            (saved.floorPlanDefectMarks && saved.floorPlanDefectMarks.length > 0) ||
+            (saved.photoAssignments?.labels && saved.photoAssignments.labels.length > 0) ||
+            (saved.photoAssignments?.defectMarks && saved.photoAssignments.defectMarks.length > 0) ||
+            (saved.allPhotoFilenames && saved.allPhotoFilenames.length > 0) ||
+            (saved.photoMetadata && saved.photoMetadata.length > 0) ||
+            saved.floorPlanPDF || 
+            saved.floorPlanData ||
+            saved.embeddedPDF ||
+            saved.floorPlanBase64
         );
         
-        console.log('🔍 hasActualData result:', hasActualData);
+        console.log('🔍 Session restore check - hasActualData:', hasActualData, 'modal exists:', !!modal);
         
         if (hasActualData && modal) {
             // 僅在有實際數據時顯示
-            console.log('Previous session data detected, showing restore modal');
-            
-            // 檢查是否應該自動恢復照片（如果只有照片數據，沒有其他重要數據）
-            const hasOnlyPhotos = saved.photoMetadata && saved.photoMetadata.length > 0 &&
-                                 (!saved.inspectionRecords || saved.inspectionRecords.length === 0) &&
-                                 (!saved.submittedData || saved.submittedData.length === 0);
-            
-            if (hasOnlyPhotos) {
-                // 自動恢復照片而不顯示模態框
-                console.log('🔄 Auto-restoring photos only (no other data)...');
-                modal.style.display = 'none';
-                try {
-                    await loadDataFromStorage();
-                    console.log('✅ Photos auto-restored successfully');
-                } catch (error) {
-                    console.error('❌ Error auto-restoring photos:', error);
-                }
-                return;
-            }
-            
-            // 顯示模態框讓用戶選擇
+            console.log('✅ Previous session data detected, showing restore modal');
             modal.style.display = 'flex';
             const restoreBtn = document.getElementById('restoreSessionBtn');
             const startFreshBtn = document.getElementById('startFreshBtn');
@@ -8684,35 +8600,18 @@ document.addEventListener('DOMContentLoaded', async function() {
                 };
             }
         } else {
-            console.log('🔍 No modal shown - checking for photo metadata...');
-            console.log('🔍 saved:', !!saved);
-            console.log('🔍 saved.photoMetadata:', saved?.photoMetadata?.length || 0);
-            
-            // 即使沒有顯示會話恢復模態框，也要嘗試載入照片數據
-            // 這是一個備用方案，確保照片不會丟失
-            if (saved && saved.photoMetadata && Array.isArray(saved.photoMetadata) && saved.photoMetadata.length > 0) {
-                console.log(`✅ Found ${saved.photoMetadata.length} photos in metadata, loading directly...`);
-                try {
-                    await loadDataFromStorage();
-                    console.log('✅ Photos loaded successfully via fallback method');
-                } catch (error) {
-                    console.error('❌ Error loading photos via fallback method:', error);
-                }
-            } else {
-                console.log('⚠️ No photo metadata found or empty');
-                // 沒有實際數據時，確保照片預覽區域顯示空狀態
-                if (photoGrid) {
-                    photoGrid.innerHTML = `
-                        <div class="empty-preview">
-                            <i class="fas fa-images fa-4x"></i>
-                            <p>Select a folder to preview photos</p>
-                            <button id="centerFolderBtn" class="center-folder-btn" onclick="selectPhotoFolder()">
-                                <i class="fas fa-folder-open"></i> Select Photo Folder
-                            </button>
-                        </div>
-                    `;
-                    window.logger.log('No actual data found. Displaying empty state.');
-                }
+            // 沒有實際數據時，確保照片預覽區域顯示空狀態
+            if (!hasActualData && photoGrid) {
+                photoGrid.innerHTML = `
+                    <div class="empty-preview">
+                        <i class="fas fa-images fa-4x"></i>
+                        <p>Select a folder to preview photos</p>
+                        <button id="centerFolderBtn" class="center-folder-btn" onclick="selectPhotoFolder()">
+                            <i class="fas fa-folder-open"></i> Select Photo Folder
+                        </button>
+                    </div>
+                `;
+                window.logger.log('No actual data found. Displaying empty state.');
             }
         }
     } catch (e) { 
