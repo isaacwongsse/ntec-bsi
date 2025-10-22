@@ -4985,7 +4985,6 @@ async function loadDataFromStorage() {
             });
             
             if (parsedData.photoMetadata) {
-                console.log('✅ photoMetadata found, loading photos...');
                 window.logger.log('Loading photo metadata from IndexedDB:', parsedData.photoMetadata.length);
                 
                 // 從元資料重建照片物件（包含 dataURL）
@@ -5123,7 +5122,6 @@ async function loadDataFromStorage() {
                     }
                 } else {
                     // 沒有從 FSA handle 載入，直接使用 IndexedDB 的照片
-                    console.log('📸 Loading photos directly from IndexedDB (no FSA handles)');
                     allPhotos = photosFromStorage;
                     const photosWithDataURL = allPhotos.filter(p => p.dataURL && p.dataURL.trim() !== '');
                     console.log('🔍 Photos loaded from IndexedDB:', {
@@ -5140,7 +5138,6 @@ async function loadDataFromStorage() {
                     
                     // 渲染載入的照片 - 修復：放寬條件，總是嘗試渲染有照片的情況
                     if (allPhotos.length > 0) {
-                        console.log('🎨 Preparing to render photos from storage...');
                         window.logger.log('Rendering loaded photos from storage...');
                         console.log('🔍 About to render photos, allPhotos:', allPhotos.length);
                         console.log('🔍 Photos with dataURL:', allPhotos.filter(p => p.dataURL).length);
@@ -5182,7 +5179,6 @@ async function loadDataFromStorage() {
                 }
             } else if (!alreadyLoadedPhotos && parsedData.allPhotoFilenames) {
                 // 向後相容：載入舊版本的照片檔案名稱
-                console.log('⚠️ Using legacy allPhotoFilenames (no dataURL available)');
                 window.logger.log('Loading allPhotoFilenames (legacy):', parsedData.allPhotoFilenames);
                 allPhotos = parsedData.allPhotoFilenames.map(filename => ({
                     name: filename,
@@ -5190,8 +5186,7 @@ async function loadDataFromStorage() {
                     type: 'image/jpeg'
                 }));
             } else {
-                console.log('❌ No photoMetadata or allPhotoFilenames found in savedData');
-                console.log('🔍 parsedData keys:', Object.keys(parsedData || {}));
+                console.log('⚠️ No photoMetadata or allPhotoFilenames found in savedData');
             }
             
             // 載入樓層平面圖數據
@@ -8304,85 +8299,37 @@ document.addEventListener('DOMContentLoaded', async function() {
         const saved = await window.storageAdapter.getItem('photoNumberExtractorData');
         const modal = document.getElementById('sessionRestoreModal');
         
-        // 🔍 調試：輸出 saved 數據的詳細資訊
-        console.log('🔍 Session restore check - saved data:', {
-            exists: !!saved,
-            hasInspectionRecords: saved?.inspectionRecords?.length > 0,
-            hasSubmittedData: saved?.submittedData?.length > 0,
-            hasFloorPlanLabels: saved?.floorPlanLabels?.length > 0,
-            hasFloorPlanDefectMarks: saved?.floorPlanDefectMarks?.length > 0,
-            hasPhotoAssignmentsLabels: saved?.photoAssignments?.labels?.length > 0,
-            hasPhotoAssignmentsDefectMarks: saved?.photoAssignments?.defectMarks?.length > 0,
-            hasAllPhotoFilenames: saved?.allPhotoFilenames?.length > 0,
-            hasPhotoMetadata: saved?.photoMetadata?.length > 0,
-            photoMetadataCount: saved?.photoMetadata?.length || 0,
-            hasFloorPlanPDF: !!saved?.floorPlanPDF,
-            hasFloorPlanData: !!saved?.floorPlanData,
-            hasEmbeddedPDF: !!saved?.embeddedPDF,
-            hasFloorPlanBase64: !!saved?.floorPlanBase64,
-            startFreshCompleted: window.startFreshCompleted
-        });
-        
         // 檢查是否有實際的數據（不僅僅是空的數據結構）
         // 注意：不檢查 localStorage 中的數據，因為它們可能已經遷移到 IndexedDB
         // 如果已經完成 Start Fresh，則不顯示恢復模態框
-        // 🔧 調整：只要有任何數據就顯示 modal，讓用戶選擇是否恢復
         const hasActualData = !window.startFreshCompleted && saved && (
-            // 有任何檢查記錄
             (saved.inspectionRecords && saved.inspectionRecords.length > 0) ||
             (saved.submittedData && saved.submittedData.length > 0) ||
-            // 有任何樓層平面圖標籤或缺陷標記
             (saved.floorPlanLabels && saved.floorPlanLabels.length > 0) ||
             (saved.floorPlanDefectMarks && saved.floorPlanDefectMarks.length > 0) ||
-            // 有任何照片分配
             (saved.photoAssignments?.labels && saved.photoAssignments.labels.length > 0) ||
             (saved.photoAssignments?.defectMarks && saved.photoAssignments.defectMarks.length > 0) ||
-            (saved.photoAssignments?.assignedPhotos && Object.keys(saved.photoAssignments.assignedPhotos).some(key => 
-                saved.photoAssignments.assignedPhotos[key] && saved.photoAssignments.assignedPhotos[key].length > 0
-            )) ||
-            // 有任何照片數據（重要！）
             (saved.allPhotoFilenames && saved.allPhotoFilenames.length > 0) ||
             (saved.photoMetadata && saved.photoMetadata.length > 0) ||
-            // 有任何 PDF 或樓層平面圖數據
             saved.floorPlanPDF || 
             saved.floorPlanData ||
             saved.embeddedPDF ||
-            saved.floorPlanBase64 ||
-            // 有任何 header 欄位數據
-            (saved.headerFields && (
-                saved.headerFields.inspectionNo ||
-                saved.headerFields.inspectionDate ||
-                saved.headerFields.floor ||
-                saved.headerFields.areaName ||
-                saved.headerFields.roomNo
-            ))
+            saved.floorPlanBase64
         );
         
-        console.log('🔍 Session restore check - hasActualData:', hasActualData, 'modal exists:', !!modal);
-        
-        if (hasActualData) {
-            if (modal) {
-                // 有實際數據且 modal 存在，顯示恢復彈窗
-                console.log('✅ Previous session data detected, showing restore modal');
-                modal.style.display = 'flex';
-                
-                // 設置 modal 按鈕事件
-                const restoreBtn = document.getElementById('restoreSessionBtn');
-                const startFreshBtn = document.getElementById('startFreshBtn');
+        if (hasActualData && modal) {
+            // 僅在有實際數據時顯示
+            console.log('Previous session data detected, showing restore modal');
+            modal.style.display = 'flex';
+            const restoreBtn = document.getElementById('restoreSessionBtn');
+            const startFreshBtn = document.getElementById('startFreshBtn');
             if (restoreBtn) {
                 restoreBtn.onclick = async () => {
                     modal.style.display = 'none';
-                    
-                    console.log('📸 使用方式二：完全依賴 IndexedDB dataURL 載入照片');
-                    
-                    // 🔧 方式二：完全依賴 IndexedDB dataURL
-                    // 不使用 FSA handles 載入照片，直接從 IndexedDB 恢復
-                    // 重要：設置全局變量為 false，確保 loadDataFromStorage 從 IndexedDB 載入所有照片
-                    window.loadedFromHandles = false;
+                    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
                     let loadedWithHandles = false;
-                    
-                    // 仍然嘗試從 FSA handle 載入 PDF（如果有）
                     try {
+                        // PDF
                         const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
                         if (pdfHandle && pdfHandle.kind === 'file') {
                             const p = await pdfHandle.queryPermission?.();
@@ -8398,61 +8345,112 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     floorPlanUploadArea.style.display = 'none';
                                     floorPlanViewer.style.display = 'flex';
                                 }
-                                console.log('✅ PDF loaded from FSA handle');
+                                loadedWithHandles = true;
                             }
                         }
-                    } catch (e) { 
-                        console.log('⚠️ Failed to load PDF from FSA handle:', e.message);
-                    }
+                        // Photos folder
+                        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+                        if (dirHandle && dirHandle.kind === 'directory') {
+                            const p = await dirHandle.queryPermission?.({mode: 'read'});
+                            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
+                                const imageFiles = [];
+                                for await (const [name, handle] of dirHandle.entries()) {
+                                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                                        const f = await handle.getFile();
+                                        imageFiles.push(f);
+                                    }
+                                }
+                                if (imageFiles.length > 0) {
+                                    window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
+                                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                                    
+                                    // 🔧 從 IndexedDB 載入 photoMetadata 以恢復 dataURL
+                                    console.log('📥 Loading photoMetadata to restore dataURLs...');
+                                    const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
+                                    if (savedData && savedData.photoMetadata) {
+                                        const photoMetadataMap = new Map(savedData.photoMetadata.map(meta => [meta.name, meta.dataURL]));
+                                        console.log(`📦 Found ${photoMetadataMap.size} photos in IndexedDB with dataURL`);
+                                        
+                                        // 將 dataURL 附加到從 FSA handle 讀取的 File 對象上
+                                        let restoredCount = 0;
+                                        for (const photo of allPhotos) {
+                                            const dataURL = photoMetadataMap.get(photo.name);
+                                            if (dataURL && dataURL.trim() !== '') {
+                                                photo.dataURL = dataURL;
+                                                restoredCount++;
+                                            }
+                                        }
+                                        console.log(`✅ Restored dataURL for ${restoredCount} / ${allPhotos.length} photos`);
+                                    } else {
+                                        console.log('⚠️ No photoMetadata found in IndexedDB, photos will be re-processed');
+                                    }
+                                    
+                                    const lazyObserver = initLazyLoading();
+                                    await renderPhotos(allPhotos, lazyObserver);
+                                    updateFolderDisplay();
+                                    updateAddPhotosButtonVisibility();
+                                    loadedWithHandles = true;
+                                }
+                            }
+                        }
+                    } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
 
-                    // 載入所有資料（包括照片），完全依賴 IndexedDB
-                    // loadedWithHandles = false，所以 loadDataFromStorage 會使用 IndexedDB 中的 photoMetadata
-                    console.log('📥 Loading all data from IndexedDB (including photos with dataURL)...');
+                    // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
                     await loadDataFromStorage();
 
-                    // 檢查是否有嵌入的 PDF 數據（從 localStorage）
+                    // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
                     try {
-                        const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
-                        const pdfFilename = localStorage.getItem('pne_floorplan_filename');
-                        
-                        if (pdfBase64 && pdfFilename) {
-                            console.log('📄 Found embedded PDF in localStorage, loading...');
-                            try {
-                                // 將 base64 數據轉換為 ArrayBuffer
-                                const binaryString = atob(pdfBase64);
-                                const arrayBuffer = new ArrayBuffer(binaryString.length);
-                                const uint8Array = new Uint8Array(arrayBuffer);
-                                for (let i = 0; i < binaryString.length; i++) {
-                                    uint8Array[i] = binaryString.charCodeAt(i);
+                        if (!loadedWithHandles) {
+                            // 檢查 localStorage 中是否有嵌入的 PDF 數據
+                            const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
+                            const pdfFilename = localStorage.getItem('pne_floorplan_filename');
+                            
+                            if (pdfBase64 && pdfFilename) {
+                                window.logger.log('Open previous: Found embedded PDF in localStorage, loading...');
+                                try {
+                                    // 將 base64 數據轉換為 ArrayBuffer
+                                    const binaryString = atob(pdfBase64);
+                                    const arrayBuffer = new ArrayBuffer(binaryString.length);
+                                    const uint8Array = new Uint8Array(arrayBuffer);
+                                    for (let i = 0; i < binaryString.length; i++) {
+                                        uint8Array[i] = binaryString.charCodeAt(i);
+                                    }
+                                    
+                                    // 載入 PDF
+                                    await loadPDFFromArrayBuffer(arrayBuffer, pdfFilename);
+                                    
+                                    // 打開繪圖模式
+                                    const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                    const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                                    const floorPlanViewer = document.getElementById('floorPlanViewer');
+                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                    if (floorPlanUploadArea && floorPlanViewer) {
+                                        floorPlanUploadArea.style.display = 'none';
+                                        floorPlanViewer.style.display = 'flex';
+                                    }
+                                    
+                                    window.logger.log('Open previous: Embedded PDF loaded successfully');
+                                } catch (error) {
+                                    window.logger.error('Open previous: Error loading embedded PDF:', error);
+                                    // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                                    const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                    if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                 }
-                                
-                                // 載入 PDF
-                                await loadPDFFromArrayBuffer(arrayBuffer, pdfFilename);
-                                
-                                // 打開繪圖模式
-                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
-                                const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
-                                if (floorPlanUploadArea && floorPlanViewer) {
-                                    floorPlanUploadArea.style.display = 'none';
-                                    floorPlanViewer.style.display = 'flex';
-                                }
-                                
-                                console.log('✅ Embedded PDF loaded successfully');
-                            } catch (error) {
-                                console.error('❌ Error loading embedded PDF:', error);
-                                // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                            } else {
+                                // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                 const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                 if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                             }
                         }
                     } catch (e) { 
-                        console.error('❌ Error in PDF loading logic:', e);
+                        window.logger.error('Open previous: Error in PDF loading logic:', e);
+                        // 至少打開繪圖模式
+                        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                     }
                 };
-                }
-                if (startFreshBtn) {
+            }
+            if (startFreshBtn) {
                 startFreshBtn.onclick = async () => {
                     modal.style.display = 'none';
                     
@@ -8574,18 +8572,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                         }
                     }
                 };
-                }
-            } else {
-                // 有數據但 modal 不存在，記錄錯誤並自動載入數據
-                console.warn('⚠️ Session restore modal not found, auto-loading previous data...');
-                // 確保從 IndexedDB 載入所有照片（方式二）
-                window.loadedFromHandles = false;
-                await loadDataFromStorage();
             }
         } else {
-            console.log('ℹ️ No previous session data found or Start Fresh was completed');
             // 沒有實際數據時，確保照片預覽區域顯示空狀態
-            if (photoGrid) {
+            if (!hasActualData && photoGrid) {
                 photoGrid.innerHTML = `
                     <div class="empty-preview">
                         <i class="fas fa-images fa-4x"></i>
@@ -10792,21 +10782,7 @@ window.saveDataToStorage = async function() {
         // 照片基本與指派統計 - 與 .pne 檔案一致
         totalPhotos: (allPhotos || []).length,
         totalAssignments: Object.values(assignedPhotos || {}).reduce((sum, photos) => sum + photos.size, 0),
-        photoMetadata: (() => {
-            console.log('💾 saveDataToStorage: Creating photoMetadata from allPhotos');
-            console.log('📊 allPhotos status:', {
-                exists: !!allPhotos,
-                isArray: Array.isArray(allPhotos),
-                length: allPhotos ? allPhotos.length : 0,
-                firstPhoto: allPhotos && allPhotos[0] ? allPhotos[0].name : 'N/A'
-            });
-            
-            if (!allPhotos || allPhotos.length === 0) {
-                console.warn('⚠️ allPhotos is empty or undefined! photoMetadata will be empty.');
-                return [];
-            }
-            
-            return (allPhotos || []).map(file => {
+        photoMetadata: (allPhotos || []).map(file => {
             // 如果沒有 dataURL，嘗試從 DOM 中獲取
             let dataURL = file.dataURL || '';
             if (!dataURL) {
@@ -10849,8 +10825,7 @@ window.saveDataToStorage = async function() {
             }
             
             return photoMetadata;
-            });
-        })(),
+        }),
 
         // 主資料表 - 與 .pne 檔案一致
         inspectionRecords: submittedData || [],
@@ -11443,7 +11418,9 @@ function initializeExportSettings() {
             });
         });
     const hasFloorPlanPDF = localStorage.getItem('pne_floorplan_filename') || localStorage.getItem('pne_floorplan_base64');
-    const hasPhotos = allPhotos && allPhotos.length > 0;
+    const hasPhotos = (allPhotos && allPhotos.length > 0) || 
+                     (photoFolders && photoFolders.length > 0) || 
+                     (submittedData && submittedData.some(record => record.photoFilenames && record.photoFilenames.length > 0));
     
     // 設置複選框狀態
     const inspectionRecordsCheckbox = document.getElementById('exportInspectionRecords');
@@ -11557,6 +11534,283 @@ function setupExportSettingsEventListeners() {
             }
         };
     }
+    
+    // Photo watermark controls
+    setupPhotoWatermarkControls();
+}
+
+// Setup photo watermark controls
+function setupPhotoWatermarkControls() {
+    const watermarkToggle = document.getElementById('photoWatermarkToggle');
+    const watermarkControls = document.getElementById('photoWatermarkControls');
+    const watermarkColorPicker = document.getElementById('photoWatermarkColorPicker');
+    const watermarkSizeSlider = document.getElementById('photoWatermarkSizeSlider');
+    const watermarkSizeValue = document.getElementById('photoWatermarkSizeValue');
+    
+    // Watermark toggle event
+    if (watermarkToggle && watermarkControls) {
+        watermarkToggle.addEventListener('change', function() {
+            if (this.checked) {
+                watermarkControls.style.display = 'block';
+            } else {
+                watermarkControls.style.display = 'none';
+            }
+            updatePhotoWatermarkPreview();
+        });
+        
+        // Initialize visibility based on toggle state
+        watermarkControls.style.display = watermarkToggle.checked ? 'block' : 'none';
+    }
+    
+    // Watermark size slider event
+    if (watermarkSizeSlider && watermarkSizeValue) {
+        watermarkSizeSlider.addEventListener('input', function() {
+            watermarkSizeValue.textContent = this.value;
+            updatePhotoWatermarkPreview();
+        });
+    }
+    
+    // Watermark color picker event
+    if (watermarkColorPicker) {
+        watermarkColorPicker.addEventListener('change', function() {
+            updatePhotoWatermarkPreview();
+        });
+    }
+    
+    // Initialize preview
+    updatePhotoWatermarkPreview();
+}
+
+// Update photo watermark preview
+function updatePhotoWatermarkPreview() {
+    // Update landscape preview
+    updateLandscapeWatermarkPreview();
+    // Update portrait preview
+    updatePortraitWatermarkPreview();
+}
+
+// Update landscape watermark preview
+function updateLandscapeWatermarkPreview() {
+    const canvas = document.getElementById('photoWatermarkPreviewCanvas');
+    const resolutionSpan = document.getElementById('photoWatermarkPreviewResolution');
+    
+    if (!canvas || !resolutionSpan) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Use example dimensions for landscape effect (16:9 ratio)
+    const baseWidth = 1920;
+    const baseHeight = 1080;
+    
+    // Set canvas size (scaled version for preview)
+    const scale = Math.min(120 / baseWidth, 80 / baseHeight);
+    const previewWidth = Math.floor(baseWidth * scale);
+    const previewHeight = Math.floor(baseHeight * scale);
+    
+    canvas.width = previewWidth;
+    canvas.height = previewHeight;
+    
+    // Update resolution display
+    resolutionSpan.textContent = `${baseWidth} x ${baseHeight}`;
+    
+    // Fill white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, previewWidth, previewHeight);
+    
+    // Draw watermark if enabled
+    const watermarkToggle = document.getElementById('photoWatermarkToggle');
+    if (watermarkToggle && watermarkToggle.checked) {
+        const watermarkColorPicker = document.getElementById('photoWatermarkColorPicker');
+        const watermarkSizeSlider = document.getElementById('photoWatermarkSizeSlider');
+        
+        const watermarkColor = watermarkColorPicker ? watermarkColorPicker.value : '#000000';
+        const watermarkSize = watermarkSizeSlider ? parseInt(watermarkSizeSlider.value) : 24;
+        
+        // Use current inspection date or today's date
+        const inspectionDate = document.getElementById('inspectionDate')?.value || new Date().toISOString().split('T')[0];
+        const watermarkText = formatDateForWatermark(inspectionDate);
+        const watermarkFontSize = Math.floor(watermarkSize * scale);
+        
+        ctx.font = `bold ${watermarkFontSize}px Arial, sans-serif`;
+        ctx.fillStyle = watermarkColor;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        
+        // Watermark position (bottom right corner)
+        const watermarkX = previewWidth - 5;
+        const watermarkY = previewHeight - 5;
+        
+        ctx.fillText(watermarkText, watermarkX, watermarkY);
+    }
+    
+    // Add orientation indicator
+    ctx.font = `8px Arial, sans-serif`;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    
+    ctx.fillText('Landscape', 5, 5);
+}
+
+// Update portrait watermark preview
+function updatePortraitWatermarkPreview() {
+    const canvas = document.getElementById('photoWatermarkPreviewCanvasP');
+    const resolutionSpan = document.getElementById('photoWatermarkPreviewResolutionP');
+    
+    if (!canvas || !resolutionSpan) return;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Use example dimensions for portrait effect (9:16 ratio)
+    const baseWidth = 1080;
+    const baseHeight = 1920;
+    
+    // Set canvas size (scaled version for preview)
+    const scale = Math.min(120 / baseWidth, 80 / baseHeight);
+    const previewWidth = Math.floor(baseWidth * scale);
+    const previewHeight = Math.floor(baseHeight * scale);
+    
+    canvas.width = previewWidth;
+    canvas.height = previewHeight;
+    
+    // Update resolution display
+    resolutionSpan.textContent = `${baseWidth} x ${baseHeight}`;
+    
+    // Fill white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, previewWidth, previewHeight);
+    
+    // Draw watermark if enabled
+    const watermarkToggle = document.getElementById('photoWatermarkToggle');
+    if (watermarkToggle && watermarkToggle.checked) {
+        const watermarkColorPicker = document.getElementById('photoWatermarkColorPicker');
+        const watermarkSizeSlider = document.getElementById('photoWatermarkSizeSlider');
+        
+        const watermarkColor = watermarkColorPicker ? watermarkColorPicker.value : '#000000';
+        const watermarkSize = watermarkSizeSlider ? parseInt(watermarkSizeSlider.value) : 24;
+        
+        // Use current inspection date or today's date
+        const inspectionDate = document.getElementById('inspectionDate')?.value || new Date().toISOString().split('T')[0];
+        const watermarkText = formatDateForWatermark(inspectionDate);
+        const watermarkFontSize = Math.floor(watermarkSize * scale);
+        
+        ctx.font = `bold ${watermarkFontSize}px Arial, sans-serif`;
+        ctx.fillStyle = watermarkColor;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        
+        // Watermark position (bottom right corner)
+        const watermarkX = previewWidth - 5;
+        const watermarkY = previewHeight - 5;
+        
+        ctx.fillText(watermarkText, watermarkX, watermarkY);
+    }
+    
+    // Add orientation indicator
+    ctx.font = `8px Arial, sans-serif`;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    
+    ctx.fillText('Portrait', 5, 5);
+}
+
+// Photo watermark functionality
+let photoWatermarkSettings = {
+    enabled: true,
+    color: '#000000',
+    size: 24
+};
+
+// Format date for watermark (from Phorigami.html)
+function formatDateForWatermark(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+}
+
+// Get inspection date for a photo based on filename
+function getInspectionDateForPhoto(filename) {
+    // First, try to find the photo in submittedData
+    for (const record of submittedData) {
+        if (record.photoFilenames && record.photoFilenames.includes(filename)) {
+            return record.inspectionDate;
+        }
+    }
+    
+    // If not found in submittedData, try to find in photoFolders
+    for (const folder of photoFolders) {
+        if (folder.photos && folder.photos.includes(filename)) {
+            // Try to find the inspection date from the folder's locationId
+            for (const record of submittedData) {
+                if (record.locationId === folder.locationId) {
+                    return record.inspectionDate;
+                }
+            }
+        }
+    }
+    
+    // If still not found, use the current header inspection date
+    const headerInspectionDate = document.getElementById('inspectionDate');
+    if (headerInspectionDate && headerInspectionDate.value) {
+        return headerInspectionDate.value;
+    }
+    
+    // Fallback to today's date
+    return new Date().toISOString().split('T')[0];
+}
+
+// Add watermark to photo
+function addWatermarkToPhoto(imageBlob, inspectionDate) {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+
+        img.onload = function() {
+            // Set canvas size to match image
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            // Draw the original image
+            ctx.drawImage(img, 0, 0);
+
+            // Add watermark if enabled
+            const watermarkToggle = document.getElementById('photoWatermarkToggle');
+            if (watermarkToggle && watermarkToggle.checked && inspectionDate) {
+                const watermarkText = formatDateForWatermark(inspectionDate);
+                const watermarkColorPicker = document.getElementById('photoWatermarkColorPicker');
+                const watermarkSizeSlider = document.getElementById('photoWatermarkSizeSlider');
+                
+                const watermarkColor = watermarkColorPicker ? watermarkColorPicker.value : '#000000';
+                const watermarkSize = watermarkSizeSlider ? parseInt(watermarkSizeSlider.value) : 24;
+                
+                // Calculate watermark font size based on image dimensions
+                const watermarkFontSize = Math.floor(watermarkSize * (img.width / 1920));
+                
+                ctx.font = `bold ${watermarkFontSize}px Arial, sans-serif`;
+                ctx.fillStyle = watermarkColor;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                
+                // Watermark position (bottom right corner)
+                const watermarkX = canvas.width - Math.floor(watermarkFontSize * 0.5);
+                const watermarkY = canvas.height - Math.floor(watermarkFontSize * 0.5);
+                
+                ctx.fillText(watermarkText, watermarkX, watermarkY);
+            }
+
+            // Convert to blob
+            canvas.toBlob((blob) => {
+                resolve(blob);
+            }, 'image/jpeg', 0.9);
+        };
+
+        img.src = URL.createObjectURL(imageBlob);
+    });
 }
 
 // 執行導出 - 與 pne.html 邏輯一致
@@ -11622,10 +11876,9 @@ async function performExport() {
         }
         
         // 5. 添加照片到 ZIP - 與 pne.html 邏輯一致
-        if (exportSettings.sortPhotosToFolder) {
-            window.logger.log('Starting photo export with folder sorting (pne.html style)');
-            await exportPhotosToZipPneStyle(zip);
-        }
+        // Always export photos regardless of sortPhotosToFolder setting
+        window.logger.log('Starting photo export with folder sorting (pne.html style)');
+        await exportPhotosToZipPneStyle(zip);
         
         // 6. 生成並下載 ZIP 檔案
         const content = await zip.generateAsync({type: 'blob'});
@@ -11735,11 +11988,49 @@ async function exportFloorPlanToZip(zip) {
                     
                     // 獲取Canvas尺寸用於坐標轉換
                     const floorPlanCanvas = document.getElementById('floorPlanCanvas');
-                    const canvasWidth = parseFloat(floorPlanCanvas.style.width) || floorPlanCanvas.width / (window.outputScale || 1);
-                    const canvasHeight = parseFloat(floorPlanCanvas.style.height) || floorPlanCanvas.height / (window.outputScale || 1);
+                    let canvasWidth, canvasHeight;
+                    
+                    if (floorPlanCanvas && floorPlanCanvas.style.width && floorPlanCanvas.style.height) {
+                        // 使用 CSS 尺寸（如果可用）
+                        canvasWidth = parseFloat(floorPlanCanvas.style.width);
+                        canvasHeight = parseFloat(floorPlanCanvas.style.height);
+                        window.logger.log('Using CSS dimensions for coordinate conversion');
+                    } else {
+                        // 從存儲的樓層平面圖數據中獲取尺寸
+                        const storedCanvasWidth = floorPlanData.canvasWidth || 800;
+                        const storedCanvasHeight = floorPlanData.canvasHeight || 600;
+                        canvasWidth = storedCanvasWidth;
+                        canvasHeight = storedCanvasHeight;
+                        window.logger.log('Using stored dimensions for coordinate conversion');
+                    }
 
+                    // 檢查 Canvas 和 PDF 的寬高比是否匹配
+                    const canvasAspectRatio = canvasWidth / canvasHeight;
+                    const pdfAspectRatio = width / height;
+                    const aspectRatioDiff = Math.abs(canvasAspectRatio - pdfAspectRatio);
+                    
+                    // 檢查是否 Canvas 和 PDF 的寬高被交換了（90度旋轉）
+                    const canvasAspectRatioSwapped = canvasHeight / canvasWidth;
+                    const aspectRatioDiffSwapped = Math.abs(canvasAspectRatioSwapped - pdfAspectRatio);
+                    const isRotated90Degrees = aspectRatioDiffSwapped < aspectRatioDiff && aspectRatioDiff > 0.1;
+                    
                     window.logger.log('PDF page size:', width, height);
                     window.logger.log('Canvas size:', canvasWidth, canvasHeight);
+                    window.logger.log('Canvas aspect ratio:', canvasAspectRatio.toFixed(3));
+                    window.logger.log('Canvas aspect ratio (swapped):', canvasAspectRatioSwapped.toFixed(3));
+                    window.logger.log('PDF aspect ratio:', pdfAspectRatio.toFixed(3));
+                    window.logger.log('Aspect ratio difference (normal):', aspectRatioDiff.toFixed(3));
+                    window.logger.log('Aspect ratio difference (swapped):', aspectRatioDiffSwapped.toFixed(3));
+                    window.logger.log('Is rotated 90 degrees:', isRotated90Degrees);
+                    window.logger.log('Floor plan data:', floorPlanData);
+                    
+                    // 如果檢測到 90 度旋轉，交換 Canvas 的寬高
+                    if (isRotated90Degrees) {
+                        window.logger.warn('Canvas appears to be rotated 90 degrees relative to PDF - swapping dimensions');
+                        [canvasWidth, canvasHeight] = [canvasHeight, canvasWidth];
+                    } else if (aspectRatioDiff > 0.1) {
+                        window.logger.warn('Canvas and PDF aspect ratios differ significantly, coordinate conversion may be inaccurate');
+                    }
 
                     // 繪製標籤到PDF
                     if (labelsToExport.length > 0) {
@@ -11819,10 +12110,26 @@ async function exportFloorPlanToZip(zip) {
 // 導出照片到 ZIP - 與 pne.html 邏輯完全一致
 async function exportPhotosToZipPneStyle(zip) {
     try {
-        window.logger.log('Exporting photos - photoFolders:', photoFolders);
-        window.logger.log('Exporting photos - allPhotos:', allPhotos.length, 'files');
+        window.logger.log('=== Photo Export Debug Info ===');
+        window.logger.log('photoFolders.length:', photoFolders.length);
+        window.logger.log('photoFolders:', photoFolders);
+        window.logger.log('allPhotos.length:', allPhotos.length);
+        window.logger.log('allPhotos:', allPhotos);
+        window.logger.log('submittedData.length:', submittedData.length);
+        window.logger.log('submittedData:', submittedData);
+        window.logger.log('================================');
         
-    if (photoFolders.length > 0) {
+        // Check if we have any photos to export
+        const hasPhotoFolders = photoFolders && photoFolders.length > 0;
+        const hasAllPhotos = allPhotos && allPhotos.length > 0;
+        const hasSubmittedDataPhotos = submittedData && submittedData.some(record => record.photoFilenames && record.photoFilenames.length > 0);
+        
+        if (!hasPhotoFolders && !hasAllPhotos && !hasSubmittedDataPhotos) {
+            window.logger.warn('No photos available for export');
+            return;
+        }
+        
+        if (photoFolders.length > 0) {
         const photosFolder = zip.folder("Inspection_Photos");
         
         for (const folder of photoFolders) {
@@ -11848,8 +12155,12 @@ async function exportPhotosToZipPneStyle(zip) {
                                 const file = await fileHandle.getFile();
                                 const arrayBuffer = await file.arrayBuffer();
                                 const originalBlob = new Blob([arrayBuffer], { type: file.type || 'image/jpeg' });
-                                folderInZip.file(photoData.name, originalBlob);
-                                window.logger.log('Added original photo via File System Access API:', filename);
+                                
+                                // Apply watermark if enabled
+                                const inspectionDate = getInspectionDateForPhoto(filename);
+                                const watermarkedBlob = await addWatermarkToPhoto(originalBlob, inspectionDate);
+                                folderInZip.file(photoData.name, watermarkedBlob);
+                                window.logger.log('Added watermarked photo via File System Access API:', filename);
                                 continue;
                             }
                         } catch (e) {
@@ -11859,13 +12170,17 @@ async function exportPhotosToZipPneStyle(zip) {
                     
                     if (photoData && photoData.blob) {
                         // 使用存儲的 Blob 對象（已經調整過大小）
-                        folderInZip.file(photoData.name, photoData.blob);
-                        window.logger.log('Added resized photo blob:', filename);
+                        const inspectionDate = getInspectionDateForPhoto(filename);
+                        const watermarkedBlob = await addWatermarkToPhoto(photoData.blob, inspectionDate);
+                        folderInZip.file(photoData.name, watermarkedBlob);
+                        window.logger.log('Added watermarked photo blob:', filename);
                     } else if (photoData && photoData.dataURL) {
                         // 使用 dataURL 創建 Blob
                         const blob = dataURLToBlob(photoData.dataURL);
-                        folderInZip.file(photoData.name, blob);
-                        window.logger.log('Added photo from dataURL:', filename);
+                        const inspectionDate = getInspectionDateForPhoto(filename);
+                        const watermarkedBlob = await addWatermarkToPhoto(blob, inspectionDate);
+                        folderInZip.file(photoData.name, watermarkedBlob);
+                        window.logger.log('Added watermarked photo from dataURL:', filename);
                     } else {
                         // 如果沒有找到照片物件，創建佔位符圖片
                         window.logger.warn(`Photo file not found: ${filename}, creating placeholder image`);
@@ -11892,21 +12207,27 @@ async function exportPhotosToZipPneStyle(zip) {
                 window.logger.log('No photoFolders found, rebuilding from submittedData...');
                 const photosFolder = zip.folder("Inspection_Photos");
                 
-                submittedData.forEach(record => {
+                // Process each record sequentially to ensure proper async handling
+                for (const record of submittedData) {
                     if (record.photoFilenames && record.photoFilenames.length > 0) {
                         const folderName = record.folderName || `${record.locationId}_folder`;
                         window.logger.log('Creating folder:', folderName, 'with', record.photoFilenames.length, 'photos');
                         const folderInZip = photosFolder.folder(folderName);
                         
-                        record.photoFilenames.forEach(filename => {
+                        // Process each photo in the record sequentially
+                        for (const filename of record.photoFilenames) {
                             const photoData = allPhotos.find(f => f.name === filename);
                             if (photoData && photoData.blob) {
-                                folderInZip.file(photoData.name, photoData.blob);
-                                window.logger.log('Added photo to folder:', folderName, filename);
+                                const inspectionDate = record.inspectionDate || getInspectionDateForPhoto(filename);
+                                const watermarkedBlob = await addWatermarkToPhoto(photoData.blob, inspectionDate);
+                                folderInZip.file(photoData.name, watermarkedBlob);
+                                window.logger.log('Added watermarked photo to folder:', folderName, filename);
                             } else if (photoData && photoData.dataURL) {
                                 const blob = dataURLToBlob(photoData.dataURL);
-                                folderInZip.file(photoData.name, blob);
-                                window.logger.log('Added photo from dataURL to folder:', folderName, filename);
+                                const inspectionDate = record.inspectionDate || getInspectionDateForPhoto(filename);
+                                const watermarkedBlob = await addWatermarkToPhoto(blob, inspectionDate);
+                                folderInZip.file(photoData.name, watermarkedBlob);
+                                window.logger.log('Added watermarked photo from dataURL to folder:', folderName, filename);
                             } else {
                                 // 創建佔位符圖片
                                 const placeholderImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
@@ -11920,9 +12241,9 @@ async function exportPhotosToZipPneStyle(zip) {
                                 folderInZip.file(filename, placeholderBlob);
                                 window.logger.log('Added placeholder to folder:', folderName, filename);
                             }
-                        });
+                        }
                     }
-                });
+                }
             } else {
                 window.logger.log('No photoFolders to export and no submittedData available');
             }
@@ -11931,6 +12252,8 @@ async function exportPhotosToZipPneStyle(zip) {
         window.logger.log('Photos added to ZIP (pne.html style)');
     } catch (error) {
         window.logger.error('Error exporting photos (pne.html style):', error);
+        // Re-throw the error so it can be handled by the calling function
+        throw error;
     }
 }
 
@@ -12579,15 +12902,18 @@ async function drawLabelOnPDF(page, label, canvasWidth, canvasHeight, pdfWidth, 
         const labelY = label.canvasPosition ? label.canvasPosition.y : label.y;
         
         // 坐標轉換：Canvas坐標轉換為PDF坐標
-        // 使用與缺陷標記相同的轉換邏輯（直接轉換，不進行範圍限制）
-        const pdfX = (labelX / canvasWidth) * pdfWidth;
-        const pdfY = pdfHeight - ((labelY / canvasHeight) * pdfHeight); // PDF坐標系Y軸向上
+        // 確保使用正確的比例進行轉換
+        const scaleX = pdfWidth / canvasWidth;
+        const scaleY = pdfHeight / canvasHeight;
+        const pdfX = labelX * scaleX;
+        const pdfY = pdfHeight - (labelY * scaleY); // PDF坐標系Y軸向上
         
         window.logger.log('Label coordinate conversion:', {
             labelId: label.id,
             canvasCoord: { x: labelX, y: labelY },
             canvasSize: { width: canvasWidth, height: canvasHeight },
             pdfSize: { width: pdfWidth, height: pdfHeight },
+            scale: { x: scaleX, y: scaleY },
             pdfCoord: { x: pdfX, y: pdfY },
             isValidPosition: pdfX >= 0 && pdfX <= pdfWidth && pdfY >= 0 && pdfY <= pdfHeight
         });
@@ -12766,8 +13092,27 @@ function drawDefectMarkOnPDF(page, defectMark, canvasWidth, canvasHeight, pdfWid
         const markY = defectMark.canvasPosition ? defectMark.canvasPosition.y : defectMark.y;
         
         // 坐標轉換：Canvas坐標轉換為PDF坐標
-        const pdfX = (markX / canvasWidth) * pdfWidth;
-        const pdfY = pdfHeight - ((markY / canvasHeight) * pdfHeight);
+        // 確保使用正確的比例進行轉換
+        const scaleX = pdfWidth / canvasWidth;
+        const scaleY = pdfHeight / canvasHeight;
+        const pdfX = markX * scaleX;
+        const pdfY = pdfHeight - (markY * scaleY);
+        
+        // 計算文字框位置 - 使用 connectionPosition 或預設偏移
+        let textboxX, textboxY;
+        if (defectMark.connectionPosition) {
+            // 使用實際的連接位置
+            const connX = defectMark.connectionPosition.x;
+            const connY = defectMark.connectionPosition.y;
+            textboxX = connX * scaleX;
+            textboxY = pdfHeight - (connY * scaleY);
+        } else {
+            // 使用預設偏移量
+            const offsetX = defectMark.textboxOffsetX || 80;
+            const offsetY = defectMark.textboxOffsetY || 40;
+            textboxX = pdfX + (offsetX * scaleX);
+            textboxY = pdfY - (offsetY * scaleY);
+        }
         
         window.logger.log('Defect mark coordinate conversion:', {
             markId: defectMark.id,
@@ -12776,7 +13121,9 @@ function drawDefectMarkOnPDF(page, defectMark, canvasWidth, canvasHeight, pdfWid
             canvasCoord: { x: markX, y: markY },
             canvasSize: { width: canvasWidth, height: canvasHeight },
             pdfSize: { width: pdfWidth, height: pdfHeight },
+            scale: { x: scaleX, y: scaleY },
             pdfCoord: { x: pdfX, y: pdfY },
+            textboxCoord: { x: textboxX, y: textboxY },
             connectionPosition: defectMark.connectionPosition,
             textboxOffset: { 
                 x: defectMark.textboxOffsetX, 
@@ -12784,22 +13131,6 @@ function drawDefectMarkOnPDF(page, defectMark, canvasWidth, canvasHeight, pdfWid
             },
             fullDefectMark: defectMark
         });
-
-        // 計算文字框位置 - 使用 connectionPosition 或預設偏移
-        let textboxX, textboxY;
-        if (defectMark.connectionPosition) {
-            // 使用實際的連接位置
-            const connX = defectMark.connectionPosition.x;
-            const connY = defectMark.connectionPosition.y;
-            textboxX = (connX / canvasWidth) * pdfWidth;
-            textboxY = pdfHeight - ((connY / canvasHeight) * pdfHeight);
-        } else {
-            // 使用預設偏移量
-            const offsetX = defectMark.textboxOffsetX || 80;
-            const offsetY = defectMark.textboxOffsetY || 40;
-            textboxX = pdfX + (offsetX / canvasWidth) * pdfWidth;
-            textboxY = pdfY - (offsetY / canvasHeight) * pdfHeight;
-        }
 
         // 1. 先繪製連接線（在最後面的圖層）
         page.drawLine({
@@ -13256,6 +13587,9 @@ async function loadPDFFromArrayBuffer(arrayBuffer, pdfPath) {
             width: viewport.width,
             height: viewport.height
         },
+        // 保存 Canvas CSS 尺寸用於座標轉換（因為標籤位置是基於 CSS 尺寸計算的）
+        canvasWidth: parseFloat(floorPlanCanvas.style.width) || cssWidth,
+        canvasHeight: parseFloat(floorPlanCanvas.style.height) || cssHeight,
         labelsCount: (typeof window.labels !== 'undefined' && window.labels) ? window.labels.length : 0,
         defectMarksCount: (typeof window.defectMarks !== 'undefined' && window.defectMarks) ? window.defectMarks.length : 0,
         // 保存文件引用

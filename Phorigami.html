@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phorigami</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #e1e1e1;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 25%, #404040 50%, #525252 75%, #666666 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+
+
+        .main-content {
+            background: rgba(45, 45, 45, 0.7);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 25px;
+            padding: 40px;
+            margin: 20px 0;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 102, 102, 0.3);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: rgba(60, 60, 60, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            background: rgba(70, 70, 70, 0.9);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #e1e1e1;
+        }
+
+        .feature-description {
+            color: #b0b0b0;
+            line-height: 1.6;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: rgba(0, 122, 255, 0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            color: #ffffff;
+            padding: 18px 35px;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 122, 255, 0.5);
+            box-shadow: 0 8px 25px rgba(0, 122, 255, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0, 122, 255, 0.4);
+            background: rgba(0, 122, 255, 0.9);
+            border-color: rgba(0, 122, 255, 0.7);
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #b0b0b0;
+            opacity: 0.8;
+            background: rgba(45, 45, 45, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 15px;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+            margin-top: 30px;
+        }
+
+        .file-upload-container {
+            border: 3px solid rgba(102, 102, 102, 0.5);
+            border-radius: 20px;
+            padding: 25px 20px;
+            background: rgba(60, 60, 60, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 400px;
+            width: 600px;
+        }
+
+        .file-upload-left {
+            flex: 0 0 120px;
+            text-align: center;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .file-upload-right {
+            flex: 1;
+            text-align: left;
+            height: 240px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        /* 自定義滾動條樣式 */
+        .file-upload-right::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .file-upload-right::-webkit-scrollbar-track {
+            background: rgba(102, 102, 102, 0.3);
+            border-radius: 4px;
+        }
+
+        .file-upload-right::-webkit-scrollbar-thumb {
+            background: rgba(0, 122, 255, 0.6);
+            border-radius: 4px;
+        }
+
+        .file-upload-right::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 122, 255, 0.8);
+        }
+
+        .main-container {
+            display: flex;
+            gap: 30px;
+            margin: 30px 0;
+            align-items: flex-start;
+            justify-content: space-between;
+        }
+
+        .preview-container {
+            flex: 0 0 280px;
+            background: rgba(60, 60, 60, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-container-p {
+            flex: 0 0 280px;
+            background: rgba(60, 60, 60, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-canvas-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .preview-canvas {
+            border: 2px solid rgba(102, 102, 102, 0.5);
+            border-radius: 10px;
+            background: #ffffff;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .preview-info {
+            text-align: center;
+        }
+
+        .date-watermark-container {
+            background: rgba(60, 60, 60, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+        }
+
+        .date-controls {
+            display: flex;
+            gap: 30px;
+            align-items: flex-end;
+        }
+
+        .date-input-group {
+            flex: 1;
+        }
+
+        .watermark-color-group {
+            flex: 1;
+        }
+
+        .watermark-size-group {
+            flex: 1;
+            height: 77.59px;
+        }
+
+        .date-input {
+            width: 200px;
+            padding: 12px;
+            border: 1px solid rgba(102, 102, 102, 0.5);
+            border-radius: 8px;
+            background: rgba(80, 80, 80, 0.8);
+            color: #e1e1e1;
+            font-size: 1rem;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: rgba(0, 122, 255, 0.8);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        }
+
+        .watermark-color-picker {
+            width: 200px;
+            height: 47px;
+            border: 1px solid rgba(102, 102, 102, 0.5);
+            border-radius: 8px;
+            background: rgba(80, 80, 80, 0.8);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .watermark-color-picker:hover {
+            border-color: rgba(0, 122, 255, 0.8);
+            transform: scale(1.02);
+        }
+
+        .watermark-color-picker:focus {
+            outline: none;
+            border-color: rgba(0, 122, 255, 0.8);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        }
+
+        .watermark-size-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(102, 102, 102, 0.5);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .watermark-size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(0, 122, 255, 0.8);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .watermark-size-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(0, 122, 255, 0.8);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .watermark-toggle {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(102, 102, 102, 0.5);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: rgba(0, 122, 255, 0.8);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .file-upload-container:hover {
+            border-color: rgba(0, 122, 255, 0.8);
+            background: rgba(60, 60, 60, 0.8);
+            transform: scale(1.02);
+        }
+
+
+
+        .file-upload-text {
+            color: #e1e1e1;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-subtext {
+            color: rgba(225, 225, 225, 0.7);
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+
+        .file-upload-btn {
+            display: inline-block;
+            background: rgba(0, 122, 255, 0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            color: #ffffff;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 122, 255, 0.5);
+            box-shadow: 0 8px 25px rgba(0, 122, 255, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .file-upload-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0, 122, 255, 0.4);
+            background: rgba(0, 122, 255, 0.9);
+            border-color: rgba(0, 122, 255, 0.7);
+        }
+
+        .file-upload-btn input[type="file"] {
+            display: none;
+        }
+
+        .selected-files {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(80, 80, 80, 0.6);
+            border-radius: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .selected-file-item {
+            color: #e1e1e1;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-file-btn {
+            background: rgba(255, 59, 48, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .remove-file-btn:hover {
+            background: rgba(255, 59, 48, 1);
+            transform: scale(1.1);
+        }
+
+        .process-btn {
+            display: inline-block;
+            background: rgba(52, 199, 89, 0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            color: #ffffff;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(52, 199, 89, 0.5);
+            box-shadow: 0 8px 25px rgba(52, 199, 89, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(52, 199, 89, 0.4);
+            background: rgba(52, 199, 89, 0.9);
+            border-color: rgba(52, 199, 89, 0.7);
+        }
+
+        .process-btn:disabled {
+            background: rgba(102, 102, 102, 0.5);
+            border-color: rgba(102, 102, 102, 0.3);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+
+
+        .resolution-selector {
+            background: rgba(60, 60, 60, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+        }
+
+        .resolution-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .resolution-option {
+            background: rgba(80, 80, 80, 0.8);
+            border: 1px solid rgba(102, 102, 102, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #e1e1e1;
+        }
+
+        .resolution-option:hover {
+            background: rgba(90, 90, 90, 0.9);
+            transform: translateY(-2px);
+        }
+
+        .resolution-option.selected {
+            background: rgba(0, 122, 255, 0.6);
+            border-color: rgba(0, 122, 255, 0.6);
+            box-shadow: 0 5px 15px rgba(0, 122, 255, 0.3);
+        }
+
+        .progress-container {
+            background: rgba(60, 60, 60, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 1px solid rgba(102, 102, 102, 0.3);
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(102, 102, 102, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007AFF, #5AC8FA, #34C759);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(80, 80, 80, 0.6);
+            border-radius: 10px;
+        }
+
+        .file-item {
+            color: #e1e1e1;
+            padding: 5px 0;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .feature-card {
+                margin: 0 10px;
+            }
+            
+            .main-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .preview-container,
+            .preview-container-p {
+                flex: none;
+                width: 100%;
+            }
+            
+            .file-upload-container {
+                padding: 30px 20px;
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .file-upload-left {
+                text-align: center;
+                height: auto;
+                flex: none;
+            }
+            
+            .file-upload-right {
+                text-align: center;
+                height: auto;
+                overflow-y: visible;
+            }
+            
+            .date-controls {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .resolution-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #e1e1e1; font-size: 3rem; margin: 40px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">Phorigami</h1>
+
+        <main class="main-content">
+
+
+
+
+            <div class="resolution-selector">
+                <h3 style="color: #e1e1e1; margin-bottom: 15px; text-align: center;">選擇縮放比例</h3>
+                <p style="color: #b0b0b0; text-align: center; margin-bottom: 20px; font-size: 0.9rem;">系統會根據原始圖片尺寸按比例縮放，保持縱橫比不變</p>
+                <div class="resolution-grid">
+                    <div class="resolution-option" data-scale="100">
+                        <div style="font-weight: bold;">原始尺寸</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">100% - 保持原尺寸</div>
+                    </div>
+                    <div class="resolution-option" data-scale="75">
+                        <div style="font-weight: bold;">75% 縮放</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">縮小到原尺寸的 75%</div>
+                    </div>
+                    <div class="resolution-option" data-scale="50">
+                        <div style="font-weight: bold;">50% 縮放</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">縮小到原尺寸的 50%</div>
+                    </div>
+                    <div class="resolution-option" data-scale="30">
+                        <div style="font-weight: bold;">30% 縮放</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">縮小到原尺寸的 30%</div>
+                    </div>
+                    <div class="resolution-option" data-scale="20">
+                        <div style="font-weight: bold;">20% 縮放</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;">縮小到原尺寸的 20%</div>
+                    </div>
+                    </div>
+                    </div>
+
+            <div class="date-watermark-container">
+                <div class="watermark-toggle">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="watermarkToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span style="color: #e1e1e1; margin-left: 10px; font-weight: bold;">日期水印功能</span>
+                </div>
+                <div class="date-input-section" id="dateInputSection">
+                    <h3 style="color: #e1e1e1; margin-bottom: 15px; text-align: center;">日期水印設置</h3>
+                    <div class="date-controls">
+                        <div class="date-input-group">
+                            <label for="dateInput" style="color: #e1e1e1; margin-bottom: 5px; display: block;">選擇日期:</label>
+                            <input type="date" id="dateInput" class="date-input">
+                        </div>
+                        <div class="watermark-color-group">
+                            <label for="watermarkColorPicker" style="color: #e1e1e1; margin-bottom: 5px; display: block;">水印顏色:</label>
+                            <input type="color" id="watermarkColorPicker" class="watermark-color-picker" value="#000000">
+                        </div>
+                        <div class="watermark-size-group">
+                            <label for="watermarkSizeSlider" style="color: #e1e1e1; margin-bottom: 5px; display: block;">水印大小: <span id="watermarkSizeValue">24</span>px</label>
+                            <input type="range" id="watermarkSizeSlider" class="watermark-size-slider" min="12" max="72" value="24">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-container">
+                <div class="preview-container">
+                    <h4 style="color: #e1e1e1; margin-bottom: 15px; text-align: center;">橫向水印預覽</h4>
+                    <div class="preview-canvas-container">
+                        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+                    </div>
+                    <div class="preview-info">
+                        <span id="previewResolution" style="color: #b0b0b0; font-size: 0.9rem;">1920 x 1080</span>
+                    </div>
+                </div>
+                <div class="preview-container-p">
+                    <h4 style="color: #e1e1e1; margin-bottom: 15px; text-align: center;">縱向水印預覽</h4>
+                    <div class="preview-canvas-container">
+                        <canvas id="previewCanvasP" class="preview-canvas"></canvas>
+                    </div>
+                    <div class="preview-info">
+                        <span id="previewResolutionP" style="color: #b0b0b0; font-size: 0.9rem;">1080 x 1920</span>
+                    </div>
+                </div>
+                <div class="file-upload-container">
+                    <div class="file-upload-left">
+                        <div class="file-upload-text">選擇照片文件夾</div>
+                        <div class="file-upload-subtext">支援 JPG, PNG, GIF, BMP 格式</div>
+                        <label for="fileInput" class="file-upload-btn">
+                            選擇文件夾
+                            <input type="file" id="fileInput" webkitdirectory directory multiple accept="image/*">
+                        </label>
+                    </div>
+                    <div class="file-upload-right">
+                        <h4 style="color: #e1e1e1; margin-bottom: 15px;">已選擇文件:</h4>
+                        <div class="selected-files" id="selectedFilesList">
+                            <div class="selected-file-item" id="selectedFilesDisplay">
+                                <span>尚未選擇文件</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <h3 style="color: #e1e1e1; margin-bottom: 15px; text-align: center;">處理進度</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div style="color: #e1e1e1; text-align: center; margin-bottom: 15px;">
+                    <span id="progressText">準備中...</span>
+                </div>
+                <div class="file-list" id="fileList"></div>
+            </div>
+
+            <div style="text-align: center; margin-top: 50px;">
+                <button class="process-btn" id="processBtn" disabled>處理文件</button>
+                <button class="cta-button" id="downloadBtn" style="display: none;">下載 ZIP 文件</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>Copyright © 2025 Phorigami. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        let selectedScale = 100; // 預設選擇原始尺寸
+        let processedFiles = [];
+        let selectedDate = new Date().toISOString().split('T')[0];
+        let watermarkSize = 24;
+        let watermarkColor = '#000000';
+
+        // 縮放比例選擇
+        document.querySelectorAll('.resolution-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.resolution-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                selectedScale = parseInt(this.dataset.scale);
+                updatePreview();
+            });
+        });
+
+        // 預設選擇第一個解析度
+        document.querySelector('.resolution-option').classList.add('selected');
+
+        // 初始化日期輸入
+        const dateInput = document.getElementById('dateInput');
+        dateInput.value = selectedDate;
+
+        // 日期輸入事件
+        dateInput.addEventListener('change', function() {
+            selectedDate = this.value;
+            updatePreview();
+        });
+
+        // 水印顏色選擇器事件
+        const watermarkColorPicker = document.getElementById('watermarkColorPicker');
+        
+        watermarkColorPicker.addEventListener('change', function() {
+            watermarkColor = this.value;
+            updatePreview();
+        });
+
+        // 水印大小滑塊事件
+        const watermarkSizeSlider = document.getElementById('watermarkSizeSlider');
+        const watermarkSizeValue = document.getElementById('watermarkSizeValue');
+        
+        watermarkSizeSlider.addEventListener('input', function() {
+            watermarkSize = parseInt(this.value);
+            watermarkSizeValue.textContent = watermarkSize;
+            updatePreview();
+        });
+
+        // 水印開關事件
+        const watermarkToggle = document.getElementById('watermarkToggle');
+        const dateInputSection = document.getElementById('dateInputSection');
+        
+        watermarkToggle.addEventListener('change', function() {
+            if (this.checked) {
+                dateInputSection.style.display = 'block';
+                updatePreview();
+            } else {
+                dateInputSection.style.display = 'none';
+                updatePreview();
+            }
+        });
+
+        // 預覽畫布
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewResolution = document.getElementById('previewResolution');
+        const previewCanvasP = document.getElementById('previewCanvasP');
+        const previewResolutionP = document.getElementById('previewResolutionP');
+
+        // 更新預覽函數
+        function updatePreview() {
+            // 更新橫向預覽
+            updateLandscapePreview();
+            // 更新縱向預覽
+            updatePortraitPreview();
+        }
+
+        // 更新橫向預覽函數
+        function updateLandscapePreview() {
+            const canvas = previewCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // 使用示例尺寸來展示橫向效果（16:9 比例）
+            const baseWidth = 1920;
+            const baseHeight = 1080;
+            
+            // 根據縮放比例計算實際尺寸
+            const actualWidth = Math.floor(baseWidth * selectedScale / 100);
+            const actualHeight = Math.floor(baseHeight * selectedScale / 100);
+            
+            // 設置畫布尺寸（縮放版本用於預覽）
+            const scale = Math.min(280 / actualWidth, 200 / actualHeight);
+            const previewWidth = Math.floor(actualWidth * scale);
+            const previewHeight = Math.floor(actualHeight * scale);
+            
+            canvas.width = previewWidth;
+            canvas.height = previewHeight;
+            
+            // 更新解析度顯示
+            previewResolution.textContent = `${actualWidth} x ${actualHeight} (${selectedScale}%)`;
+            
+            // 填充白色背景
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, previewWidth, previewHeight);
+            
+            // 繪製水印（如果開關開啟）
+            if (watermarkToggle.checked) {
+                const watermarkText = formatDate(selectedDate);
+                const watermarkFontSize = Math.floor(watermarkSize * scale);
+                
+                ctx.font = `bold ${watermarkFontSize}px Arial, sans-serif`;
+                ctx.fillStyle = watermarkColor;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                
+                // 水印位置（右下角）
+                const watermarkX = previewWidth - 10;
+                const watermarkY = previewHeight - 10;
+                
+                ctx.fillText(watermarkText, watermarkX, watermarkY);
+            }
+            
+            // 添加方向指示器
+            ctx.font = `12px Arial, sans-serif`;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            
+            ctx.fillText('橫向 (Landscape)', 10, 10);
+        }
+
+        // 更新縱向預覽函數
+        function updatePortraitPreview() {
+            const canvas = previewCanvasP;
+            const ctx = canvas.getContext('2d');
+            
+            // 使用示例尺寸來展示縱向效果（9:16 比例）
+            const baseWidth = 1080;
+            const baseHeight = 1920;
+            
+            // 根據縮放比例計算實際尺寸
+            const actualWidth = Math.floor(baseWidth * selectedScale / 100);
+            const actualHeight = Math.floor(baseHeight * selectedScale / 100);
+            
+            // 設置畫布尺寸（縮放版本用於預覽）
+            const scale = Math.min(280 / actualWidth, 200 / actualHeight);
+            const previewWidth = Math.floor(actualWidth * scale);
+            const previewHeight = Math.floor(actualHeight * scale);
+            
+            canvas.width = previewWidth;
+            canvas.height = previewHeight;
+            
+            // 更新解析度顯示
+            previewResolutionP.textContent = `${actualWidth} x ${actualHeight} (${selectedScale}%)`;
+            
+            // 填充白色背景
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, previewWidth, previewHeight);
+            
+            // 繪製水印（如果開關開啟）
+            if (watermarkToggle.checked) {
+                const watermarkText = formatDate(selectedDate);
+                const watermarkFontSize = Math.floor(watermarkSize * scale);
+                
+                ctx.font = `bold ${watermarkFontSize}px Arial, sans-serif`;
+                ctx.fillStyle = watermarkColor;
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                
+                // 水印位置（右下角）
+                const watermarkX = previewWidth - 10;
+                const watermarkY = previewHeight - 10;
+                
+                ctx.fillText(watermarkText, watermarkX, watermarkY);
+            }
+            
+            // 添加方向指示器
+            ctx.font = `12px Arial, sans-serif`;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            
+            ctx.fillText('縱向 (Portrait)', 10, 10);
+        }
+
+        // 格式化日期函數
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}/${month}/${day}`;
+        }
+
+        // 初始化預覽
+        updatePreview();
+
+        // 文件選擇和顯示
+        const fileInput = document.getElementById('fileInput');
+        const selectedFilesDisplay = document.getElementById('selectedFilesDisplay');
+        const processBtn = document.getElementById('processBtn');
+
+        fileInput.addEventListener('change', function(event) {
+            const files = Array.from(event.target.files);
+            if (files.length > 0) {
+                selectedFilesDisplay.innerHTML = '';
+                files.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'selected-file-item';
+                    fileItem.textContent = `📷 ${file.name}`;
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'remove-file-btn';
+                    removeBtn.textContent = '×';
+                    removeBtn.addEventListener('click', function() {
+                        fileItem.remove();
+                        // 由於 FileList 是只讀的，我們需要重新設置 input 的值
+                        const dt = new DataTransfer();
+                        const remainingFiles = Array.from(fileInput.files).filter(f => f !== file);
+                        remainingFiles.forEach(f => dt.items.add(f));
+                        fileInput.files = dt.files;
+                        
+                        if (remainingFiles.length === 0) {
+                            selectedFilesDisplay.innerHTML = '<span>尚未選擇文件</span>';
+                            processBtn.disabled = true;
+                        }
+                    });
+                    fileItem.appendChild(removeBtn);
+                    selectedFilesDisplay.appendChild(fileItem);
+                });
+                processBtn.disabled = false;
+            } else {
+                selectedFilesDisplay.innerHTML = '<span>尚未選擇文件</span>';
+                processBtn.disabled = true;
+            }
+        });
+
+        // 文件處理功能
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const fileList = document.getElementById('fileList');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // 處理文件按鈕點擊事件
+        processBtn.addEventListener('click', async function() {
+            const files = Array.from(fileInput.files);
+            if (files.length > 0) {
+                await processImages(files);
+            } else {
+                alert('請先選擇包含圖片文件的文件夾');
+            }
+        });
+
+        // 檢查是否為圖片文件
+        function isImageFile(file) {
+            const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp'];
+            return imageTypes.includes(file.type);
+        }
+
+        // 處理圖片
+        async function processImages(files) {
+            progressContainer.style.display = 'block';
+            processedFiles = [];
+            
+            // 過濾圖片文件
+            const imageFiles = files.filter(file => isImageFile(file));
+            
+            if (imageFiles.length === 0) {
+                alert('所選文件夾中沒有找到圖片文件');
+                progressContainer.style.display = 'none';
+                return;
+            }
+            
+            const totalFiles = imageFiles.length;
+            let processedCount = 0;
+
+            // 顯示文件列表
+            fileList.innerHTML = '';
+            imageFiles.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.textContent = `📷 ${file.name}`;
+                fileList.appendChild(fileItem);
+            });
+
+            for (let file of imageFiles) {
+                try {
+                    progressText.textContent = `處理中: ${file.name}`;
+                    
+                    const resizedImage = await resizeImage(file);
+                    processedFiles.push({
+                        name: file.name,
+                        data: resizedImage
+                    });
+
+                    processedCount++;
+                    const progress = (processedCount / totalFiles) * 100;
+                    progressFill.style.width = progress + '%';
+                    
+                    // 更新文件列表狀態，顯示實際輸出尺寸
+                    const fileItem = fileList.children[processedCount - 1];
+                    const actualWidth = resizedImage.width || '未知';
+                    const actualHeight = resizedImage.height || '未知';
+                    fileItem.innerHTML = `✅ ${file.name} (保持原始比例)`;
+                    
+                } catch (error) {
+                    console.error('處理文件時出錯:', error);
+                    const fileItem = fileList.children[processedCount];
+                    fileItem.innerHTML = `❌ ${file.name} - 處理失敗`;
+                }
+            }
+
+            progressText.textContent = `完成！已處理 ${processedCount} 個文件`;
+            downloadBtn.style.display = 'inline-block';
+        }
+
+        // 調整圖片尺寸並添加水印
+        function resizeImage(file, targetWidth, targetHeight) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                img.onload = function() {
+                    // 根據縮放比例計算輸出尺寸
+                    const outputWidth = Math.floor(img.width * selectedScale / 100);
+                    const outputHeight = Math.floor(img.height * selectedScale / 100);
+                    
+                    // 設置畫布尺寸
+                    canvas.width = outputWidth;
+                    canvas.height = outputHeight;
+
+                    // 填充背景（白色）
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // 繪製調整後的圖片（居中）
+                    const x = (canvas.width - outputWidth) / 2;
+                    const y = (canvas.height - outputHeight) / 2;
+                    ctx.drawImage(img, x, y, outputWidth, outputHeight);
+
+                    // 添加日期水印（如果開關開啟）
+                    if (watermarkToggle.checked && selectedDate) {
+                        const watermarkText = formatDate(selectedDate);
+                        
+                        // 計算水印字體大小（根據輸出尺寸調整）
+                        const watermarkFontSize = Math.floor(watermarkSize * (outputWidth / 1920));
+                        
+                        ctx.font = `bold ${watermarkFontSize}px Arial, sans-serif`;
+                        ctx.fillStyle = watermarkColor;
+                        ctx.textAlign = 'right';
+                        ctx.textBaseline = 'bottom';
+                        
+                        // 水印位置（右下角）
+                        const watermarkX = canvas.width - Math.floor(watermarkFontSize * 0.5);
+                        const watermarkY = canvas.height - Math.floor(watermarkFontSize * 0.5);
+                        
+                        ctx.fillText(watermarkText, watermarkX, watermarkY);
+                    }
+
+                    // 轉換為 blob
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.9);
+                };
+
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        // 下載 ZIP 文件
+        downloadBtn.addEventListener('click', async function() {
+            if (processedFiles.length === 0) return;
+
+            const zip = new JSZip();
+            
+            processedFiles.forEach(file => {
+                zip.file(file.name, file.data);
+            });
+
+            const content = await zip.generateAsync({type: 'blob'});
+            const url = URL.createObjectURL(content);
+            
+            // 使用更安全的下載方法，避免彈出新視窗
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                
+                // 創建下載鏈接但不添加到 DOM
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `PhotoOrigami_${selectedScale}%_${new Date().toISOString().slice(0,10)}.zip`;
+                
+                // 使用 dispatchEvent 觸發下載，而不是 click()
+                const clickEvent = new MouseEvent('click', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true
+                });
+                link.dispatchEvent(clickEvent);
+                
+                // 清理資源
+                setTimeout(() => {
+                    window.URL.revokeObjectURL(downloadUrl);
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+            } catch (error) {
+                console.error('下載失敗:', error);
+                // 如果新方法失敗，回退到舊方法
+            const a = document.createElement('a');
+            a.href = url;
+                                 a.download = `PhotoOrigami_${selectedScale}%_${new Date().toISOString().slice(0,10)}.zip`;
+                a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            }
+        });
+    </script>
+</body>
+</html> 

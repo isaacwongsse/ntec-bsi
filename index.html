@@ -796,6 +796,55 @@
                             <span class="option-text">Sort photos to folder</span>
                         </label>
                     </div>
+                    
+                    <!-- Photo Watermark Settings -->
+                    <div class="photo-watermark-section">
+                        <div class="watermark-toggle">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="photoWatermarkToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="watermark-toggle-text">Add date watermark to photos</span>
+                        </div>
+                        
+                        <div class="photo-watermark-controls" id="photoWatermarkControls">
+                            <div class="watermark-control-row">
+                                <div class="watermark-control-group">
+                                    <label for="photoWatermarkColorPicker">Watermark Color:</label>
+                                    <input type="color" id="photoWatermarkColorPicker" class="watermark-color-picker" value="#000000">
+                                </div>
+                                <div class="watermark-control-group">
+                                    <label for="photoWatermarkSizeSlider">Watermark Size: <span id="photoWatermarkSizeValue">24</span>px</label>
+                                    <input type="range" id="photoWatermarkSizeSlider" class="watermark-size-slider" min="12" max="72" value="24">
+                                </div>
+                            </div>
+                            <div class="watermark-info">
+                                <small><i class="fas fa-info-circle"></i> Watermark will use the inspection date from photo labels</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Photo Watermark Preview -->
+                        <div class="photo-watermark-preview-container">
+                            <div class="photo-watermark-preview">
+                                <h5>Landscape Preview</h5>
+                                <div class="photo-watermark-preview-canvas-container">
+                                    <canvas id="photoWatermarkPreviewCanvas" class="photo-watermark-preview-canvas"></canvas>
+                                </div>
+                                <div class="photo-watermark-preview-info">
+                                    <span id="photoWatermarkPreviewResolution">1920 x 1080</span>
+                                </div>
+                            </div>
+                            <div class="photo-watermark-preview">
+                                <h5>Portrait Preview</h5>
+                                <div class="photo-watermark-preview-canvas-container">
+                                    <canvas id="photoWatermarkPreviewCanvasP" class="photo-watermark-preview-canvas"></canvas>
+                                </div>
+                                <div class="photo-watermark-preview-info">
+                                    <span id="photoWatermarkPreviewResolutionP">1080 x 1920</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
