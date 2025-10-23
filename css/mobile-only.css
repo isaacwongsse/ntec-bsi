@@ -1,0 +1,1225 @@
+/* 移動端專用樣式 - mobile-only.css */
+/* ============================================ */
+
+/* CSS變量 */
+:root {
+    --mobile-primary: #a67c52;
+    --mobile-secondary: #8FBC8F;
+    --mobile-success: #28a745;
+    --mobile-danger: #dc3545;
+    --mobile-warning: #ffc107;
+    --mobile-info: #17a2b8;
+    --mobile-light: #f8f9fa;
+    --mobile-dark: #343a40;
+    --mobile-text: #333;
+    --mobile-text-light: #666;
+    --mobile-border: #e0e0e0;
+    --mobile-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --mobile-shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+    --mobile-radius: 8px;
+    --mobile-radius-lg: 12px;
+    --mobile-transition: all 0.3s ease;
+}
+
+/* 基礎重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body.mobile-body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: var(--mobile-text);
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 移動端容器 */
+.mobile-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    /* 確保容器不會影響底部導航的固定定位 */
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* 載入指示器 */
+.mobile-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.mobile-loading-container {
+    text-align: center;
+    padding: 20px;
+}
+
+.mobile-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--mobile-border);
+    border-top: 3px solid var(--mobile-primary);
+    border-radius: 50%;
+    animation: mobileSpin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes mobileSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.mobile-loading-text h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: var(--mobile-text);
+}
+
+.mobile-loading-text p {
+    font-size: 14px;
+    color: var(--mobile-text-light);
+}
+
+/* 移動端標題欄 */
+.mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+    border-bottom: 1px solid var(--mobile-border);
+    box-shadow: var(--mobile-shadow);
+    padding: 8px 16px;
+    min-height: 60px;
+}
+
+.mobile-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 44px;
+}
+
+/* PNE功能按鈕 */
+.mobile-pne-btn {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.mobile-menu-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--mobile-primary);
+    color: white;
+    border: none;
+    border-radius: var(--mobile-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    box-shadow: var(--mobile-shadow);
+}
+
+.mobile-menu-btn:active {
+    transform: scale(0.95);
+    background: #8a6a47;
+}
+
+/* 移動端下拉選單 */
+.mobile-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border-radius: var(--mobile-radius-lg);
+    box-shadow: var(--mobile-shadow-lg);
+    z-index: 1100;
+    min-width: 280px;
+    padding: 8px 0;
+    display: none;
+    border: 1px solid var(--mobile-border);
+}
+
+.mobile-dropdown.show {
+    display: block;
+    animation: mobileDropdownSlide 0.2s ease-out;
+}
+
+@keyframes mobileDropdownSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    color: var(--mobile-text);
+}
+
+.mobile-dropdown-item:hover {
+    background: var(--mobile-light);
+}
+
+.mobile-dropdown-item:active {
+    background: #e9ecef;
+}
+
+.mobile-dropdown-item i {
+    width: 20px;
+    text-align: center;
+    color: var(--mobile-primary);
+}
+
+/* 移除任務顯示按鈕樣式 - 已從HTML中移除 */
+
+/* 樓層平面圖縮圖 */
+.mobile-floorplan-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--mobile-radius);
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: var(--mobile-shadow);
+    flex-shrink: 0;
+}
+
+.mobile-floorplan-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 移動端主內容 */
+.mobile-main {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 80px; /* 為底部導航留空間 */
+    height: calc(100vh - 60px - 80px); /* 減去header和bottom-nav的高度 */
+    max-height: calc(100vh - 60px - 80px);
+}
+
+/* 移動端區域樣式 */
+.mobile-section {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-home-section {
+    padding: 16px;
+}
+
+.mobile-drawing-section {
+    padding: 0;
+    height: 100%;
+    position: relative;
+}
+
+/* 移動端 floor-plan-content 樣式 */
+.mobile-drawing-section .floor-plan-content {
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+.mobile-drawing-section .floor-plan-upload-area {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mobile-light);
+}
+
+.mobile-drawing-section .upload-placeholder {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.mobile-drawing-section .upload-placeholder i {
+    color: var(--mobile-primary);
+    margin-bottom: 20px;
+}
+
+.mobile-drawing-section .upload-placeholder p {
+    color: var(--mobile-text-light);
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+
+.mobile-drawing-section .upload-btn {
+    background: var(--mobile-primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--mobile-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+}
+
+.mobile-drawing-section .upload-btn:hover {
+    background: #8a6a47;
+}
+
+.mobile-drawing-section .floor-plan-viewer {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    background: white;
+}
+
+.mobile-drawing-section .labels-data-reminder {
+    text-align: center;
+    padding: 40px 20px;
+    background: white;
+    border-radius: var(--mobile-radius-lg);
+    margin: 20px;
+    box-shadow: var(--mobile-shadow);
+}
+
+.mobile-drawing-section .labels-data-reminder i {
+    color: var(--mobile-info);
+    margin-bottom: 20px;
+}
+
+.mobile-drawing-section .labels-data-reminder h4 {
+    color: var(--mobile-text);
+    margin-bottom: 12px;
+}
+
+.mobile-drawing-section .labels-data-reminder p {
+    color: var(--mobile-text-light);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.mobile-drawing-section .previous-file-info {
+    background: var(--mobile-light);
+    padding: 16px;
+    border-radius: var(--mobile-radius);
+    margin-bottom: 20px;
+}
+
+.mobile-drawing-section .previous-file-info strong {
+    color: var(--mobile-text);
+}
+
+.mobile-drawing-section .file-details {
+    color: var(--mobile-text-light);
+    font-size: 0.9rem;
+}
+
+.mobile-photo-section {
+    padding: 16px;
+}
+
+.mobile-details-section {
+    padding: 16px;
+}
+
+/* 照片區域樣式 */
+.mobile-photo-section {
+    background: white;
+    margin: 8px;
+    border-radius: var(--mobile-radius-lg);
+    box-shadow: var(--mobile-shadow);
+}
+
+.mobile-photo-header {
+    margin-bottom: 16px;
+}
+
+.mobile-photo-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--mobile-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-folder-name {
+    font-size: 14px;
+    color: var(--mobile-text-light);
+    font-weight: normal;
+}
+
+.mobile-photo-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mobile-photo-count {
+    font-size: 14px;
+    color: var(--mobile-text-light);
+    text-align: center;
+}
+
+.mobile-add-photos-btn,
+.mobile-submit-btn {
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    border-radius: var(--mobile-radius);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+}
+
+.mobile-add-photos-btn {
+    background: var(--mobile-success);
+    color: white;
+}
+
+.mobile-add-photos-btn:active {
+    background: #218838;
+    transform: scale(0.98);
+}
+
+.mobile-submit-btn {
+    background: var(--mobile-primary);
+    color: white;
+}
+
+.mobile-submit-btn:active {
+    background: #8a6a47;
+    transform: scale(0.98);
+}
+
+/* 照片網格 */
+.mobile-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.mobile-empty-preview {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--mobile-text-light);
+}
+
+.mobile-empty-preview i {
+    margin-bottom: 16px;
+    color: var(--mobile-border);
+}
+
+.mobile-empty-preview p {
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.mobile-select-folder-btn {
+    background: var(--mobile-primary);
+    color: white;
+    border: none;
+    border-radius: var(--mobile-radius);
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 auto;
+}
+
+.mobile-select-folder-btn:active {
+    background: #8a6a47;
+    transform: scale(0.95);
+}
+
+/* 照片項目 */
+.mobile-photo-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--mobile-radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    box-shadow: var(--mobile-shadow);
+}
+
+.mobile-photo-item:active {
+    transform: scale(0.95);
+}
+
+.mobile-photo-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mobile-photo-item.selected {
+    border: 3px solid var(--mobile-primary);
+}
+
+.mobile-photo-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* 縮放控制 */
+.mobile-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--mobile-border);
+}
+
+.mobile-zoom-controls i {
+    color: var(--mobile-text-light);
+    font-size: 16px;
+}
+
+.mobile-zoom-controls input[type="range"] {
+    flex: 1;
+    height: 4px;
+    background: var(--mobile-border);
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.mobile-zoom-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: var(--mobile-primary);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* 分類區域 */
+.mobile-categories-section {
+    padding: 16px;
+    background: white;
+    margin: 8px;
+    border-radius: var(--mobile-radius-lg);
+    box-shadow: var(--mobile-shadow);
+}
+
+.mobile-categories-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--mobile-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.mobile-category-card {
+    background: var(--mobile-light);
+    border: 2px solid var(--mobile-border);
+    border-radius: var(--mobile-radius);
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.mobile-category-card:active {
+    transform: scale(0.95);
+    border-color: var(--mobile-primary);
+    background: rgba(166, 124, 82, 0.1);
+}
+
+.mobile-category-card.active {
+    border-color: var(--mobile-primary);
+    background: rgba(166, 124, 82, 0.1);
+}
+
+.mobile-category-card h4 {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--mobile-text);
+}
+
+.mobile-category-count {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--mobile-primary);
+}
+
+.mobile-clear-btn {
+    width: 100%;
+    background: var(--mobile-danger);
+    color: white;
+    border: none;
+    border-radius: var(--mobile-radius);
+    padding: 12px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+}
+
+.mobile-clear-btn:active {
+    background: #c82333;
+    transform: scale(0.98);
+}
+
+/* 數據區域 */
+.mobile-data-section {
+    padding: 16px;
+    background: white;
+    margin: 8px;
+    border-radius: var(--mobile-radius-lg);
+    box-shadow: var(--mobile-shadow);
+}
+
+.mobile-data-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.mobile-data-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--mobile-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-count-badge {
+    background: var(--mobile-primary);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.mobile-detail-btn {
+    background: var(--mobile-info);
+    color: white;
+    border: none;
+    border-radius: var(--mobile-radius);
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mobile-detail-btn:active {
+    background: #138496;
+    transform: scale(0.95);
+}
+
+/* 移動端表格 */
+.mobile-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--mobile-radius);
+    border: 1px solid var(--mobile-border);
+}
+
+.mobile-table-scroll {
+    min-width: 600px;
+}
+
+.mobile-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.mobile-data-table th,
+.mobile-data-table td {
+    padding: 8px 4px;
+    text-align: left;
+    border-bottom: 1px solid var(--mobile-border);
+    white-space: nowrap;
+}
+
+.mobile-data-table th {
+    background: var(--mobile-light);
+    font-weight: 600;
+    color: var(--mobile-text);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.mobile-data-table td {
+    color: var(--mobile-text-light);
+}
+
+.mobile-empty-state {
+    text-align: center;
+    color: var(--mobile-text-light);
+    font-style: italic;
+    padding: 20px;
+}
+
+/* 底部導航 */
+.mobile-bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    background: white;
+    border-top: 1px solid var(--mobile-border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0;
+    z-index: 1000 !important;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    /* 確保導航欄始終在視窗底部 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+}
+
+/* 底部導航項目通用樣式 */
+.mobile-nav-item,
+.mobile-nav-home,
+.mobile-nav-drawing,
+.mobile-nav-photo,
+.mobile-nav-details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    border-radius: var(--mobile-radius);
+    min-width: 50px;
+    flex: 1;
+}
+
+.mobile-nav-item i,
+.mobile-nav-home i,
+.mobile-nav-drawing i,
+.mobile-nav-photo i,
+.mobile-nav-details i {
+    font-size: 20px;
+    margin-bottom: 4px;
+    color: var(--mobile-text-light);
+}
+
+.mobile-nav-item span,
+.mobile-nav-home span,
+.mobile-nav-drawing span,
+.mobile-nav-photo span,
+.mobile-nav-details span {
+    font-size: 10px;
+    color: var(--mobile-text-light);
+    font-weight: 500;
+}
+
+/* 激活狀態樣式 */
+.mobile-nav-item.active,
+.mobile-nav-home.active,
+.mobile-nav-drawing.active,
+.mobile-nav-photo.active,
+.mobile-nav-details.active {
+    background: var(--mobile-primary);
+    color: white;
+}
+
+.mobile-nav-item.active i,
+.mobile-nav-item.active span,
+.mobile-nav-home.active i,
+.mobile-nav-home.active span,
+.mobile-nav-drawing.active i,
+.mobile-nav-drawing.active span,
+.mobile-nav-photo.active i,
+.mobile-nav-photo.active span,
+.mobile-nav-details.active i,
+.mobile-nav-details.active span {
+    color: white;
+}
+
+/* 點擊效果 */
+.mobile-nav-item:active,
+.mobile-nav-home:active,
+.mobile-nav-drawing:active,
+.mobile-nav-photo:active,
+.mobile-nav-details:active {
+    transform: scale(0.95);
+}
+
+/* 響應式調整 */
+@media (max-width: 480px) {
+    .mobile-photo-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .mobile-categories-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .mobile-nav-item span {
+        font-size: 9px;
+    }
+    
+    .mobile-nav-item i {
+        font-size: 18px;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .mobile-photo-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .mobile-categories-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 橫屏模式 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .mobile-bottom-nav {
+        display: none !important;
+    }
+    
+    .mobile-main {
+        padding-bottom: 0 !important;
+        height: calc(100vh - 50px) !important;
+        max-height: calc(100vh - 50px) !important;
+    }
+    
+    .mobile-header {
+        min-height: 50px;
+        padding: 4px 16px;
+    }
+}
+
+/* 確保底部導航欄在所有情況下都固定在底部 */
+@media (max-height: 600px) {
+    .mobile-bottom-nav {
+        position: fixed !important;
+        bottom: 0 !important;
+        z-index: 1000 !important;
+    }
+    
+    .mobile-main {
+        padding-bottom: 80px !important;
+    }
+}
+
+/* 防止底部導航欄被其他元素覆蓋 */
+.mobile-bottom-nav {
+    isolation: isolate;
+    contain: layout style;
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --mobile-text: #e9ecef;
+        --mobile-text-light: #adb5bd;
+        --mobile-light: #495057;
+        --mobile-border: #6c757d;
+    }
+    
+    body.mobile-body {
+        background: linear-gradient(135deg, #212529 0%, #343a40 100%);
+    }
+    
+    .mobile-container {
+        background: rgba(33, 37, 41, 0.95);
+    }
+    
+    .mobile-header {
+        background: #212529;
+        border-bottom-color: var(--mobile-border);
+    }
+    
+    .mobile-photo-section,
+    .mobile-categories-section,
+    .mobile-data-section {
+        background: #212529;
+    }
+    
+    .mobile-bottom-nav {
+        background: #212529;
+        border-top-color: var(--mobile-border);
+    }
+}
+
+/* 減少動畫 */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 性能優化 */
+.mobile-container {
+    contain: layout style paint;
+}
+
+.mobile-photo-item {
+    contain: layout style paint;
+    will-change: transform;
+}
+
+.mobile-nav-item {
+    contain: layout style;
+}
+
+/* 滾動條樣式 */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.3);
+}
+
+/* 任務條目模態框樣式 */
+.task-entries-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.task-entries-container {
+    background: white;
+    border-radius: var(--mobile-radius-lg);
+    box-shadow: var(--mobile-shadow-lg);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.task-entries-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    border-bottom: 1px solid var(--mobile-border);
+    background: var(--mobile-light);
+    border-radius: var(--mobile-radius-lg) var(--mobile-radius-lg) 0 0;
+}
+
+.task-entries-title {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--mobile-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-entries-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--mobile-text-light);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: var(--mobile-transition);
+}
+
+.task-entries-close-btn:hover {
+    background: var(--mobile-border);
+    color: var(--mobile-text);
+}
+
+.task-entries-body {
+    padding: 20px;
+}
+
+.task-form h4 {
+    margin: 0 0 16px 0;
+    color: var(--mobile-text);
+    font-size: 1.1rem;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--mobile-text);
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--mobile-border);
+    border-radius: var(--mobile-radius);
+    font-size: 1rem;
+    transition: var(--mobile-transition);
+    background: white;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--mobile-primary);
+    box-shadow: 0 0 0 3px rgba(166, 124, 82, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.task-entries-footer {
+    padding: 20px;
+    border-top: 1px solid var(--mobile-border);
+    background: var(--mobile-light);
+    border-radius: 0 0 var(--mobile-radius-lg) var(--mobile-radius-lg);
+}
+
+.task-footer-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.task-cancel-btn,
+.task-save-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--mobile-radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-cancel-btn {
+    background: var(--mobile-light);
+    color: var(--mobile-text);
+    border: 1px solid var(--mobile-border);
+}
+
+.task-cancel-btn:hover {
+    background: var(--mobile-border);
+}
+
+.task-save-btn {
+    background: var(--mobile-primary);
+    color: white;
+}
+
+.task-save-btn:hover {
+    background: #8a6a47;
+}
+
+/* 移動端任務信息容器樣式 */
+.mobile-task-info-container {
+    background: white;
+    margin: 16px;
+    border-radius: var(--mobile-radius-lg);
+    box-shadow: var(--mobile-shadow);
+    overflow: hidden;
+}
+
+.mobile-task-info-header {
+    padding: 16px 20px;
+    background: var(--mobile-light);
+    border-bottom: 1px solid var(--mobile-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mobile-task-info-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--mobile-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-task-edit-btn {
+    padding: 8px 16px;
+    background: var(--mobile-primary);
+    color: white;
+    border: none;
+    border-radius: var(--mobile-radius);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--mobile-transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mobile-task-edit-btn:hover {
+    background: #8a6a47;
+}
+
+.mobile-task-info-content {
+    padding: 20px;
+}
+
+.task-info-item {
+    display: flex;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.task-info-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.task-info-item label {
+    font-weight: 500;
+    color: var(--mobile-text);
+    min-width: 120px;
+    margin-right: 12px;
+    font-size: 0.9rem;
+}
+
+.task-info-item span {
+    color: var(--mobile-text-light);
+    flex: 1;
+    word-break: break-word;
+}
+
+/* 響應式調整 */
+@media (max-width: 480px) {
+    .task-entries-container {
+        margin: 10px;
+        max-width: none;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .task-footer-buttons {
+        flex-direction: column;
+    }
+    
+    .mobile-task-actions {
+        flex-direction: column;
+    }
+}

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="Photo Number Extractor - Mobile Version">
+    <title>PlanPNE Mobile</title>
+    
+    <!-- 移動端優化的資源載入 -->
+    <link rel="preload" href="css/mobile-only.css" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
+    
+    <!-- 移動端專用樣式 -->
+    <link rel="stylesheet" href="css/mobile-only.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="PlanPNE Mobile">
+    <meta name="theme-color" content="#a67c52">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="icon" type="image/png" href="./favicon.ico">
+</head>
+<body class="mobile-body">
+    <!-- 移動端載入指示器 -->
+    <div id="mobileLoadingOverlay" class="mobile-loading-overlay">
+        <div class="mobile-loading-container">
+            <div class="mobile-loading-spinner"></div>
+            <div class="mobile-loading-text">
+                <h3>載入中...</h3>
+                <p id="mobileLoadingMessage">正在初始化移動端應用</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 移動端主容器 -->
+    <div class="mobile-container">
+        <!-- 移動端標題欄 -->
+        <header class="mobile-header">
+            <div class="mobile-header-content">
+                <!-- PNE功能按鈕 -->
+                <div class="mobile-pne-btn">
+                    <button id="mobilePneMenuBtn" class="mobile-menu-btn" aria-label="Menu">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <!-- 移動端下拉選單 -->
+                    <div class="mobile-dropdown" id="mobileDropdown">
+                        <div class="mobile-dropdown-item" data-action="newtask">
+                            <i class="fas fa-plus"></i> New task
+                        </div>
+                        <div class="mobile-dropdown-item" data-action="openpne">
+                            <i class="fas fa-folder-open"></i> Open .pne file
+                        </div>
+                        <div class="mobile-dropdown-item" data-action="saveaspne">
+                            <i class="fas fa-file-export"></i> Save as .pne file
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 樓層平面圖縮圖 -->
+                <div id="mobileFloorplanThumb" class="mobile-floorplan-thumb" style="display:none;">
+                    <img id="mobileFloorplanThumbImg" alt="Floor plan thumbnail"/>
+                </div>
+            </div>
+        </header>
+        
+        <!-- 移動端主內容 -->
+        <main class="mobile-main">
+            <!-- Home 區域 -->
+            <div class="mobile-section mobile-home-section" id="mobileHomeSection">
+                <!-- 任務信息將在這裡顯示 -->
+            </div>
+            
+            <!-- Drawing 區域 -->
+            <div class="mobile-section mobile-drawing-section" id="mobileDrawingSection" style="display: none;">
+                <div class="floor-plan-content">
+                    <div id="mobileFloorPlanUploadArea" class="floor-plan-upload-area">
+                        <input type="file" id="mobileFloorPlanFileInput" accept=".pdf" style="visibility: hidden; position: absolute; left: -9999px;">
+                        
+                        <!-- 當有標籤數據時的提示區域 -->
+                        <div id="mobileLabelsDataReminder" class="labels-data-reminder" style="display: none;">
+                            <i class="fas fa-info-circle fa-3x"></i>
+                            <h4 data-text="previousFloorPlanDataFound">Previous Floor Plan Data Found</h4>
+                            <p data-text="previousFloorPlanDataDescription">You have label data from a previous floor plan. To view and manage these labels, please open the same floor plan file.</p>
+                            <div class="previous-file-info">
+                                <strong data-text="previousFile">Previous file:</strong> <span id="mobilePreviousFileName">Unknown</span>
+                                <div class="file-details" id="mobileFileDetails" style="margin-top: 8px; font-size: 0.9em; color: #666;">
+                                    <!-- File details will be populated here -->
+                                </div>
+                            </div>
+                            <button id="mobileOpenPreviousFloorPlanBtn" type="button" class="upload-btn" style="margin-top: 15px; position: relative; z-index: 1000;">
+                                <i class="fas fa-folder-open" style="color: white !important; position: relative; z-index: 1001; display: inline-block;"></i> <span data-text="openPreviousFloorPlan">Open Previous Floor Plan</span>
+                            </button>
+                        </div>
+                        
+                        <!-- 原本的上傳區域 -->
+                        <div id="mobileUploadPlaceholder" class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                            <p data-text="clickToUploadPDFFloorPlan">Click to upload PDF floor plan</p>
+                            <button id="mobileUploadFloorPlanBtn" type="button" class="upload-btn"><span data-text="chooseFile">Choose File</span></button>
+                        </div>
+                    </div>
+                    <div id="mobileFloorPlanViewer" class="floor-plan-viewer" style="display: none;">
+                        <!-- PDF顯示層 -->
+                        <canvas id="mobileFloorPlanCanvas" style="position: absolute; top: 0; left: 0;"></canvas>
+                        <!-- 標籤層 -->
+                        <div id="mobileLabelLayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                            <!-- 標籤元素將動態添加到這裡 -->
+                        </div>
+                        <!-- Quick Label Instruction Message - Floating -->
+                        <div id="mobileQuickLabelInstruction" class="quick-label-instruction" style="display: none; position: fixed; padding: 6px 12px; background: #e3f2fd; color: #1976d2; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; border-left: 3px solid #2196f3; z-index: 10000; pointer-events: none;">
+                            <i class="fas fa-mouse-pointer" style="margin-right: 4px;"></i>
+                            <span data-text="doubleClickToPlaceLabel">雙擊平面圖放置標籤</span>
+                        </div>
+                        <div id="mobileLabelModalOverlay" class="label-modal-overlay">
+                            <div class="label-modal">
+                                <div class="label-modal-header">
+                                <h4 data-text="newLabel">New Label</h4>
+                                </div>
+                                <div class="label-form">
+                                    <div>
+                                        <label for="mobileLabelInspectionNo" class="required-field" data-text="inspectionNoRequired">Inspection no. *</label>
+                                        <input type="text" id="mobileLabelInspectionNo" required />
+                                    </div>
+                                    <div id="mobileFloorField" class="optional-fields">
+                                        <label for="mobileLabelFloor" class="optional-field" data-text="floorOptional">Floor (Optional)</label>
+                                        <input type="text" id="mobileLabelFloor" data-placeholder="enterFloorNumber" placeholder="Enter floor number" />
+                                    </div>
+                                    <div id="mobileAreaNameField" class="optional-fields">
+                                        <label for="mobileLabelAreaName" class="optional-field" data-text="areaNameOptional">Area name (Optional)</label>
+                                        <input type="text" id="mobileLabelAreaName" data-placeholder="enterAreaName" placeholder="Enter area name" />
+                                    </div>
+                                    <div id="mobileRoomNoField" class="optional-fields">
+                                        <label for="mobileLabelRoomNo" class="optional-field" data-text="roomNoOptional">Room no. (Optional)</label>
+                                        <input type="text" id="mobileLabelRoomNo" data-placeholder="enterRoomNumber" placeholder="Enter room number" />
+                                    </div>
+                                    <div id="mobileInspectionDateField" style="display: none;">
+                                        <label for="mobileLabelInspectionDate" class="optional-field" data-text="inspectionDateOptional">Inspection date (Optional)</label>
+                                        <input type="date" id="mobileLabelInspectionDate" />
+                                    </div>
+                                </div>
+                                <div class="form-note">
+                                    <small style="color: #666; font-style: italic;" data-text="onlyInspectionNoRequired">* Only Inspection No. is required</small>
+                                    <br>
+                                    <small style="color: #888; font-style: italic;" data-text="otherFieldsOptional">Other fields are optional and can be filled later</small>
+                                </div>
+                                <div class="label-actions">
+                                    <button id="mobileLabelCancelBtn" class="btn btn-secondary" data-text="cancel">Cancel</button>
+                                    <button id="mobileLabelCreateBtn" class="btn btn-primary" data-text="create">Create</button>
+                                    <button id="mobileAssignToNewRecordBtn" class="btn btn-info" style="display: none;" data-text="saveAndAssignToNewRecord">Save and Assign to New Record</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Photo 區域 -->
+            <div class="mobile-section mobile-photo-section" id="mobilePhotoSection" style="display: none;">
+                <!-- 照片相關內容將在這裡顯示 -->
+            </div>
+            
+            <!-- Details 區域 -->
+            <div class="mobile-section mobile-details-section" id="mobileDetailsSection" style="display: none;">
+                <!-- 詳細資料將在這裡顯示 -->
+            </div>
+        </main>
+        
+        <!-- 移動端底部導航 -->
+        <nav class="mobile-bottom-nav">
+            <div class="mobile-nav-home active" data-section="home">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </div>
+            <div class="mobile-nav-drawing" data-section="drawing">
+                <i class="fas fa-map"></i>
+                <span>Drawing</span>
+            </div>
+            <div class="mobile-nav-photo" data-section="photo">
+                <i class="fas fa-camera"></i>
+                <span>Photo</span>
+            </div>
+            <div class="mobile-nav-details" data-section="details">
+                <i class="fas fa-table"></i>
+                <span>Details</span>
+            </div>
+        </nav>
+    </div>
+    
+    <!-- 移動端專用JavaScript -->
+    <script src="js/mobile-detector.js" defer></script>
+    <script src="js/mobile-main.js" defer></script>
+    
+    <!-- 隱藏的文件輸入 -->
+    <input type="file" id="mobileAddPhotosFileInput" accept="image/*" multiple style="display: none;">
+    
+    <!-- Task Entries Modal -->
+    <div id="taskEntriesModal" class="task-entries-modal" style="display: none;">
+        <div class="task-entries-container">
+            <div class="task-entries-header">
+                <h3 class="task-entries-title">
+                    <i class="fas fa-tasks"></i>
+                    <span data-text="taskEntries">Task Entries</span>
+                </h3>
+                <button id="taskEntriesCloseBtn" class="task-entries-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+               <div class="task-entries-body">
+                   <!-- Task Form -->
+                   <div class="task-form">
+                       <h4 data-text="currentTask">Current Task</h4>
+                       <form id="taskFormElement">
+                           <div class="form-group">
+                               <label for="taskName" data-text="taskName">Task Name:</label>
+                               <input type="text" id="taskName" name="taskName" placeholder="Enter current task name for reference">
+                           </div>
+                           
+                           <div class="form-group">
+                               <label for="taskLocation" data-text="taskLocation">Location:</label>
+                               <input type="text" id="taskLocation" name="taskLocation" placeholder="Task location">
+                           </div>
+                           
+                           <div class="form-row">
+                               <div class="form-group">
+                                   <label for="taskStartDate" data-text="taskStartDate">Start Date:</label>
+                                   <input type="date" id="taskStartDate" name="taskStartDate">
+                               </div>
+                               
+                               <div class="form-group">
+                                   <label for="taskTargetDate" data-text="taskTargetDate">Target Completion Date:</label>
+                                   <input type="date" id="taskTargetDate" name="taskTargetDate">
+                               </div>
+                           </div>
+                           
+                           <div class="form-group">
+                               <label for="taskDescription" data-text="taskDescription">Description (Optional):</label>
+                               <textarea id="taskDescription" name="taskDescription" rows="3" placeholder="Brief description of the current task"></textarea>
+                           </div>
+                       </form>
+                   </div>
+               </div>
+            
+            <div class="task-entries-footer">
+                <div class="task-footer-buttons">
+                    <button id="taskCancelBtn" class="task-cancel-btn">
+                        <i class="fas fa-times"></i>
+                        <span data-text="cancel">Cancel</span>
+                    </button>
+                    <button id="taskSaveBtn" class="task-save-btn">
+                        <i class="fas fa-save"></i>
+                        <span data-text="save">Save</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

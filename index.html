@@ -14,6 +14,7 @@
     
     <!-- 關鍵CSS立即載入 -->
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- JavaScript資源預載入 -->
@@ -145,21 +146,36 @@
                     <div class="pne-dropdown-item" data-action="exportcsv"><i class="fas fa-file-csv"></i> Export CSV</div>
                     <div class="pne-dropdown-item" data-action="preview"><i class="fas fa-file-pdf"></i> Defects Report</div>
                     <div class="pne-dropdown-item" data-action="summary" style="display: none;"><i class="fas fa-info-circle"></i> Photo Assignment Summary</div>
+                    <!-- Language Switch -->
+                    <div class="pne-dropdown-item language-toggle-item" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; padding-top: 12px;">
+                        <div class="language-toggle" role="switch" aria-checked="false" aria-label="Language switch" style="display: flex; align-items: center; justify-content: space-between; color: var(--text); cursor: pointer; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-globe"></i>
+                                <span id="languageToggleText" style="font-size: 0.9rem; font-weight: 400;">中文繁體</span>
+                            </div>
+                            <label class="switch" style="margin: 0;">
+                                <input type="checkbox" id="languageToggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
                     </div>
                 </div>
                 <div id="floorplanThumb" class="floorplan-thumb" title="Open Floor Plan" style="display:none;">
                     <img id="floorplanThumbImg" alt="Floor plan thumbnail"/>
                 </div>
+                <!-- Task Display Button moved to mobile-header-content -->
+                <div class="task-display-container">
+                    <button id="taskDisplayBtn" class="task-display-btn" title="Task Display">
+                        <i class="fas fa-tasks"></i>
+                        <span id="taskDisplayText" data-text="taskDisplay">Task Display</span>
+                        <span id="taskCount" class="task-count" style="display: none;">0</span>
+                    </button>
+                </div>
+                
                 <div class="header-left">
                     <div class="header-buttons">
-                        <!-- Language Switch -->
-                        <div class="language-toggle" role="switch" aria-checked="false" aria-label="Language switch" style="background: rgba(255,255,255,0.15); border-radius: 21px; padding: 7px 10px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; text-align: center; gap: 8px; height: 42px; min-width: 150px; transition: var(--transition); font-size: 0.7rem; font-weight: 400; border: none; margin-left: 10px;">
-                            <label class="switch">
-                                <input type="checkbox" id="languageToggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <span id="languageToggleText" style="font-size: 0.7rem; font-weight: 400; color: white;">中文繁體</span>
-                        </div>
+                        <!-- Task Display Button moved to mobile-header-content -->
                     </div>
                 </div>
                 <div class="header-right">
@@ -649,8 +665,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
     
+    <!-- 移動端檢測和重定向 -->
+    <script src="js/mobile-redirect.js" defer></script>
+    
     <!-- 核心配置和工具檔案 - 按依賴順序載入 -->
     <script src="js/config.js" defer></script>
+    <script src="js/mobile-detector.js" defer></script>
+    <script src="js/mobile-pwa-enhancer.js" defer></script>
     <script src="js/indexeddb-manager.js" defer></script>
     <script src="js/storage-error-handler.js" defer></script>
     <script src="js/storage-adapter.js" defer></script>
@@ -984,11 +1005,144 @@
                     <li><i class="fas fa-file-pdf"></i> <span data-text="previousFloorPlanPDFAndLabels">Previous floor plan PDF and labels</span></li>
                     <li><i class="fas fa-images"></i> <span data-text="previouslyLoadedPhotosAndAssignments">Previously loaded photos and assignments</span></li>
                     <li><i class="fas fa-table"></i> <span data-text="defectEntriesAndViewState">Defect entries and view state</span></li>
+                    <li><i class="fas fa-tasks"></i> <span data-text="previousTaskData">Previous task data</span></li>
                 </ul>
             </div>
             <div class="session-restore-footer">
                 <button id="startFreshBtn" class="session-secondary-btn" type="button"><i class="fas fa-file"></i> <span data-text="startFresh">Start fresh</span></button>
                 <button id="restoreSessionBtn" class="session-primary-btn" type="button"><i class="fas fa-rotate"></i> <span data-text="openPrevious">Open previous</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Previous Data Modal -->
+    <div id="loadingPreviousDataModal" class="loading-previous-data-modal" style="display: none;">
+        <div class="loading-previous-data-container">
+            <div class="loading-spinner"></div>
+            <h3 class="loading-title">
+                <i class="fas fa-rotate fa-spin"></i>
+                <span data-text="loadingPreviousData">Loading previous data</span>
+            </h3>
+            <p class="loading-subtitle" data-text="loadingPreviousDataDescription">Please wait while we restore your previous session...</p>
+            <div class="loading-progress">
+                <div class="loading-progress-item">
+                    <i class="fas fa-check-circle loading-progress-icon" id="loadingPDFIcon"></i>
+                    <span data-text="loadingFloorPlanPDF">Loading floor plan PDF...</span>
+                </div>
+                <div class="loading-progress-item">
+                    <i class="fas fa-check-circle loading-progress-icon" id="loadingPhotosIcon"></i>
+                    <span data-text="loadingPhotos">Loading photos...</span>
+                </div>
+                <div class="loading-progress-item">
+                    <i class="fas fa-check-circle loading-progress-icon" id="loadingDataIcon"></i>
+                    <span data-text="loadingInspectionData">Loading inspection data...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Entries Modal -->
+    <div id="taskEntriesModal" class="task-entries-modal" style="display: none;">
+        <div class="task-entries-container">
+            <div class="task-entries-header">
+                <h3 class="task-entries-title">
+                    <i class="fas fa-tasks"></i>
+                    <span data-text="taskEntries">Task Entries</span>
+                </h3>
+                <button id="taskEntriesCloseBtn" class="task-entries-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+               <div class="task-entries-body">
+                   <!-- Task Form -->
+                   <div class="task-form">
+                       <h4 data-text="currentTask">Current Task</h4>
+                       <form id="taskFormElement">
+                           <div class="form-group">
+                               <label for="taskName" data-text="taskName">Task Name:</label>
+                               <input type="text" id="taskName" name="taskName" placeholder="Enter current task name for reference">
+                           </div>
+                           
+                           <div class="form-group">
+                               <label for="taskLocation" data-text="taskLocation">Location:</label>
+                               <input type="text" id="taskLocation" name="taskLocation" placeholder="Task location">
+                           </div>
+                           
+                           <div class="form-row">
+                               <div class="form-group">
+                                   <label for="taskStartDate" data-text="taskStartDate">Start Date:</label>
+                                   <input type="date" id="taskStartDate" name="taskStartDate">
+                               </div>
+                               
+                               <div class="form-group">
+                                   <label for="taskTargetDate" data-text="taskTargetDate">Target Completion Date:</label>
+                                   <input type="date" id="taskTargetDate" name="taskTargetDate">
+                               </div>
+                           </div>
+                           
+                           <div class="form-group">
+                               <label for="taskDescription" data-text="taskDescription">Description (Optional):</label>
+                               <textarea id="taskDescription" name="taskDescription" rows="3" placeholder="Brief description of the current task"></textarea>
+                           </div>
+                       </form>
+                   </div>
+               </div>
+            
+            <div class="task-entries-footer">
+                <div class="task-footer-buttons">
+                    <button id="taskCancelBtn" class="task-cancel-btn">
+                        <i class="fas fa-times"></i>
+                        <span data-text="cancel">Cancel</span>
+                    </button>
+                    <button id="taskSaveBtn" class="task-save-btn">
+                        <i class="fas fa-save"></i>
+                        <span data-text="save">Save</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Fresh Overlay -->
+    <div id="startFreshOverlay" class="start-fresh-overlay" style="display: none;">
+        <div class="start-fresh-container">
+            <div class="start-fresh-header">
+                <h3 class="start-fresh-title">
+                    <i class="fas fa-play-circle"></i>
+                    <span data-text="startFresh">Start Fresh</span>
+                </h3>
+                <button id="startFreshCloseBtn" class="start-fresh-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="start-fresh-body">
+                <div class="start-fresh-content">
+                    <div class="start-fresh-icon">
+                        <i class="fas fa-rocket fa-3x"></i>
+                    </div>
+                    <h4 data-text="startFreshTitle">Ready to Start Fresh?</h4>
+                    <p data-text="startFreshDescription">Choose how you'd like to begin your new project:</p>
+                    
+                    <div class="start-fresh-options">
+                        <button id="startNewTaskBtn" class="start-fresh-option-btn">
+                            <i class="fas fa-tasks"></i>
+                            <div class="option-content">
+                                <h5 data-text="startNewTask">Start a New Task</h5>
+                                <p data-text="startNewTaskDescription">Create a new task and begin working</p>
+                            </div>
+                        </button>
+                        
+                        <button id="openPneFileBtn" class="start-fresh-option-btn">
+                            <i class="fas fa-folder-open"></i>
+                            <div class="option-content">
+                                <h5 data-text="openPNEFile">Open PNE File</h5>
+                                <p data-text="openPNEFileDescription">Load an existing project file</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

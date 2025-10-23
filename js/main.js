@@ -347,8 +347,34 @@ const languages = {
         'previousFloorPlanPDFAndLabels': '先前的樓層平面圖PDF和標籤',
         'previouslyLoadedPhotosAndAssignments': '先前載入的照片和指派',
         'defectEntriesAndViewState': '缺陷條目和檢視狀態',
+        'previousTaskData': '先前的任務數據',
         'startFresh': '重新開始',
-        'openPrevious': '開啟先前'
+        'openPrevious': '開啟先前',
+        
+        // Loading previous data modal
+        'loadingPreviousData': '正在載入先前的數據',
+        'loadingPreviousDataDescription': '請稍候，我們正在恢復您先前的會話...',
+        'loadingFloorPlanPDF': '正在載入樓層平面圖PDF...',
+        'loadingPhotos': '正在載入照片...',
+        'loadingInspectionData': '正在載入檢查數據...',
+        
+        // Task display
+        'taskDisplay': '任務顯示',
+        'taskEntries': '當前任務',
+        'currentTask': '當前任務',
+        'taskName': '任務名稱',
+        'taskLocation': '位置',
+        'taskStartDate': '開始日期',
+        'taskTargetDate': '目標完成日期',
+        'taskDescription': '描述（可選）',
+        'taskSaved': '任務保存成功',
+        
+        // Start Fresh Overlay
+        'startFreshTitle': '準備重新開始？',
+        'startFreshDescription': '選擇您想要開始新專案的方式：',
+        'startNewTask': '開始新任務',
+        'startNewTaskDescription': '創建新任務並開始工作',
+        'openPNEFileDescription': '載入現有專案檔案'
     },
     'en-GB': {
         // Header
@@ -697,8 +723,34 @@ const languages = {
         'previousFloorPlanPDFAndLabels': 'Previous floor plan PDF and labels',
         'previouslyLoadedPhotosAndAssignments': 'Previously loaded photos and assignments',
         'defectEntriesAndViewState': 'Defect entries and view state',
+        'previousTaskData': 'Previous task data',
         'startFresh': 'Start fresh',
-        'openPrevious': 'Open previous'
+        'openPrevious': 'Open previous',
+        
+        // Loading previous data modal
+        'loadingPreviousData': 'Loading previous data',
+        'loadingPreviousDataDescription': 'Please wait while we restore your previous session...',
+        'loadingFloorPlanPDF': 'Loading floor plan PDF...',
+        'loadingPhotos': 'Loading photos...',
+        'loadingInspectionData': 'Loading inspection data...',
+        
+        // Task display
+        'taskDisplay': 'Task Display',
+        'taskEntries': 'Current Task',
+        'currentTask': 'Current Task',
+        'taskName': 'Task Name',
+        'taskLocation': 'Location',
+        'taskStartDate': 'Start Date',
+        'taskTargetDate': 'Target Completion Date',
+        'taskDescription': 'Description (Optional)',
+        'taskSaved': 'Task saved successfully',
+        
+        // Start Fresh Overlay
+        'startFreshTitle': 'Ready to Start Fresh?',
+        'startFreshDescription': 'Choose how you\'d like to begin your new project:',
+        'startNewTask': 'Start a New Task',
+        'startNewTaskDescription': 'Create a new task and begin working',
+        'openPNEFileDescription': 'Load an existing project file'
     }
 };
 
@@ -2070,6 +2122,11 @@ function updateFloorPlanHeaderTexts() {
         defectEntriesAndViewState.textContent = getText('defectEntriesAndViewState');
     }
     
+    const previousTaskData = document.querySelector('#sessionRestoreModal li span[data-text="previousTaskData"]');
+    if (previousTaskData) {
+        previousTaskData.textContent = getText('previousTaskData');
+    }
+    
     const startFreshBtn = document.querySelector('#startFreshBtn span[data-text="startFresh"]');
     if (startFreshBtn) {
         startFreshBtn.textContent = getText('startFresh');
@@ -3080,6 +3137,9 @@ let allPhotos = [];
 
 // Store folders for export
 let photoFolders = [];
+
+// Task management - Simplified for single task
+let currentTask = null;
 
 // Store submitted filenames
 let submittedFilenames = new Set();
@@ -4841,6 +4901,16 @@ async function loadDataFromStorage() {
                 window.logger.log('Page reload: Total assignments from PNE format:', parsedData.totalAssignments);
             }
             
+            // 載入任務數據 - 新格式
+            if (parsedData.currentTask) {
+                currentTask = parsedData.currentTask;
+                window.hasTaskData = true;
+                console.log('📥 Loaded current task from PNE data:', currentTask.name);
+                // 更新任務顯示
+                updateTaskDisplay();
+                window.logger.log('Page reload: Loaded current task from PNE format');
+            }
+            
             // Fix: If defectEntries is empty but submittedDefectEntries has data, restore defectEntries
             if (window.defectEntries.length === 0 && window.submittedDefectEntries.length > 0) {
                 window.logger.log('Page reload: defectEntries is empty but submittedDefectEntries has data, restoring defectEntries');
@@ -5362,6 +5432,14 @@ async function loadDataFromStorage() {
                     const daysDiff = Math.floor(hoursDiff / 24);
                     showNotification(`Data loaded successfully. Last saved: ${daysDiff} days ago`, 'success');
                 }
+            }
+            
+            // 載入當前任務數據
+            if (parsedData.currentTask) {
+                currentTask = parsedData.currentTask;
+                window.logger.log('Loaded current task from storage:', currentTask.name);
+                // Update task display after loading
+                updateTaskDisplay();
             }
             
             window.logger.log('Enhanced data loaded from localStorage successfully');
@@ -8008,8 +8086,16 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
+    // 移動端使用更長的顯示時間，桌面端使用較短時間
+    const isMobile = window.MOBILE_DETECTOR && window.MOBILE_DETECTOR.isMobileDevice();
+    const displayTime = isMobile ? 3000 : 1000; // 移動端3秒，桌面端1秒
+    
     // Remove after animation completes
-    setTimeout(() => notification.remove(), 1000);
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, displayTime);
 }
 
 // clearRow function removed - no longer needed as action column is removed
@@ -8263,6 +8349,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize language system
     initializeLanguageSystem();
     
+    // Initialize task management system
+    initializeTaskManagement();
+    
     // Initialize zoom slider
     zoomSlider = document.getElementById('zoomSlider');
     
@@ -8314,7 +8403,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             saved.floorPlanPDF || 
             saved.floorPlanData ||
             saved.embeddedPDF ||
-            saved.floorPlanBase64
+            saved.floorPlanBase64 ||
+            (saved.currentTask && saved.currentTask.name) // 包含任務數據
         );
         
         if (hasActualData && modal) {
@@ -8326,100 +8416,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (restoreBtn) {
                 restoreBtn.onclick = async () => {
                     modal.style.display = 'none';
-                    // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
-                    let loadedWithHandles = false;
+                    
+                    // 顯示載入提示 modal
+                    const loadingModal = document.getElementById('loadingPreviousDataModal');
+                    const loadingPDFIcon = document.getElementById('loadingPDFIcon');
+                    const loadingPhotosIcon = document.getElementById('loadingPhotosIcon');
+                    const loadingDataIcon = document.getElementById('loadingDataIcon');
+                    
+                    if (loadingModal) {
+                        loadingModal.style.display = 'flex';
+                        // 重置進度圖標
+                        if (loadingPDFIcon) loadingPDFIcon.classList.remove('completed');
+                        if (loadingPhotosIcon) loadingPhotosIcon.classList.remove('completed');
+                        if (loadingDataIcon) loadingDataIcon.classList.remove('completed');
+                    }
+                    
                     try {
-                        // PDF
-                        const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
-                        if (pdfHandle && pdfHandle.kind === 'file') {
-                            const p = await pdfHandle.queryPermission?.();
-                            if (p === 'granted' || (await pdfHandle.requestPermission?.()) === 'granted') {
-                                const file = await pdfHandle.getFile();
-                                const arrayBuffer = await file.arrayBuffer();
-                                await loadPDFFromArrayBuffer(arrayBuffer, file.name);
-                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
-                                const floorPlanViewer = document.getElementById('floorPlanViewer');
-                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
-                                if (floorPlanUploadArea && floorPlanViewer) {
-                                    floorPlanUploadArea.style.display = 'none';
-                                    floorPlanViewer.style.display = 'flex';
-                                }
-                                loadedWithHandles = true;
-                            }
-                        }
-                        // Photos folder
-                        const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
-                        if (dirHandle && dirHandle.kind === 'directory') {
-                            const p = await dirHandle.queryPermission?.({mode: 'read'});
-                            if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
-                                const imageFiles = [];
-                                for await (const [name, handle] of dirHandle.entries()) {
-                                    if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
-                                        const f = await handle.getFile();
-                                        imageFiles.push(f);
-                                    }
-                                }
-                                if (imageFiles.length > 0) {
-                                    window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
-                                    allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-                                    
-                                    // 🔧 從 IndexedDB 載入 photoMetadata 以恢復 dataURL
-                                    console.log('📥 Loading photoMetadata to restore dataURLs...');
-                                    const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
-                                    if (savedData && savedData.photoMetadata) {
-                                        const photoMetadataMap = new Map(savedData.photoMetadata.map(meta => [meta.name, meta.dataURL]));
-                                        console.log(`📦 Found ${photoMetadataMap.size} photos in IndexedDB with dataURL`);
-                                        
-                                        // 將 dataURL 附加到從 FSA handle 讀取的 File 對象上
-                                        let restoredCount = 0;
-                                        for (const photo of allPhotos) {
-                                            const dataURL = photoMetadataMap.get(photo.name);
-                                            if (dataURL && dataURL.trim() !== '') {
-                                                photo.dataURL = dataURL;
-                                                restoredCount++;
-                                            }
-                                        }
-                                        console.log(`✅ Restored dataURL for ${restoredCount} / ${allPhotos.length} photos`);
-                                    } else {
-                                        console.log('⚠️ No photoMetadata found in IndexedDB, photos will be re-processed');
-                                    }
-                                    
-                                    const lazyObserver = initLazyLoading();
-                                    await renderPhotos(allPhotos, lazyObserver);
-                                    updateFolderDisplay();
-                                    updateAddPhotosButtonVisibility();
-                                    loadedWithHandles = true;
-                                }
-                            }
-                        }
-                    } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
-
-                    // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
-                    await loadDataFromStorage();
-
-                    // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
-                    try {
-                        if (!loadedWithHandles) {
-                            // 檢查 localStorage 中是否有嵌入的 PDF 數據
-                            const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
-                            const pdfFilename = localStorage.getItem('pne_floorplan_filename');
-                            
-                            if (pdfBase64 && pdfFilename) {
-                                window.logger.log('Open previous: Found embedded PDF in localStorage, loading...');
-                                try {
-                                    // 將 base64 數據轉換為 ArrayBuffer
-                                    const binaryString = atob(pdfBase64);
-                                    const arrayBuffer = new ArrayBuffer(binaryString.length);
-                                    const uint8Array = new Uint8Array(arrayBuffer);
-                                    for (let i = 0; i < binaryString.length; i++) {
-                                        uint8Array[i] = binaryString.charCodeAt(i);
-                                    }
-                                    
-                                    // 載入 PDF
-                                    await loadPDFFromArrayBuffer(arrayBuffer, pdfFilename);
-                                    
-                                    // 打開繪圖模式
+                        // 優先使用已保存的 FSA handles 自動載入 PDF 與照片
+                        let loadedWithHandles = false;
+                        try {
+                            // PDF
+                            const pdfHandle = await window.storageAdapter.getItem('pne_pdf_file_handle');
+                            if (pdfHandle && pdfHandle.kind === 'file') {
+                                const p = await pdfHandle.queryPermission?.();
+                                if (p === 'granted' || (await pdfHandle.requestPermission?.()) === 'granted') {
+                                    const file = await pdfHandle.getFile();
+                                    const arrayBuffer = await file.arrayBuffer();
+                                    await loadPDFFromArrayBuffer(arrayBuffer, file.name);
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                     const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
                                     const floorPlanViewer = document.getElementById('floorPlanViewer');
@@ -8428,25 +8451,147 @@ document.addEventListener('DOMContentLoaded', async function() {
                                         floorPlanUploadArea.style.display = 'none';
                                         floorPlanViewer.style.display = 'flex';
                                     }
+                                    loadedWithHandles = true;
                                     
-                                    window.logger.log('Open previous: Embedded PDF loaded successfully');
-                                } catch (error) {
-                                    window.logger.error('Open previous: Error loading embedded PDF:', error);
-                                    // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                                    // 標記 PDF 載入完成
+                                    if (loadingPDFIcon) {
+                                        loadingPDFIcon.classList.add('completed');
+                                        loadingPDFIcon.closest('.loading-progress-item').classList.add('completed');
+                                    }
+                                }
+                            }
+                            // Photos folder
+                            const dirHandle = await window.storageAdapter.getItem('pne_photos_dir_handle');
+                            if (dirHandle && dirHandle.kind === 'directory') {
+                                const p = await dirHandle.queryPermission?.({mode: 'read'});
+                                if (p === 'granted' || (await dirHandle.requestPermission?.({mode: 'read'})) === 'granted') {
+                                    const imageFiles = [];
+                                    for await (const [name, handle] of dirHandle.entries()) {
+                                        if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                                            const f = await handle.getFile();
+                                            imageFiles.push(f);
+                                        }
+                                    }
+                                    if (imageFiles.length > 0) {
+                                        window.loadedFromHandles = true; // 標記避免之後覆寫 allPhotos
+                                        allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                                        
+                                        // 🔧 從 IndexedDB 載入 photoMetadata 以恢復 dataURL
+                                        console.log('📥 Loading photoMetadata to restore dataURLs...');
+                                        const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
+                                        if (savedData && savedData.photoMetadata) {
+                                            const photoMetadataMap = new Map(savedData.photoMetadata.map(meta => [meta.name, meta.dataURL]));
+                                            console.log(`📦 Found ${photoMetadataMap.size} photos in IndexedDB with dataURL`);
+                                            
+                                            // 將 dataURL 附加到從 FSA handle 讀取的 File 對象上
+                                            let restoredCount = 0;
+                                            for (const photo of allPhotos) {
+                                                const dataURL = photoMetadataMap.get(photo.name);
+                                                if (dataURL && dataURL.trim() !== '') {
+                                                    photo.dataURL = dataURL;
+                                                    restoredCount++;
+                                                }
+                                            }
+                                            console.log(`✅ Restored dataURL for ${restoredCount} / ${allPhotos.length} photos`);
+                                        } else {
+                                            console.log('⚠️ No photoMetadata found in IndexedDB, photos will be re-processed');
+                                        }
+                                        
+                                        const lazyObserver = initLazyLoading();
+                                        await renderPhotos(allPhotos, lazyObserver);
+                                        updateFolderDisplay();
+                                        updateAddPhotosButtonVisibility();
+                                        loadedWithHandles = true;
+                                        
+                                        // 標記照片載入完成
+                                        if (loadingPhotosIcon) {
+                                            loadingPhotosIcon.classList.add('completed');
+                                            loadingPhotosIcon.closest('.loading-progress-item').classList.add('completed');
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) { /* 忽略 handle 載入錯誤，退回一般載入 */ }
+
+                        // 載入其餘資料（標籤、缺陷、分類…），並避免覆寫已由 handle 載入的照片
+                        await loadDataFromStorage();
+                        
+                        // 標記檢查數據載入完成
+                        if (loadingDataIcon) {
+                            loadingDataIcon.classList.add('completed');
+                            loadingDataIcon.closest('.loading-progress-item').classList.add('completed');
+                        }
+
+                        // 若未能用 handle 載入 PDF，檢查是否有嵌入的 PDF 數據
+                        try {
+                            if (!loadedWithHandles) {
+                                // 檢查 localStorage 中是否有嵌入的 PDF 數據
+                                const pdfBase64 = localStorage.getItem('pne_floorplan_base64');
+                                const pdfFilename = localStorage.getItem('pne_floorplan_filename');
+                                
+                                if (pdfBase64 && pdfFilename) {
+                                    window.logger.log('Open previous: Found embedded PDF in localStorage, loading...');
+                                    try {
+                                        // 將 base64 數據轉換為 ArrayBuffer
+                                        const binaryString = atob(pdfBase64);
+                                        const arrayBuffer = new ArrayBuffer(binaryString.length);
+                                        const uint8Array = new Uint8Array(arrayBuffer);
+                                        for (let i = 0; i < binaryString.length; i++) {
+                                            uint8Array[i] = binaryString.charCodeAt(i);
+                                        }
+                                        
+                                        // 載入 PDF
+                                        await loadPDFFromArrayBuffer(arrayBuffer, pdfFilename);
+                                        
+                                        // 打開繪圖模式
+                                        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                        const floorPlanUploadArea = document.getElementById('floorPlanUploadArea');
+                                        const floorPlanViewer = document.getElementById('floorPlanViewer');
+                                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                        if (floorPlanUploadArea && floorPlanViewer) {
+                                            floorPlanUploadArea.style.display = 'none';
+                                            floorPlanViewer.style.display = 'flex';
+                                        }
+                                        
+                                        // 標記 PDF 載入完成（如果之前沒有標記）
+                                        if (loadingPDFIcon && !loadingPDFIcon.classList.contains('completed')) {
+                                            loadingPDFIcon.classList.add('completed');
+                                            loadingPDFIcon.closest('.loading-progress-item').classList.add('completed');
+                                        }
+                                        
+                                        window.logger.log('Open previous: Embedded PDF loaded successfully');
+                                    } catch (error) {
+                                        window.logger.error('Open previous: Error loading embedded PDF:', error);
+                                        // 至少打開繪圖模式以便使用者看到提醒與載入按鈕
+                                        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                                    }
+                                } else {
+                                    // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
                                     const floorPlanOverlay = document.getElementById('floorPlanOverlay');
                                     if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                                 }
-                            } else {
-                                // 沒有嵌入的 PDF，至少打開繪圖模式以便使用者看到提醒與載入按鈕
-                                const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                                if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                             }
+                        } catch (e) { 
+                            window.logger.error('Open previous: Error in PDF loading logic:', e);
+                            // 至少打開繪圖模式
+                            const floorPlanOverlay = document.getElementById('floorPlanOverlay');
+                            if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
                         }
-                    } catch (e) { 
-                        window.logger.error('Open previous: Error in PDF loading logic:', e);
-                        // 至少打開繪圖模式
-                        const floorPlanOverlay = document.getElementById('floorPlanOverlay');
-                        if (floorPlanOverlay) floorPlanOverlay.style.display = 'flex';
+                        
+                        // 完成所有載入後，延遲隱藏載入 modal（讓用戶看到完成狀態）
+                        setTimeout(() => {
+                            if (loadingModal) {
+                                loadingModal.style.display = 'none';
+                            }
+                        }, 800);
+                        
+                    } catch (error) {
+                        // 發生錯誤時也要隱藏載入 modal
+                        window.logger.error('Error during session restore:', error);
+                        if (loadingModal) {
+                            loadingModal.style.display = 'none';
+                        }
                     }
                 };
             }
@@ -8556,8 +8701,40 @@ document.addEventListener('DOMContentLoaded', async function() {
                         // 更新 Add photos 按鈕可見性
                         updateAddPhotosButtonVisibility();
                         
+                        // 清除任務數據
+                        console.log('清除任務數據...');
+                        currentTask = null;
+                        
+                        // 清除任務顯示
+                        const taskDisplayText = document.getElementById('taskDisplayText');
+                        if (taskDisplayText) {
+                            taskDisplayText.textContent = getText('taskDisplay');
+                        }
+                        
+                        // 清除任務表單
+                        const taskFormElement = document.getElementById('taskFormElement');
+                        if (taskFormElement) {
+                            taskFormElement.reset();
+                        }
+                        
+                        // 從存儲中清除任務數據
+                        try {
+                            await window.storageAdapter.setItem('photoNumberExtractorData', {
+                                ...(await window.storageAdapter.getItem('photoNumberExtractorData') || {}),
+                                currentTask: null
+                            });
+                            console.log('任務數據已從存儲中清除');
+                        } catch (error) {
+                            console.error('清除任務數據時發生錯誤:', error);
+                        }
+                        
                         console.log('Start Fresh 完成 - 所有數據已清除，應用程式已重置');
                         showNotification('All saved data cleared. Starting fresh.', 'success');
+                        
+                        // 顯示 Start Fresh 覆蓋窗口
+                        setTimeout(() => {
+                            showStartFreshOverlay();
+                        }, 500);
                         
                         // 設置標誌防止重新顯示恢復模態框
                         window.startFreshCompleted = true;
@@ -8586,6 +8763,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
                 `;
                 window.logger.log('No actual data found. Displaying empty state.');
+                
+                // 自動打開 Start Fresh 覆蓋窗口，提醒用戶選擇開始方式
+                setTimeout(() => {
+                    // 檢查是否有任務數據，如果沒有則打開 Start Fresh 覆蓋窗口
+                    if (!window.hasTaskData) {
+                        showStartFreshOverlay();
+                        console.log('🔔 No previous data and no task data found. Opening Start Fresh overlay to guide user.');
+                    }
+                }, 1000); // 延遲1秒確保頁面完全載入
             }
         }
     } catch (e) { 
@@ -10908,7 +11094,10 @@ window.saveDataToStorage = async function() {
             photoAssignments: Object.fromEntries(
                 Object.entries(assignedPhotos || {}).map(([key, value]) => [key, Array.from(value || [])])
             )
-        }
+        },
+        
+        // 任務數據 - 與 .pne 檔案一致
+        currentTask: currentTask
     };
     
     // 詳細日誌
@@ -11880,7 +12069,21 @@ async function performExport() {
         window.logger.log('Starting photo export with folder sorting (pne.html style)');
         await exportPhotosToZipPneStyle(zip);
         
-        // 6. 生成並下載 ZIP 檔案
+        // 6. 添加當前任務數據到 ZIP
+        if (currentTask && currentTask.name) {
+            window.logger.log('Exporting current task to ZIP:', currentTask.name);
+            const taskData = {
+                currentTask: currentTask,
+                exportDate: new Date().toISOString()
+            };
+            zip.file("Current_Task.json", JSON.stringify(taskData, null, 2));
+            
+            // 也生成 CSV 格式的任務信息
+            const taskCSV = `Task Name,Description,Last Updated\n"${currentTask.name}","${currentTask.description || ''}","${currentTask.updatedAt || ''}"`;
+            zip.file("Current_Task.csv", taskCSV);
+        }
+        
+        // 7. 生成並下載 ZIP 檔案
         const content = await zip.generateAsync({type: 'blob'});
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
@@ -12639,28 +12842,54 @@ saveAsPNEBtn.addEventListener('click', function() {
                 photoAssignments: Object.fromEntries(
                     Object.entries(assignedPhotos).map(([key, value]) => [key, Array.from(value)])
                 )
-            }
+            },
+            
+            // 任務數據
+            currentTask: currentTask
         };
 
-        // 下載JSON，預設檔名：PNE_資料夾名稱_日期.pne
+        // 下載JSON，使用任務名稱和當前日期時間作為文件名
         const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        const dateStr = new Date().toISOString().slice(0,10);
-        let folderName = folderNameDisplay.textContent.trim() || 'unknown';
-        folderName = folderName.replace(/[^a-zA-Z0-9_-]/g, '_');
-        let defaultName = `PNE_${folderName}_${dateStr}`;
-
-        // 直接使用默認檔名（避免在 Google Sites 中因 prompt 被禁用而無法工作）
-        let inputName = defaultName;
-        // 清理不合法字元
-        inputName = inputName.replace(/[\\/:*?"<>|]/g, '_');
-        // 若未包含 .pne 副檔名則自動補上
-        if (!inputName.toLowerCase().endsWith('.pne')) {
-            inputName += '.pne';
+        
+        // 生成文件名：任務名稱 _ 日期 _ 時間
+        let fileName = '';
+        
+        // 獲取任務名稱
+        if (currentTask && currentTask.name && currentTask.name.trim()) {
+            // 清理任務名稱中的非法字符
+            const cleanTaskName = currentTask.name.trim().replace(/[\\/:*?"<>|]/g, '_');
+            fileName = cleanTaskName;
+        } else {
+            // 如果沒有任務名稱，使用默認名稱
+            let folderName = folderNameDisplay.textContent.trim() || 'unknown';
+            folderName = folderName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            fileName = `PNE_${folderName}`;
         }
-
-        a.download = inputName;
+        
+        // 獲取當前日期和時間
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        
+        // 組合文件名：任務名稱 _ 日期 _ 時間
+        const dateStr = `${year}${month}${day}`;
+        const timeStr = `${hours}${minutes}`;
+        fileName = `${fileName} _ ${dateStr} _ ${timeStr}`;
+        
+        // 添加 .pne 副檔名
+        if (!fileName.toLowerCase().endsWith('.pne')) {
+            fileName += '.pne';
+        }
+        
+        // 清理最終文件名中的非法字符
+        fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
+        
+        a.download = fileName;
         a.href = url;
         a.style.display = 'none';
         document.body.appendChild(a);
@@ -14481,6 +14710,15 @@ openPNEBtn.addEventListener('click', function() {
                 }
                 if (typeof data.rowIdCounter === 'number') {
                     rowIdCounter = data.rowIdCounter;
+                }
+                
+                // 還原任務數據
+                if (data.currentTask) {
+                    currentTask = data.currentTask;
+                    window.hasTaskData = true;
+                    console.log('📥 PNE load: Restored current task:', currentTask.name);
+                    // 更新任務顯示
+                    updateTaskDisplay();
                 }
                 
                 // 新增:還原照片分配資料
@@ -23165,4 +23403,504 @@ function parsePhotoNumbers(categoryValue) {
     });
     
     return photoNumbers;
+}
+
+// ==================== TASK MANAGEMENT FUNCTIONS ====================
+
+// Global flag to track if user has task data
+window.hasTaskData = false;
+
+// ==================== START FRESH OVERLAY FUNCTIONS ====================
+
+// Show Start Fresh overlay
+function showStartFreshOverlay() {
+    const overlay = document.getElementById('startFreshOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        console.log('🚀 Start Fresh overlay displayed');
+    }
+}
+
+// Hide Start Fresh overlay
+function hideStartFreshOverlay() {
+    const overlay = document.getElementById('startFreshOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+        console.log('🚀 Start Fresh overlay hidden');
+    }
+}
+
+// Setup Start Fresh overlay event listeners
+function setupStartFreshOverlayListeners() {
+    const overlay = document.getElementById('startFreshOverlay');
+    const closeBtn = document.getElementById('startFreshCloseBtn');
+    const startNewTaskBtn = document.getElementById('startNewTaskBtn');
+    const openPneFileBtn = document.getElementById('openPneFileBtn');
+    
+    // Close button
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideStartFreshOverlay);
+    }
+    
+    // Close when clicking outside
+    if (overlay) {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                hideStartFreshOverlay();
+            }
+        });
+    }
+    
+    // Start New Task button
+    if (startNewTaskBtn) {
+        startNewTaskBtn.addEventListener('click', () => {
+            hideStartFreshOverlay();
+            // Show task entries modal
+            const taskEntriesModal = document.getElementById('taskEntriesModal');
+            if (taskEntriesModal) {
+                taskEntriesModal.style.display = 'flex';
+                populateCurrentTaskForm();
+            }
+        });
+    }
+    
+    // Open PNE File button
+    if (openPneFileBtn) {
+        openPneFileBtn.addEventListener('click', () => {
+            hideStartFreshOverlay();
+            // Trigger the PNE file open functionality
+            const openPneBtn = document.querySelector('.pne-dropdown-item[data-action="open"]');
+            if (openPneBtn) {
+                openPneBtn.click();
+            }
+        });
+    }
+}
+
+// Initialize task management system
+async function initializeTaskManagement() {
+    console.log('🔧 Initializing task management system...');
+    
+    // Load current task from storage
+    await loadCurrentTaskFromStorage();
+    
+    // Setup event listeners
+    setupTaskEventListeners();
+    
+    // Setup Start Fresh overlay event listeners
+    setupStartFreshOverlayListeners();
+    
+    // Update task display
+    updateTaskDisplay();
+    
+    console.log('✅ Task management system initialized');
+}
+
+// Setup task event listeners - Simplified
+function setupTaskEventListeners() {
+    const taskDisplayBtn = document.getElementById('taskDisplayBtn');
+    const taskEntriesModal = document.getElementById('taskEntriesModal');
+    const taskEntriesCloseBtn = document.getElementById('taskEntriesCloseBtn');
+    const taskCancelBtn = document.getElementById('taskCancelBtn');
+    const taskSaveBtn = document.getElementById('taskSaveBtn');
+    
+    // Task display button click
+    if (taskDisplayBtn) {
+        taskDisplayBtn.addEventListener('click', () => {
+            if (taskEntriesModal) {
+                taskEntriesModal.style.display = 'flex';
+                populateCurrentTaskForm();
+            }
+        });
+    }
+    
+    // Close modal buttons
+    if (taskEntriesCloseBtn) {
+        taskEntriesCloseBtn.addEventListener('click', closeTaskModal);
+    }
+    
+    if (taskCancelBtn) {
+        taskCancelBtn.addEventListener('click', closeTaskModal);
+    }
+    
+    // Save task button
+    if (taskSaveBtn) {
+        taskSaveBtn.addEventListener('click', saveCurrentTask);
+    }
+    
+    // Close modal when clicking outside
+    if (taskEntriesModal) {
+        taskEntriesModal.addEventListener('click', (e) => {
+            if (e.target === taskEntriesModal) {
+                closeTaskModal();
+            }
+        });
+    }
+}
+
+// Close task modal - Simplified
+function closeTaskModal() {
+    const taskEntriesModal = document.getElementById('taskEntriesModal');
+    if (taskEntriesModal) {
+        taskEntriesModal.style.display = 'none';
+    }
+}
+
+// Populate task form with current task data
+function populateCurrentTaskForm() {
+    const taskNameInput = document.getElementById('taskName');
+    const taskLocationInput = document.getElementById('taskLocation');
+    const taskStartDateInput = document.getElementById('taskStartDate');
+    const taskTargetDateInput = document.getElementById('taskTargetDate');
+    const taskDescriptionInput = document.getElementById('taskDescription');
+    
+    if (currentTask) {
+        if (taskNameInput) taskNameInput.value = currentTask.name || '';
+        if (taskLocationInput) taskLocationInput.value = currentTask.location || '';
+        if (taskStartDateInput) taskStartDateInput.value = currentTask.startDate || '';
+        if (taskTargetDateInput) taskTargetDateInput.value = currentTask.targetDate || '';
+        if (taskDescriptionInput) taskDescriptionInput.value = currentTask.description || '';
+    } else {
+        if (taskNameInput) taskNameInput.value = '';
+        if (taskLocationInput) taskLocationInput.value = '';
+        if (taskStartDateInput) taskStartDateInput.value = '';
+        if (taskTargetDateInput) taskTargetDateInput.value = '';
+        if (taskDescriptionInput) taskDescriptionInput.value = '';
+    }
+}
+
+// Save current task
+function saveCurrentTask() {
+    const form = document.getElementById('taskFormElement');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const taskData = {
+        name: formData.get('taskName').trim(),
+        location: formData.get('taskLocation').trim(),
+        startDate: formData.get('taskStartDate'),
+        targetDate: formData.get('taskTargetDate'),
+        description: formData.get('taskDescription').trim(),
+        updatedAt: new Date().toISOString()
+    };
+    
+    // Validate required fields
+    if (!taskData.name) {
+        showNotification(getText('taskName') + ' is required', 'error');
+        return;
+    }
+    
+    // Update current task
+    currentTask = taskData;
+    
+    // Set task data flag
+    window.hasTaskData = true;
+    
+    // Save to storage
+    saveCurrentTaskToStorage();
+    
+    // Update display
+    updateTaskDisplay();
+    
+    // Close modal
+    closeTaskModal();
+    
+    // Show success message
+    showNotification(getText('taskSaved'), 'success');
+}
+
+// Load current task from storage
+async function loadCurrentTaskFromStorage() {
+    try {
+        const savedData = await window.storageAdapter.getItem('photoNumberExtractorData');
+        if (savedData && savedData.currentTask) {
+            currentTask = savedData.currentTask;
+            window.hasTaskData = true;
+            console.log('📥 Loaded current task from storage:', currentTask.name);
+            // Update display immediately after loading
+            updateTaskDisplay();
+        } else {
+            window.hasTaskData = false;
+        }
+    } catch (error) {
+        console.error('Error loading current task:', error);
+        window.hasTaskData = false;
+    }
+}
+
+// Save current task to storage
+async function saveCurrentTaskToStorage() {
+    try {
+        const savedData = await window.storageAdapter.getItem('photoNumberExtractorData') || {};
+        savedData.currentTask = currentTask;
+        await window.storageAdapter.setItem('photoNumberExtractorData', savedData);
+    } catch (error) {
+        console.error('Error saving current task:', error);
+    }
+}
+
+// Update task display
+function updateTaskDisplay() {
+    const taskDisplayText = document.getElementById('taskDisplayText');
+    const taskCount = document.getElementById('taskCount');
+    
+    console.log('🔄 updateTaskDisplay called:', {
+        currentTask: currentTask,
+        taskName: currentTask ? currentTask.name : 'none',
+        taskDisplayText: taskDisplayText,
+        timestamp: new Date().toLocaleTimeString()
+    });
+    
+    if (currentTask && currentTask.name) {
+        if (taskDisplayText) {
+            taskDisplayText.textContent = currentTask.name;
+            console.log('✅ Task name displayed:', currentTask.name);
+        }
+        if (taskCount) {
+            taskCount.style.display = 'none';
+        }
+    } else {
+        if (taskDisplayText) {
+            taskDisplayText.textContent = getText('taskDisplay');
+            console.log('📝 Default task display text shown');
+        }
+        if (taskCount) {
+            taskCount.style.display = 'none';
+        }
+    }
+}
+
+// Show task form
+function showTaskForm(task = null) {
+    const taskForm = document.getElementById('taskForm');
+    const taskListContainer = document.querySelector('.task-list-container');
+    
+    if (taskForm && taskListContainer) {
+        taskForm.style.display = 'block';
+        taskListContainer.style.display = 'none';
+        
+        if (task) {
+            // Edit mode
+            currentEditingTask = task;
+            populateTaskForm(task);
+        } else {
+            // Add mode
+            currentEditingTask = null;
+            clearTaskForm();
+        }
+    }
+}
+
+// Hide task form
+function hideTaskForm() {
+    const taskForm = document.getElementById('taskForm');
+    const taskListContainer = document.querySelector('.task-list-container');
+    
+    if (taskForm && taskListContainer) {
+        taskForm.style.display = 'none';
+        taskListContainer.style.display = 'block';
+    }
+}
+
+// Clear task form
+function clearTaskForm() {
+    const form = document.getElementById('taskFormElement');
+    if (form) {
+        form.reset();
+    }
+}
+
+// Populate task form with data
+function populateTaskForm(task) {
+    if (!task) return;
+    document.getElementById('taskName').value = task.name || '';
+    document.getElementById('taskLocation').value = task.location || '';
+    document.getElementById('taskStartDate').value = task.startDate || '';
+    document.getElementById('taskTargetDate').value = task.targetDate || '';
+    document.getElementById('taskDescription').value = task.description || '';
+}
+
+// Save task
+function saveTask() {
+    const form = document.getElementById('taskFormElement');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const taskData = {
+        id: currentEditingTask ? currentEditingTask.id : Date.now().toString(),
+        name: formData.get('taskName').trim(),
+        location: formData.get('taskLocation').trim(),
+        startDate: formData.get('taskStartDate'),
+        targetDate: formData.get('taskTargetDate'),
+        description: formData.get('taskDescription').trim(),
+        createdAt: currentEditingTask ? currentEditingTask.createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    
+    // Validate required fields
+    if (!taskData.name) {
+        showNotification(getText('taskName') + ' is required', 'error');
+        return;
+    }
+    
+    if (currentEditingTask) {
+        // Update existing task
+        const index = tasks.findIndex(t => t.id === currentEditingTask.id);
+        if (index !== -1) {
+            tasks[index] = taskData;
+            showNotification(getText('taskUpdated'), 'success');
+        }
+    } else {
+        // Add new task
+        tasks.push(taskData);
+        showNotification(getText('taskSaved'), 'success');
+    }
+    
+    // Save to storage
+    saveTasksToStorage();
+    
+    // Update display
+    updateTaskList();
+    updateTaskDisplay();
+    
+    // Hide form
+    hideTaskForm();
+    clearTaskForm();
+    currentEditingTask = null;
+}
+
+// Delete task
+function deleteTask(taskId) {
+    if (confirm(getText('confirmDeleteTask'))) {
+        const index = tasks.findIndex(t => t.id === taskId);
+        if (index !== -1) {
+            tasks.splice(index, 1);
+            saveTasksToStorage();
+            updateTaskList();
+            updateTaskDisplay();
+            showNotification(getText('taskDeleted'), 'success');
+        }
+    }
+}
+
+// Edit task
+function editTask(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+        showTaskForm(task);
+    }
+}
+
+// Update task list display
+function updateTaskList() {
+    const taskList = document.getElementById('taskList');
+    if (!taskList) return;
+    
+    if (tasks.length === 0) {
+        taskList.innerHTML = `
+            <div class="task-empty-state">
+                <i class="fas fa-tasks"></i>
+                <h4>${getText('noTasksFound')}</h4>
+                <p>${getText('noTasksDescription')}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    taskList.innerHTML = tasks.map(task => `
+        <div class="task-item" data-task-id="${task.id}">
+            <div class="task-info">
+                <div class="task-name">${escapeHtml(task.name)}</div>
+                <div class="task-details">
+                    ${task.location ? `<div class="task-detail-item"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(task.location)}</div>` : ''}
+                    ${task.startDate ? `<div class="task-detail-item"><i class="fas fa-calendar-alt"></i> ${formatDate(task.startDate)}</div>` : ''}
+                    ${task.targetDate ? `<div class="task-detail-item"><i class="fas fa-flag-checkered"></i> ${formatDate(task.targetDate)}</div>` : ''}
+                </div>
+            </div>
+            <div class="task-actions">
+                <button class="task-action-btn edit" onclick="editTask('${task.id}')" title="${getText('editTask')}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="task-action-btn delete" onclick="deleteTask('${task.id}')" title="${getText('deleteTask')}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update task display button
+function updateTaskDisplay() {
+    const taskDisplayText = document.getElementById('taskDisplayText');
+    const taskCount = document.getElementById('taskCount');
+    
+    if (currentTask && currentTask.name) {
+        if (taskDisplayText) {
+            taskDisplayText.textContent = currentTask.name;
+        }
+        if (taskCount) {
+            taskCount.style.display = 'none';
+        }
+    } else {
+        if (taskDisplayText) {
+            taskDisplayText.textContent = getText('taskDisplay');
+        }
+        if (taskCount) {
+            taskCount.style.display = 'none';
+        }
+    }
+}
+
+// Load tasks from storage
+async function loadTasksFromStorage() {
+    try {
+        const savedTasks = await window.storageAdapter.getItem('pne_tasks');
+        if (savedTasks && Array.isArray(savedTasks)) {
+            tasks = savedTasks;
+            console.log(`📥 Loaded ${tasks.length} tasks from storage`);
+        }
+    } catch (error) {
+        console.error('Error loading tasks from storage:', error);
+    }
+}
+
+// Save tasks to storage
+async function saveTasksToStorage() {
+    try {
+        await window.storageAdapter.setItem('pne_tasks', tasks);
+        console.log(`💾 Saved ${tasks.length} tasks to storage`);
+    } catch (error) {
+        console.error('Error saving tasks to storage:', error);
+    }
+}
+
+// Utility functions
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+}
+
+// Export current task for PNE file
+function exportCurrentTaskForPNE() {
+    return {
+        currentTask: currentTask,
+        exportDate: new Date().toISOString()
+    };
+}
+
+// Import current task from PNE file
+function importCurrentTaskFromPNE(data) {
+    if (data && data.currentTask) {
+        currentTask = data.currentTask;
+        saveCurrentTaskToStorage();
+        updateTaskDisplay();
+        console.log(`📥 Imported current task from PNE file: ${currentTask.name}`);
+    }
 }
