@@ -8,10 +8,13 @@ const IMAGES_CACHE = 'images-v1.0.3';
 const STATIC_ASSETS = [
     './',
     './index.html',
+    './mobile.html',
     './css/styles.css',
     './css/mobile.css',
+    './css/mobile-only.css',
     './js/config.js',
     './js/mobile-detector.js',
+    './js/mobile-main.js',
     './js/mobile-pwa-enhancer.js',
     './js/utils.js',
     './js/performance.js',
@@ -24,7 +27,10 @@ const STATIC_ASSETS = [
     './js/keyboard-navigation.js',
     './js/virtual-scroll-enhanced.js',
     './js/main.js',
-    './js/optimization-patch.js'
+    './js/optimization-patch.js',
+    './favicon.svg',
+    './favicon.ico',
+    './manifest.json'
 ];
 
 // CDN資源
@@ -33,7 +39,9 @@ const CDN_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
-    'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js'
+    'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 ];
 
 // 安裝事件

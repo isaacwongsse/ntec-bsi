@@ -347,6 +347,13 @@ class KeyboardNavigationManager {
                 }
             }
         });
+        
+        // 特別處理移動端標籤模態框
+        const mobileLabelModal = document.getElementById('mobileLabelModalOverlay');
+        if (mobileLabelModal && mobileLabelModal.style.display === 'flex') {
+            // 只關閉移動端標籤模態框，不觸發其他事件
+            mobileLabelModal.style.display = 'none';
+        }
     }
     
     showHelp() {

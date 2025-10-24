@@ -2,9 +2,24 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="Photo Number Extractor - Mobile Version">
     <title>PlanPNE Mobile</title>
+    
+    <!-- PWA 全屏模式設置 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PlanPNE">
+    <meta name="application-name" content="PlanPNE">
+    <meta name="msapplication-TileColor" content="#a67c52">
+    <meta name="msapplication-navbutton-color" content="#a67c52">
+    <meta name="theme-color" content="#a67c52">
+    
+    <!-- 防止縮放和滾動 -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="address=no">
+    <meta name="format-detection" content="email=no">
     
     <!-- 移動端優化的資源載入 -->
     <link rel="preload" href="css/mobile-only.css" as="style">
@@ -14,12 +29,331 @@
     <link rel="stylesheet" href="css/mobile-only.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- PWA Meta Tags -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="PlanPNE Mobile">
-    <meta name="theme-color" content="#a67c52">
+    <!-- 移動端全屏應用程式樣式 -->
+    <style>
+        /* 全屏模式設置 */
+        html, body {
+            height: 100vh;
+            height: -webkit-fill-available;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        }
+        
+        /* 確保移動端背景正確顯示 */
+        body.mobile-body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        }
+        
+        /* 隱藏瀏覽器 UI */
+        body {
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        /* 移動端容器全屏 */
+        .mobile-container {
+            height: 100vh;
+            height: -webkit-fill-available;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 防止地址欄影響佈局 */
+        @supports (height: 100dvh) {
+            html, body {
+                height: 100dvh;
+            }
+            .mobile-container {
+                height: 100dvh;
+            }
+        }
+        
+        /* iOS Safari 全屏支持 */
+        @media screen and (display-mode: standalone) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+        }
+        
+        /* 隱藏滾動條 */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* 防止雙擊縮放 */
+        * {
+            touch-action: manipulation;
+        }
+        
+        /* 移動端載入指示器全屏 */
+        .mobile-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: -webkit-fill-available;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* 應用程式模式樣式 */
+        .app-mode {
+            /* 在 PWA 模式下的額外樣式 - 隱藏瀏覽器 UI */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .browser-mode {
+            /* 在瀏覽器模式下的樣式調整 - 為地址欄留出空間 */
+            padding-top: 0;
+        }
+        
+        /* 移動端標題欄優化 */
+        .mobile-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--mobile-primary, #a67c52) !important;
+            color: white !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 確保標題欄內所有文字都是白色 */
+        .mobile-header * {
+            color: white !important;
+        }
+        
+        /* 標題文字樣式 */
+        .mobile-header-title {
+            color: white !important;
+            font-weight: 600;
+        }
+        
+        /* 按鈕圖標顏色 */
+        .mobile-header i {
+            color: white !important;
+        }
+        
+        /* 移動端底部導航優化 */
+        .mobile-bottom-nav {
+            position: sticky;
+            bottom: 0;
+            z-index: 1000;
+            background: #fff;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* 移動端主內容區域 */
+        .mobile-main {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            height: calc(100vh - 60px - 80px); /* 減去header和bottom-nav的高度 */
+            max-height: calc(100vh - 60px - 80px);
+            padding-bottom: 80px; /* 為底部導航留空間 */
+        }
+        
+        /* Drawing 區域特殊高度設置 */
+        .mobile-drawing-section {
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Drawing 區域的 floor-plan-container */
+        .floor-plan-container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .floor-plan-content {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* PDF 查看器全高度 - 填滿整個屏幕，延伸到標題欄和底部導航 */
+        .floor-plan-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 100vh;
+            height: -webkit-fill-available;
+            width: 100vw;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        /* 確保在 PWA 模式下使用動態視口高度 */
+        @supports (height: 100dvh) {
+            .floor-plan-viewer {
+                height: 100dvh;
+            }
+        }
+        
+        /* 響應式高度調整 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .floor-plan-viewer {
+                height: 100vh !important;
+                height: -webkit-fill-available !important;
+            }
+            
+            @supports (height: 100dvh) {
+                .floor-plan-viewer {
+                    height: 100dvh !important;
+                }
+            }
+        }
+        
+        /* 確保標題欄和底部導航在 PDF 查看器之上 */
+        .mobile-header {
+            z-index: 1000;
+        }
+        
+        .mobile-bottom-nav {
+            z-index: 1000;
+        }
+        
+        /* 當 PDF 查看器顯示時，調整其他元素的層級 */
+        .mobile-drawing-section .floor-plan-viewer[style*="display: flex"] {
+            z-index: 1;
+        }
+        
+        /* 響應式高度調整 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .mobile-main {
+                height: calc(100vh - 50px) !important;
+                max-height: calc(100vh - 50px) !important;
+                padding-bottom: 0 !important;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .mobile-main {
+                padding-bottom: 80px !important;
+            }
+        }
+        
+        /* 確保在 PWA 模式下正確計算高度 */
+        @supports (height: 100dvh) {
+            .mobile-main {
+                height: calc(100dvh - 60px - 80px);
+                max-height: calc(100dvh - 60px - 80px);
+            }
+            
+            @media (orientation: landscape) and (max-height: 500px) {
+                .mobile-main {
+                    height: calc(100dvh - 50px) !important;
+                    max-height: calc(100dvh - 50px) !important;
+                }
+            }
+        }
+        
+        /* 移動端區域樣式 */
+        .mobile-section {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 隱藏滾動條但保持滾動功能 */
+        .mobile-section::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* 移動端按鈕優化 */
+        .mobile-menu-btn,
+        .mobile-task-btn,
+        .mobile-tools-btn,
+        .mobile-back-btn,
+        .mobile-add-btn,
+        .mobile-export-btn {
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+        }
+        
+        /* 移動端下拉選單優化 */
+        .mobile-dropdown,
+        .mobile-tools-dropdown {
+            max-height: 80vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 移動端模態框優化 */
+        .label-modal-overlay,
+        .task-entries-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: -webkit-fill-available;
+            z-index: 10000;
+        }
+        
+        /* 移動端標籤層優化 */
+        #mobileLabelLayer {
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        /* 移動端標籤樣式 */
+        .floor-plan-label {
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+        
+        /* 防止文字選擇 */
+        .mobile-header,
+        .mobile-bottom-nav,
+        .mobile-dropdown,
+        .mobile-tools-dropdown {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        /* 移動端觸控反饋 */
+        .mobile-dropdown-item,
+        .mobile-tools-item,
+        .mobile-nav-home,
+        .mobile-nav-drawing,
+        .mobile-nav-photo,
+        .mobile-nav-details {
+            transition: background-color 0.2s ease;
+        }
+        
+        .mobile-dropdown-item:active,
+        .mobile-tools-item:active,
+        .mobile-nav-home:active,
+        .mobile-nav-drawing:active,
+        .mobile-nav-photo:active,
+        .mobile-nav-details:active {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
@@ -41,12 +375,19 @@
     <div class="mobile-container">
         <!-- 移動端標題欄 -->
         <header class="mobile-header">
-            <div class="mobile-header-content">
-                <!-- PNE功能按鈕 -->
-                <div class="mobile-pne-btn">
+            <!-- Home 區域的 Header -->
+            <div class="mobile-header-content mobile-header-home active" data-section="home">
+                <div class="mobile-header-left">
                     <button id="mobilePneMenuBtn" class="mobile-menu-btn" aria-label="Menu">
                         <i class="fas fa-bars"></i>
                     </button>
+                    <h1 class="mobile-header-title">PlanPNE</h1>
+                </div>
+                <div class="mobile-header-right">
+                    <button id="mobileTaskDisplayBtn" class="mobile-task-btn" aria-label="Task">
+                        <i class="fas fa-tasks"></i>
+                    </button>
+                </div>
                     <!-- 移動端下拉選單 -->
                     <div class="mobile-dropdown" id="mobileDropdown">
                         <div class="mobile-dropdown-item" data-action="newtask">
@@ -61,9 +402,94 @@
                     </div>
                 </div>
                 
-                <!-- 樓層平面圖縮圖 -->
-                <div id="mobileFloorplanThumb" class="mobile-floorplan-thumb" style="display:none;">
-                    <img id="mobileFloorplanThumbImg" alt="Floor plan thumbnail"/>
+            <!-- Drawing 區域的 Header -->
+            <div class="mobile-header-content mobile-header-drawing" data-section="drawing" style="display: none;">
+                <div class="mobile-header-left">
+                    <div class="mobile-tools-container" style="position: relative; display: inline-block;">
+                        <button id="mobileToolsBtn" class="mobile-tools-btn" aria-label="Tools">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
+                        <div class="mobile-tools-dropdown" id="mobileToolsDropdown" style="position: fixed; top: 60px; left: 16px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 30000; min-width: 280px; padding: 8px 0; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s ease;">
+                            <!-- 添加標籤按鈕 -->
+                            <div class="mobile-tools-item" data-action="add-label">
+                                <i class="fas fa-tag"></i> <span data-text="addLabel">Add Label (123)</span>
+                            </div>
+                            <!-- Quick Label 開關 -->
+                            <div class="mobile-tools-item" data-action="quick-label-toggle">
+                                <i class="fas fa-bolt"></i> <span data-text="quickLabel">Quick Label</span>
+                                <label class="switch" style="margin-left: auto;">
+                                    <input type="checkbox" id="mobileQuickLabelSwitch">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <!-- 標籤大小控制 -->
+                            <div class="mobile-tools-item" data-action="label-size">
+                                <i class="fas fa-text-height"></i> <span data-text="labelSize">Label Size</span>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+                                    <input type="range" id="mobileLabelSizeSlider" min="5" max="60" value="24" step="1" style="width: 80px;">
+                                    <span class="size-value" id="mobileLabelSizeValue" style="font-size: 12px; min-width: 35px;">24px</span>
+                                </div>
+                            </div>
+                            <!-- 缺陷大小控制 -->
+                            <div class="mobile-tools-item" data-action="defect-size">
+                                <i class="fas fa-exclamation-circle"></i> <span data-text="defectSize">Defect Size</span>
+                                <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+                                    <input type="range" id="mobileDefectSizeSlider" min="5" max="60" value="24" step="1" style="width: 80px;">
+                                    <span class="defect-size-value" id="mobileDefectSizeValue" style="font-size: 12px; min-width: 35px;">24px</span>
+                                </div>
+                            </div>
+                            <!-- 所有標籤詳情 -->
+                            <div class="mobile-tools-item" data-action="all-labels-detail">
+                                <i class="fas fa-list-alt"></i> <span data-text="allLabelsDetail">All Labels Detail</span>
+                            </div>
+                            <!-- 所有缺陷詳情 -->
+                            <div class="mobile-tools-item" data-action="all-defects-detail">
+                                <i class="fas fa-clipboard-list"></i> <span data-text="allDefectsDetail">All Defects Detail</span>
+                            </div>
+                            <!-- 縮放至100% -->
+                            <div class="mobile-tools-item" data-action="zoom-to-100">
+                                <i class="fas fa-search"></i> <span data-text="zoomTo100AndCenter">Zoom to 100%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <h1 class="mobile-header-title">Drawing Mode</h1>
+                </div>
+                <div class="mobile-header-right">
+                    <button id="mobileUploadFloorPlanBtn" class="mobile-menu-btn" aria-label="Upload Floor Plan">
+                        <i class="fas fa-folder-open" style="position: relative;">
+                            <i class="fas fa-arrow-up" style="position: absolute; top: -2px; right: -2px; font-size: 8px; color: #4CAF50;"></i>
+                        </i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Photo 區域的 Header -->
+            <div class="mobile-header-content mobile-header-photo" data-section="photo" style="display: none;">
+                <div class="mobile-header-left">
+                    <button id="mobilePhotoBackBtn" class="mobile-back-btn" aria-label="Back">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h1 class="mobile-header-title">Photo Gallery</h1>
+                </div>
+                <div class="mobile-header-right">
+                    <button id="mobileAddPhotosBtn" class="mobile-add-btn" aria-label="Add Photos">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Details 區域的 Header -->
+            <div class="mobile-header-content mobile-header-details" data-section="details" style="display: none;">
+                <div class="mobile-header-left">
+                    <button id="mobileDetailsBackBtn" class="mobile-back-btn" aria-label="Back">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h1 class="mobile-header-title">Details Table</h1>
+                </div>
+                <div class="mobile-header-right">
+                    <button id="mobileExportBtn" class="mobile-export-btn" aria-label="Export">
+                        <i class="fas fa-download"></i>
+                    </button>
                 </div>
             </div>
         </header>
@@ -77,83 +503,47 @@
             
             <!-- Drawing 區域 -->
             <div class="mobile-section mobile-drawing-section" id="mobileDrawingSection" style="display: none;">
-                <div class="floor-plan-content">
-                    <div id="mobileFloorPlanUploadArea" class="floor-plan-upload-area">
-                        <input type="file" id="mobileFloorPlanFileInput" accept=".pdf" style="visibility: hidden; position: absolute; left: -9999px;">
+                <div class="floor-plan-container">
+                    <div class="floor-plan-content">
+                        <!-- 隱藏的文件輸入 -->
+                        <input type="file" id="mobileFloorPlanFileInput" accept=".pdf" style="display: none;">
                         
-                        <!-- 當有標籤數據時的提示區域 -->
-                        <div id="mobileLabelsDataReminder" class="labels-data-reminder" style="display: none;">
-                            <i class="fas fa-info-circle fa-3x"></i>
-                            <h4 data-text="previousFloorPlanDataFound">Previous Floor Plan Data Found</h4>
-                            <p data-text="previousFloorPlanDataDescription">You have label data from a previous floor plan. To view and manage these labels, please open the same floor plan file.</p>
-                            <div class="previous-file-info">
-                                <strong data-text="previousFile">Previous file:</strong> <span id="mobilePreviousFileName">Unknown</span>
-                                <div class="file-details" id="mobileFileDetails" style="margin-top: 8px; font-size: 0.9em; color: #666;">
-                                    <!-- File details will be populated here -->
-                                </div>
+                        <!-- PDF 查看器 -->
+                        <div id="mobileFloorPlanViewer" class="floor-plan-viewer" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100vh; width: 100vw; z-index: 1;">
+                            <!-- PDF顯示層 -->
+                            <canvas id="mobileFloorPlanCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+                            <!-- 標籤層 -->
+                            <div id="mobileLabelLayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                                <!-- 標籤元素將動態添加到這裡 -->
                             </div>
-                            <button id="mobileOpenPreviousFloorPlanBtn" type="button" class="upload-btn" style="margin-top: 15px; position: relative; z-index: 1000;">
-                                <i class="fas fa-folder-open" style="color: white !important; position: relative; z-index: 1001; display: inline-block;"></i> <span data-text="openPreviousFloorPlan">Open Previous Floor Plan</span>
-                            </button>
-                        </div>
-                        
-                        <!-- 原本的上傳區域 -->
-                        <div id="mobileUploadPlaceholder" class="upload-placeholder">
-                            <i class="fas fa-cloud-upload-alt fa-3x"></i>
-                            <p data-text="clickToUploadPDFFloorPlan">Click to upload PDF floor plan</p>
-                            <button id="mobileUploadFloorPlanBtn" type="button" class="upload-btn"><span data-text="chooseFile">Choose File</span></button>
+                            <!-- Quick Label Instruction Message - Floating -->
+                            <div id="mobileQuickLabelInstruction" class="quick-label-instruction" style="display: none; position: fixed; padding: 6px 12px; background: #e3f2fd; color: #1976d2; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; border-left: 3px solid #2196f3; z-index: 10000; pointer-events: none;">
+                                <i class="fas fa-mouse-pointer" style="margin-right: 4px;"></i>
+                                <span data-text="doubleClickToPlaceLabel">雙擊平面圖放置標籤</span>
+                            </div>
                         </div>
                     </div>
-                    <div id="mobileFloorPlanViewer" class="floor-plan-viewer" style="display: none;">
-                        <!-- PDF顯示層 -->
-                        <canvas id="mobileFloorPlanCanvas" style="position: absolute; top: 0; left: 0;"></canvas>
-                        <!-- 標籤層 -->
-                        <div id="mobileLabelLayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
-                            <!-- 標籤元素將動態添加到這裡 -->
+                </div>
+                
+                <!-- 標籤模態框 - 移到 floor-plan-container 外部 -->
+                <div id="mobileLabelModalOverlay" class="label-modal-overlay">
+                    <div class="label-modal">
+                        <div class="label-modal-header">
+                            <h4 data-text="newLabel">New Label</h4>
                         </div>
-                        <!-- Quick Label Instruction Message - Floating -->
-                        <div id="mobileQuickLabelInstruction" class="quick-label-instruction" style="display: none; position: fixed; padding: 6px 12px; background: #e3f2fd; color: #1976d2; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; border-left: 3px solid #2196f3; z-index: 10000; pointer-events: none;">
-                            <i class="fas fa-mouse-pointer" style="margin-right: 4px;"></i>
-                            <span data-text="doubleClickToPlaceLabel">雙擊平面圖放置標籤</span>
-                        </div>
-                        <div id="mobileLabelModalOverlay" class="label-modal-overlay">
-                            <div class="label-modal">
-                                <div class="label-modal-header">
-                                <h4 data-text="newLabel">New Label</h4>
-                                </div>
-                                <div class="label-form">
-                                    <div>
-                                        <label for="mobileLabelInspectionNo" class="required-field" data-text="inspectionNoRequired">Inspection no. *</label>
-                                        <input type="text" id="mobileLabelInspectionNo" required />
-                                    </div>
-                                    <div id="mobileFloorField" class="optional-fields">
-                                        <label for="mobileLabelFloor" class="optional-field" data-text="floorOptional">Floor (Optional)</label>
-                                        <input type="text" id="mobileLabelFloor" data-placeholder="enterFloorNumber" placeholder="Enter floor number" />
-                                    </div>
-                                    <div id="mobileAreaNameField" class="optional-fields">
-                                        <label for="mobileLabelAreaName" class="optional-field" data-text="areaNameOptional">Area name (Optional)</label>
-                                        <input type="text" id="mobileLabelAreaName" data-placeholder="enterAreaName" placeholder="Enter area name" />
-                                    </div>
-                                    <div id="mobileRoomNoField" class="optional-fields">
-                                        <label for="mobileLabelRoomNo" class="optional-field" data-text="roomNoOptional">Room no. (Optional)</label>
-                                        <input type="text" id="mobileLabelRoomNo" data-placeholder="enterRoomNumber" placeholder="Enter room number" />
-                                    </div>
-                                    <div id="mobileInspectionDateField" style="display: none;">
-                                        <label for="mobileLabelInspectionDate" class="optional-field" data-text="inspectionDateOptional">Inspection date (Optional)</label>
-                                        <input type="date" id="mobileLabelInspectionDate" />
-                                    </div>
-                                </div>
-                                <div class="form-note">
-                                    <small style="color: #666; font-style: italic;" data-text="onlyInspectionNoRequired">* Only Inspection No. is required</small>
-                                    <br>
-                                    <small style="color: #888; font-style: italic;" data-text="otherFieldsOptional">Other fields are optional and can be filled later</small>
-                                </div>
-                                <div class="label-actions">
-                                    <button id="mobileLabelCancelBtn" class="btn btn-secondary" data-text="cancel">Cancel</button>
-                                    <button id="mobileLabelCreateBtn" class="btn btn-primary" data-text="create">Create</button>
-                                    <button id="mobileAssignToNewRecordBtn" class="btn btn-info" style="display: none;" data-text="saveAndAssignToNewRecord">Save and Assign to New Record</button>
-                                </div>
+                        <div class="label-form">
+                            <div>
+                                <label for="mobileLabelInspectionNo" class="required-field" data-text="inspectionNoRequired">Inspection no. *</label>
+                                <input type="text" id="mobileLabelInspectionNo" required />
                             </div>
+                            <div id="mobileInspectionDateField" style="display: none;">
+                                <label for="mobileLabelInspectionDate" class="optional-field" data-text="inspectionDateOptional">Inspection date (Optional)</label>
+                                <input type="date" id="mobileLabelInspectionDate" />
+                            </div>
+                        </div>
+                        <div class="label-actions">
+                            <button id="mobileLabelCancelBtn" class="btn btn-secondary" data-text="cancel">Cancel</button>
+                            <button id="mobileLabelCreateBtn" class="btn btn-primary" data-text="create">Create</button>
                         </div>
                     </div>
                 </div>
@@ -191,9 +581,569 @@
         </nav>
     </div>
     
+    <!-- 引入桌面版繪圖核心 -->
+    <script src="js/main.js"></script>
+    
     <!-- 移動端專用JavaScript -->
     <script src="js/mobile-detector.js" defer></script>
     <script src="js/mobile-main.js" defer></script>
+    
+    <!-- 移動端全屏應用程式設置 -->
+    <script>
+        // 移動端全屏模式設置
+        (function() {
+            'use strict';
+            
+            // 防止縮放
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function (event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+            
+            // 防止雙指縮放
+            document.addEventListener('gesturestart', function (event) {
+                event.preventDefault();
+            });
+            
+            // 防止長按選擇
+            document.addEventListener('selectstart', function (event) {
+                event.preventDefault();
+            });
+            
+            // 防止上下文菜單
+            document.addEventListener('contextmenu', function (event) {
+                event.preventDefault();
+            });
+            
+            // 隱藏地址欄（iOS Safari）
+            function hideAddressBar() {
+                if (window.innerHeight < window.outerHeight) {
+                    window.scrollTo(0, 1);
+                }
+            }
+            
+            // 頁面載入後隱藏地址欄
+            window.addEventListener('load', hideAddressBar);
+            window.addEventListener('orientationchange', function() {
+                setTimeout(hideAddressBar, 500);
+            });
+            
+            // 防止滾動
+            document.addEventListener('touchmove', function (event) {
+                // 允許在特定元素上滾動
+                const allowedElements = ['mobile-main', 'mobile-drawing-section', 'mobile-photo-section', 'mobile-details-section'];
+                const target = event.target.closest('.mobile-section');
+                
+                if (!target || !allowedElements.includes(target.id)) {
+                    event.preventDefault();
+                }
+            }, { passive: false });
+            
+            // 全屏模式檢測
+            function checkFullscreenMode() {
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                const isFullscreen = window.matchMedia('(display-mode: fullscreen)').matches;
+                
+                if (isStandalone || isFullscreen) {
+                    document.body.classList.add('app-mode');
+                    console.log('App running in standalone/fullscreen mode');
+                } else {
+                    document.body.classList.add('browser-mode');
+                    console.log('App running in browser mode');
+                }
+            }
+            
+            // 檢查全屏模式
+            checkFullscreenMode();
+            
+            // 監聽顯示模式變化
+            window.matchMedia('(display-mode: standalone)').addEventListener('change', checkFullscreenMode);
+            
+            // 註冊 Service Worker 以支持離線功能
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then((registration) => {
+                            console.log('Service Worker registered successfully:', registration.scope);
+                        })
+                        .catch((error) => {
+                            console.log('Service Worker registration failed:', error);
+                        });
+                });
+            }
+            
+            // 動態調整 mobileFloorPlanViewer 高度以填滿整個屏幕
+            function adjustFloorPlanViewerHeight() {
+                const viewer = document.getElementById('mobileFloorPlanViewer');
+                if (viewer) {
+                    // 設置為填滿整個屏幕
+                    viewer.style.position = 'fixed';
+                    viewer.style.top = '0';
+                    viewer.style.left = '0';
+                    viewer.style.right = '0';
+                    viewer.style.bottom = '0';
+                    viewer.style.height = '100vh';
+                    viewer.style.width = '100vw';
+                    viewer.style.zIndex = '1';
+                    
+                    // 支持動態視口高度
+                    if (CSS.supports('height', '100dvh')) {
+                        viewer.style.height = '100dvh';
+                    }
+                    
+                    console.log('Floor plan viewer set to full screen:', {
+                        position: 'fixed',
+                        top: '0',
+                        left: '0',
+                        right: '0',
+                        bottom: '0',
+                        height: viewer.style.height,
+                        width: viewer.style.width,
+                        zIndex: viewer.style.zIndex
+                    });
+                }
+            }
+            
+            // 頁面載入時調整高度
+            window.addEventListener('load', adjustFloorPlanViewerHeight);
+            
+            // 屏幕方向改變時重新調整
+            window.addEventListener('orientationchange', () => {
+                setTimeout(adjustFloorPlanViewerHeight, 100);
+            });
+            
+            // 窗口大小改變時重新調整
+            window.addEventListener('resize', adjustFloorPlanViewerHeight);
+            
+            // 監聽 PDF 查看器顯示狀態變化
+            function handleFloorPlanViewerDisplay() {
+                const viewer = document.getElementById('mobileFloorPlanViewer');
+                const header = document.querySelector('.mobile-header');
+                const bottomNav = document.querySelector('.mobile-bottom-nav');
+                
+                if (viewer && viewer.style.display !== 'none') {
+                    // PDF 查看器顯示時，確保標題欄和底部導航在最上層
+                    if (header) {
+                        header.style.zIndex = '1000';
+                    }
+                    if (bottomNav) {
+                        bottomNav.style.zIndex = '1000';
+                    }
+                    viewer.style.zIndex = '1';
+                    
+                    console.log('PDF viewer displayed - header and bottom nav on top');
+                }
+            }
+            
+            // 監聽樣式變化
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                        const target = mutation.target;
+                        if (target.id === 'mobileFloorPlanViewer') {
+                            handleFloorPlanViewerDisplay();
+                        }
+                    }
+                });
+            });
+            
+            // 開始監聽 mobileFloorPlanViewer 的樣式變化
+            const viewer = document.getElementById('mobileFloorPlanViewer');
+            if (viewer) {
+                observer.observe(viewer, { attributes: true, attributeFilter: ['style'] });
+            }
+            
+            // PWA 安裝提示
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                
+                // 顯示安裝提示
+                const installPrompt = document.createElement('div');
+                installPrompt.id = 'installPrompt';
+                installPrompt.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    right: 20px;
+                    background: #4CAF50;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 10px;
+                    text-align: center;
+                    z-index: 10001;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                `;
+                installPrompt.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <i class="fas fa-download" style="margin-right: 8px;"></i>
+                        安裝 PlanPNE 到主屏幕
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button id="installBtn" style="background: white; color: #4CAF50; border: none; padding: 8px 16px; border-radius: 5px; font-weight: bold;">
+                            安裝
+                        </button>
+                        <button id="dismissBtn" style="background: transparent; color: white; border: 1px solid white; padding: 8px 16px; border-radius: 5px;">
+                            稍後
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(installPrompt);
+                
+                // 安裝按鈕事件
+                document.getElementById('installBtn').addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`User response to the install prompt: ${outcome}`);
+                        deferredPrompt = null;
+                    }
+                    installPrompt.remove();
+                });
+                
+                // 關閉按鈕事件
+                document.getElementById('dismissBtn').addEventListener('click', () => {
+                    installPrompt.remove();
+                });
+                
+                // 5秒後自動關閉
+                setTimeout(() => {
+                    if (installPrompt.parentNode) {
+                        installPrompt.remove();
+                    }
+                }, 5000);
+            });
+            
+            // 防止頁面縮放
+            document.addEventListener('gesturestart', function (event) {
+                event.preventDefault();
+            });
+            
+            document.addEventListener('gesturechange', function (event) {
+                event.preventDefault();
+            });
+            
+            document.addEventListener('gestureend', function (event) {
+                event.preventDefault();
+            });
+            
+        })();
+    </script>
+    
+    <!-- 行動版觸控事件整合 -->
+    <script>
+        // 觸控事件轉換為滑鼠事件
+        function setupMobileTouchToMouseEvents() {
+            const canvas = document.getElementById('mobileFloorPlanCanvas');
+            if (!canvas) return;
+            
+            let isTouching = false;
+            
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    e.preventDefault();
+                    isTouching = true;
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousedown', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    canvas.dispatchEvent(mouseEvent);
+                }
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                if (isTouching && e.touches.length === 1) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousemove', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    canvas.dispatchEvent(mouseEvent);
+                }
+            });
+            
+            canvas.addEventListener('touchend', (e) => {
+                if (isTouching) {
+                    e.preventDefault();
+                    isTouching = false;
+                    const mouseEvent = new MouseEvent('mouseup', {
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    canvas.dispatchEvent(mouseEvent);
+                }
+            });
+            
+            // 雙擊事件轉換（用於快速標籤）
+            let lastTap = 0;
+            canvas.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault();
+                    const dblClickEvent = new MouseEvent('dblclick', {
+                        clientX: e.changedTouches[0].clientX,
+                        clientY: e.changedTouches[0].clientY,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    canvas.dispatchEvent(dblClickEvent);
+                }
+                lastTap = currentTime;
+            });
+        }
+        
+        // 行動版 applyTransform 函數 - 確保 canvas 和 labelLayer 同步
+        window.applyMobileTransform = function() {
+            const mobileFloorPlanCanvas = document.getElementById('mobileFloorPlanCanvas');
+            const mobileLabelLayer = document.getElementById('mobileLabelLayer');
+            
+            if (!mobileFloorPlanCanvas || !mobileLabelLayer) return;
+            
+            // 獲取當前的變換參數（如果沒有則使用預設值）
+            const translateX = window.mobileTranslateX || 0;
+            const translateY = window.mobileTranslateY || 0;
+            const scale = window.mobileCurrentScale || 1;
+            
+            // 同步更新桌面版變換參數（確保 mobile-main.js 能正確讀取）
+            window.translateX = translateX;
+            window.translateY = translateY;
+            window.currentScale = scale;
+            
+            // 應用變換到 canvas
+            const transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            mobileFloorPlanCanvas.style.transform = transform;
+            mobileFloorPlanCanvas.style.transformOrigin = '0 0'; // 與 mobile-main.js 保持一致
+            
+            // 同步應用相同的變換到 labelLayer
+            mobileLabelLayer.style.transform = transform;
+            mobileLabelLayer.style.transformOrigin = '0 0'; // 與 Canvas 保持一致
+            
+            // 更新所有標籤位置
+            if (typeof window.updateAllMobileLabelPositions === 'function') {
+                window.updateAllMobileLabelPositions();
+            }
+            
+            console.log('行動版變換已應用:', { translateX, translateY, scale });
+        };
+        
+        // 行動版標籤位置更新函數
+        window.updateAllMobileLabelPositions = function() {
+            const mobileLabelLayer = document.getElementById('mobileLabelLayer');
+            if (!mobileLabelLayer) return;
+            
+            // 獲取所有標籤元素
+            const labelElements = mobileLabelLayer.querySelectorAll('.floor-plan-label');
+            const labelsArray = window.labels || [];
+            
+            labelElements.forEach(labelElement => {
+                const labelId = labelElement.dataset.labelId;
+                const labelData = labelsArray.find(l => l.id == labelId);
+                
+                if (labelData) {
+                    // 使用與桌面版相同的位置計算邏輯
+                    updateSingleMobileLabelPosition(labelElement, labelData);
+                }
+            });
+        };
+        
+        // 行動版單個標籤位置更新函數
+        function updateSingleMobileLabelPosition(labelElement, labelData) {
+            const mobileFloorPlanCanvas = document.getElementById('mobileFloorPlanCanvas');
+            if (!mobileFloorPlanCanvas) return;
+            
+            // 使用與 mobile-main.js 相同的邏輯
+            if (!labelData.canvasPosition) {
+                if (labelData.pdfX !== undefined && labelData.pdfY !== undefined) {
+                    labelData.canvasPosition = { x: labelData.pdfX, y: labelData.pdfY };
+                } else {
+                    labelData.canvasPosition = { x: labelData.x || 0, y: labelData.y || 0 };
+                }
+            }
+            
+            // 使用畫布座標
+            const canvasX = labelData.canvasPosition.x;
+            const canvasY = labelData.canvasPosition.y;
+            
+            // 計算螢幕座標：畫布座標 * 縮放 + 偏移
+            const screenX = canvasX * (window.currentScale || 1) + (window.translateX || 0);
+            const screenY = canvasY * (window.currentScale || 1) + (window.translateY || 0);
+            
+            // 計算縮放後的字體大小
+            const baseFontSize = labelData.baseFontSize || window.labelSizeScale || 24;
+            const scaledFontSize = baseFontSize * (window.currentScale || 1);
+            
+            // 設定標籤位置和樣式
+            labelElement.style.left = `${screenX}px`;
+            labelElement.style.top = `${screenY}px`;
+            labelElement.style.fontSize = `${scaledFontSize}px`;
+            labelElement.style.transform = 'translate(-50%, -50%)'; // 中心點定位
+            
+            console.log('標籤位置更新:', { 
+                labelId: labelData.id, 
+                canvasX, 
+                canvasY, 
+                screenX, 
+                screenY, 
+                scale: window.currentScale,
+                translateX: window.translateX,
+                translateY: window.translateY
+            });
+        }
+        
+        // 等待 MobileApp 載入後覆蓋函數
+        function overrideMobileAppFunctions() {
+            if (window.MobileApp) {
+                // 覆蓋 updateCanvasTransform 函數
+                if (window.MobileApp.updateCanvasTransform) {
+                    const originalUpdateCanvasTransform = window.MobileApp.updateCanvasTransform;
+                    
+                    window.MobileApp.updateCanvasTransform = function(canvas, scale, translateX, translateY) {
+                        console.log('updateCanvasTransform 被調用:', { scale, translateX, translateY });
+                        
+                        // 調用原始函數
+                        originalUpdateCanvasTransform.call(this, canvas, scale, translateX, translateY);
+                        
+                        // 更新全局變數
+                        window.translateX = translateX;
+                        window.translateY = translateY;
+                        window.currentScale = scale;
+                        window.mobileTranslateX = translateX;
+                        window.mobileTranslateY = translateY;
+                        window.mobileCurrentScale = scale;
+                        
+                        // 同步更新 mobileLabelLayer，確保與 Canvas 一起移動
+                        const mobileLabelLayer = document.getElementById('mobileLabelLayer');
+                        if (mobileLabelLayer) {
+                            const transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                            mobileLabelLayer.style.transform = transform;
+                            mobileLabelLayer.style.transformOrigin = '0 0'; // 與 Canvas 保持一致
+                            
+                            console.log('LabelLayer 已同步變換:', transform);
+                        }
+                        
+                        // 更新所有標籤位置
+                        if (typeof window.updateAllMobileLabelPositions === 'function') {
+                            window.updateAllMobileLabelPositions();
+                        }
+                        
+                        console.log('Canvas 和 LabelLayer 已同步變換:', { scale, translateX, translateY });
+                    };
+                    
+                    console.log('updateCanvasTransform 函數已覆蓋');
+                }
+                
+                // 覆蓋 updateSingleMobileLabelPosition 函數，修正標籤消失問題
+                if (window.MobileApp.updateSingleMobileLabelPosition) {
+                    const originalUpdateSingleMobileLabelPosition = window.MobileApp.updateSingleMobileLabelPosition;
+                    
+                    window.MobileApp.updateSingleMobileLabelPosition = function(labelElement, labelData) {
+                        console.log('updateSingleMobileLabelPosition 被調用:', { labelId: labelData?.id });
+                        
+                        // 修正標籤位置計算，確保標籤不會消失
+                        if (labelElement && labelData) {
+                            // 檢查是否有畫布座標
+                            if (!labelData.canvasPosition) {
+                                if (labelData.pdfX !== undefined && labelData.pdfY !== undefined) {
+                                    labelData.canvasPosition = { x: labelData.pdfX, y: labelData.pdfY };
+                                } else {
+                                    labelData.canvasPosition = { x: labelData.x || 0, y: labelData.y || 0 };
+                                }
+                            }
+                            
+                            // 使用畫布座標計算螢幕位置
+                            const canvasX = labelData.canvasPosition.x;
+                            const canvasY = labelData.canvasPosition.y;
+                            
+                            // 計算螢幕座標：畫布座標 * 縮放 + 偏移
+                            const screenX = canvasX * (window.currentScale || 1) + (window.translateX || 0);
+                            const screenY = canvasY * (window.currentScale || 1) + (window.translateY || 0);
+                            
+                            // 設定標籤位置，使用中心點定位
+                            labelElement.style.left = `${screenX}px`;
+                            labelElement.style.top = `${screenY}px`;
+                            
+                            // 計算縮放後的字體大小
+                            const baseFontSize = labelData.baseFontSize || window.labelSizeScale || 24;
+                            const scaledFontSize = baseFontSize * (window.currentScale || 1);
+                            labelElement.style.fontSize = `${scaledFontSize}px`;
+                            
+                            console.log('標籤位置已更新:', { 
+                                labelId: labelData.id, 
+                                canvasX, 
+                                canvasY, 
+                                screenX, 
+                                screenY, 
+                                scale: window.currentScale,
+                                translateX: window.translateX,
+                                translateY: window.translateY
+                            });
+                        }
+                        
+                        // 最後設定 transform，確保不被原始函數覆蓋
+                        if (labelElement) {
+                            labelElement.style.transform = 'translate(-50%, -50%)'; // 中心點定位
+                        }
+                    };
+                    
+                    console.log('updateSingleMobileLabelPosition 函數已覆蓋');
+                }
+                
+                return true;
+            }
+            return false;
+        }
+        
+        // DOM載入後初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 延遲初始化以確保 mobile-main.js 已載入
+            setTimeout(() => {
+                setupMobileTouchToMouseEvents();
+                
+                // 嘗試覆蓋 updateCanvasTransform 函數
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                const tryOverride = () => {
+                    if (overrideMobileAppFunctions()) {
+                        console.log('MobileApp 函數覆蓋成功');
+                        
+                        // 初始化行動版變換參數
+                        window.mobileTranslateX = 0;
+                        window.mobileTranslateY = 0;
+                        window.mobileCurrentScale = 1;
+                        
+                        // 同步到桌面版變數
+                        window.translateX = 0;
+                        window.translateY = 0;
+                        window.currentScale = 1;
+                        
+                        console.log('行動版變換參數已初始化');
+                    } else if (attempts < maxAttempts) {
+                        attempts++;
+                        console.log(`嘗試覆蓋 MobileApp 函數 (${attempts}/${maxAttempts})`);
+                        setTimeout(tryOverride, 500);
+                    } else {
+                        console.warn('無法覆蓋 MobileApp 函數，MobileApp 可能未載入');
+                    }
+                };
+                
+                tryOverride();
+            }, 1000);
+        });
+    </script>
     
     <!-- 隱藏的文件輸入 -->
     <input type="file" id="mobileAddPhotosFileInput" accept="image/*" multiple style="display: none;">

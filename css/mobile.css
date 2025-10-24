@@ -639,3 +639,163 @@
         transform: translateY(-100%); 
     }
 }
+
+/* 行動版繪圖模式樣式整合 */
+/* 確保行動版繪圖區域與桌面版行為一致 */
+#mobileFloorPlanCanvas {
+    touch-action: none; /* 防止瀏覽器預設觸控行為 */
+    cursor: grab;
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#mobileFloorPlanCanvas:active {
+    cursor: grabbing;
+}
+
+/* 確保標籤層與 Canvas 完全對齊 */
+#mobileLabelLayer {
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 10; /* 確保標籤層在 Canvas 之上 */
+    transform-origin: 0 0; /* 與 Canvas 保持相同的變換原點 */
+}
+
+/* 標籤元素樣式 - 與桌面版完全一致 */
+#mobileLabelLayer .floor-plan-label {
+    position: absolute;
+    background: transparent !important;
+    color: #FFBE00; /* 預設黃色 */
+    font-weight: 500;
+    font-size: 24px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    pointer-events: auto;
+    touch-action: none;
+    z-index: 20;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    border: none !important;
+    outline: none !important;
+}
+
+/* 標籤懸停效果 */
+#mobileLabelLayer .floor-plan-label:hover {
+    color: #E6AB00;
+    filter: brightness(1.2);
+}
+
+/* 標籤拖拽狀態 */
+#mobileLabelLayer .floor-plan-label.dragging {
+    color: #CC9900;
+    z-index: 1000;
+    filter: brightness(1.4);
+    transform: scale(1.1);
+    outline: none !important;
+}
+
+/* 標籤拖拽準備狀態 */
+#mobileLabelLayer .floor-plan-label.drag-preparing {
+    color: #ff6b35;
+    filter: brightness(1.2);
+    transform: scale(1.05);
+    transition: all 0.1s ease;
+}
+
+/* 確保標籤在任何狀態下都沒有背景或邊框 */
+#mobileLabelLayer .floor-plan-label:focus,
+#mobileLabelLayer .floor-plan-label:active,
+#mobileLabelLayer .floor-plan-label:visited {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* 移除任何瀏覽器預設樣式 */
+#mobileLabelLayer .floor-plan-label * {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* 已分配給記錄的標籤樣式 */
+#mobileLabelLayer .floor-plan-label.assigned {
+    color: #0089FF !important; /* 藍色表示已分配 */
+}
+
+/* 已提交的標籤樣式（亮藍色） */
+#mobileLabelLayer .floor-plan-label.submitted {
+    color: #00A9FF !important; /* 亮藍色表示已提交 */
+    font-weight: bold;
+}
+
+/* 已提交且已分配的標籤樣式（保持亮藍色） */
+#mobileLabelLayer .floor-plan-label.submitted.assigned {
+    color: #00A9FF !important;
+    font-weight: bold;
+}
+
+/* Quick Label 模式的游標樣式 */
+.mobile-crosshair-cursor #mobileFloorPlanCanvas,
+.crosshair-cursor #mobileFloorPlanCanvas {
+    cursor: crosshair !important;
+}
+
+/* 行動版標籤模態框優化 */
+.label-modal-overlay {
+    z-index: 30000 !important;
+}
+
+.label-modal {
+    max-width: 90vw;
+    max-height: 80vh;
+}
+
+/* 行動版 Quick Label 提示訊息 */
+#mobileQuickLabelInstruction {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    background: #e3f2fd;
+    color: #1976d2;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-left: 3px solid #2196f3;
+    z-index: 20000;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* 確保 PDF 查看器容器正確設定 */
+#mobileFloorPlanViewer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* 行動版繪圖容器 */
+.floor-plan-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.floor-plan-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
