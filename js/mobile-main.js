@@ -861,6 +861,7 @@
             console.log('Transform values:', { scale, translateX, translateY });
             
             // 轉換為畫布座標（與桌面版一致）
+            // scale 已經包含了 initialDisplayScale，所以直接使用
             const canvasX = (clickX - translateX) / scale;
             const canvasY = (clickY - translateY) / scale;
             
@@ -903,9 +904,19 @@
             const labelElement = document.createElement('div');
             labelElement.className = 'floor-plan-label';
             
+            // 確保標籤顏色為黃色
+            labelElement.style.color = '#FFBE00';
+            
             // 檢查標籤是否已提交，如果是則添加submitted類（藍色）
             if (labelData.submitted) {
                 labelElement.classList.add('submitted');
+                labelElement.style.color = '#00A9FF';
+            }
+            
+            // 檢查是否已分配
+            if (labelData.assigned) {
+                labelElement.classList.add('assigned');
+                labelElement.style.color = '#0089FF';
             }
             
             // 設置標籤文字內容 - 只顯示檢查編號，不顯示日期
@@ -923,6 +934,8 @@
             // 確保標籤可以接收鼠標事件
             labelElement.style.pointerEvents = 'auto';
             labelElement.style.zIndex = '1000';
+            labelElement.style.background = 'transparent';
+            labelElement.style.border = 'none';
             
             // 初始位置將由updateAllLabelPositions函數設置
             labelElement.style.left = '0px';
@@ -1081,22 +1094,26 @@
             const canvasY = labelData.canvasPosition.y;
             
             // 計算螢幕座標：畫布座標 * 縮放 + 偏移
-            // 這裡的座標是相對於PDF內容的，需要加上偏移來得到螢幕位置
-            const screenX = canvasX * (window.currentScale || 1) + (window.translateX || 0);
-            const screenY = canvasY * (window.currentScale || 1) + (window.translateY || 0);
+            // 需要考慮初始顯示縮放（initialDisplayScale）
+            const initialScale = window.initialDisplayScale || 1;
+            const userScale = window.currentScale || 1;
+            const finalScale = initialScale * userScale;
+            
+            const screenX = canvasX * finalScale + (window.translateX || 0);
+            const screenY = canvasY * finalScale + (window.translateY || 0);
             
             // 計算縮放後的字體大小
             const baseFontSize = labelData.baseFontSize || window.labelSizeScale;
-            const scaledFontSize = baseFontSize * (window.currentScale || 1);
+            const scaledFontSize = baseFontSize * finalScale;
             labelElement.style.fontSize = scaledFontSize + 'px';
             
             // 動態更新padding，確保標籤形狀保持固定
             const basePaddingX = 12;
             const basePaddingY = 8;
             
-            // 按比例縮放內邊距
-            const scaledPaddingX = Math.max(4, basePaddingX / (window.currentScale || 1));
-            const scaledPaddingY = Math.max(4, basePaddingY / (window.currentScale || 1));
+            // 按比例縮放內邊距（使用最終縮放比例）
+            const scaledPaddingX = Math.max(4, basePaddingX / finalScale);
+            const scaledPaddingY = Math.max(4, basePaddingY / finalScale);
             labelElement.style.padding = `${scaledPaddingY}px ${scaledPaddingX}px`;
             
             // 強制重排以確保尺寸計算正確
@@ -1468,6 +1485,7 @@
         setupPDFViewerControls: function() {
             const viewer = document.getElementById('mobileFloorPlanViewer');
             const canvas = document.getElementById('mobileFloorPlanCanvas');
+            const labelLayer = document.getElementById('mobileLabelLayer');
             
             if (!viewer || !canvas) return;
             
@@ -1478,6 +1496,44 @@
             let translateY = 0;
             let lastTouchDistance = 0;
             let lastTouchCenter = { x: 0, y: 0 };
+            let rafId = null; // 用於 requestAnimationFrame
+            
+            // 簡化變換更新 - 直接設置，無延遲
+            const applyTransform = () => {
+                const initialScale = window.initialDisplayScale || 1;
+                const finalScale = scale * initialScale;
+                const transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${finalScale})`;
+                
+                // 直接設置 transform（GPU 加速）
+                canvas.style.transform = transform;
+                if (labelLayer) {
+                    labelLayer.style.transform = transform;
+                }
+            };
+            
+            // 用於延遲更新全局變數
+            let globalUpdateRaf = null;
+            const updateGlobalVars = () => {
+                if (globalUpdateRaf) cancelAnimationFrame(globalUpdateRaf);
+                globalUpdateRaf = requestAnimationFrame(() => {
+                    window.currentScale = scale;
+                    window.translateX = translateX;
+                    window.translateY = translateY;
+                    window.mobileCurrentScale = scale;
+                    window.mobileTranslateX = translateX;
+                    window.mobileTranslateY = translateY;
+                    globalUpdateRaf = null;
+                });
+            };
+            
+            // 使用節流函數優化標籤更新
+            let labelUpdateTimer = null;
+            const debouncedLabelUpdate = () => {
+                clearTimeout(labelUpdateTimer);
+                labelUpdateTimer = setTimeout(() => {
+                    this.updateAllMobileLabelPositions();
+                }, 50); // 50ms 延遲更新標籤
+            };
             
             // 鼠標事件
             viewer.addEventListener('mousedown', (e) => {
@@ -1504,7 +1560,9 @@
                 if (isPanning) {
                     translateX = e.clientX - startX;
                     translateY = e.clientY - startY;
-                    this.updateCanvasTransform(canvas, scale, translateX, translateY);
+                    applyTransform();
+                    updateGlobalVars();
+                    debouncedLabelUpdate();
                 }
             });
             
@@ -1534,7 +1592,9 @@
                 translateY = mouseY - (mouseY - translateY) * scaleChange;
                 scale = newScale;
                 
-                this.updateCanvasTransform(canvas, scale, translateX, translateY);
+                applyTransform();
+                updateGlobalVars();
+                debouncedLabelUpdate();
             });
             
             // 觸摸事件
@@ -1562,48 +1622,47 @@
                 }
             });
             
+            // 使用 passive: false 但優化事件處理
             viewer.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 
                 if (e.touches.length === 1 && isPanning) {
-                    // 單指拖拽
+                    // 單指拖拽 - 直接更新，不移除舊的 raf
                     translateX = e.touches[0].clientX - startX;
                     translateY = e.touches[0].clientY - startY;
-                    this.updateCanvasTransform(canvas, scale, translateX, translateY);
+                    applyTransform();
+                    updateGlobalVars();
+                    debouncedLabelUpdate();
                 } else if (e.touches.length === 2) {
-                    // 雙指縮放
+                    // 雙指縮放 - 簡化計算
                     const touch1 = e.touches[0];
                     const touch2 = e.touches[1];
-                    const currentDistance = Math.sqrt(
-                        Math.pow(touch2.clientX - touch1.clientX, 2) +
-                        Math.pow(touch2.clientY - touch1.clientY, 2)
-                    );
+                    const dx = touch2.clientX - touch1.clientX;
+                    const dy = touch2.clientY - touch1.clientY;
+                    const currentDistance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (lastTouchDistance > 0) {
                         const scaleChange = currentDistance / lastTouchDistance;
                         const newScale = Math.max(0.5, Math.min(50, scale * scaleChange));
                         
                         // 以雙指中心為縮放中心
-                        const currentCenter = {
-                            x: (touch1.clientX + touch2.clientX) / 2,
-                            y: (touch1.clientY + touch2.clientY) / 2
-                        };
-                        
                         const rect = viewer.getBoundingClientRect();
-                        const centerX = currentCenter.x - rect.left;
-                        const centerY = currentCenter.y - rect.top;
+                        const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+                        const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
                         
                         const scaleRatio = newScale / scale;
                         translateX = centerX - (centerX - translateX) * scaleRatio;
                         translateY = centerY - (centerY - translateY) * scaleRatio;
                         scale = newScale;
                         
-                        this.updateCanvasTransform(canvas, scale, translateX, translateY);
+                        applyTransform();
+                        updateGlobalVars();
+                        debouncedLabelUpdate();
                     }
                     
                     lastTouchDistance = currentDistance;
                 }
-            });
+            }, { passive: false });
             
             viewer.addEventListener('touchend', (e) => {
                 e.preventDefault();
@@ -1617,13 +1676,32 @@
         
         // 更新 Canvas 變換
         updateCanvasTransform: function(canvas, scale, translateX, translateY) {
-            canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            // 獲取初始顯示縮放
+            const initialScale = window.initialDisplayScale || 1;
+            
+            // 組合縮放：用戶縮放 * 初始顯示縮放
+            const finalScale = scale * initialScale;
+            
+            // 使用 translate3d 啟用 GPU 加速
+            canvas.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${finalScale})`;
             canvas.style.transformOrigin = '0 0';
+            
+            // 同步更新標籤層的變換（與桌面版本一致）
+            const mobileLabelLayer = document.getElementById('mobileLabelLayer');
+            if (mobileLabelLayer) {
+                mobileLabelLayer.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${finalScale})`;
+                mobileLabelLayer.style.transformOrigin = '0 0';
+            }
             
             // 設置全局變量（與桌面版一致）
             window.currentScale = scale;
             window.translateX = translateX;
             window.translateY = translateY;
+            
+            // 移動端變換參數（用於同步）
+            window.mobileCurrentScale = scale;
+            window.mobileTranslateX = translateX;
+            window.mobileTranslateY = translateY;
             
             // 立即更新標籤位置
             this.updateAllMobileLabelPositions();
@@ -1690,10 +1768,32 @@
         // 重置 PDF 縮放
         resetPDFZoom: function() {
             const canvas = document.getElementById('mobileFloorPlanCanvas');
+            const labelLayer = document.getElementById('mobileLabelLayer');
+            
+            // 獲取初始顯示縮放
+            const initialScale = window.initialDisplayScale || 1;
+            
             if (canvas) {
-                canvas.style.transform = 'translate(0px, 0px) scale(1)';
+                canvas.style.transform = `translate(0px, 0px) scale(${initialScale})`;
                 canvas.style.transformOrigin = '0 0';
             }
+            
+            // 同步重置標籤層
+            if (labelLayer) {
+                labelLayer.style.transform = `translate(0px, 0px) scale(${initialScale})`;
+                labelLayer.style.transformOrigin = '0 0';
+            }
+            
+            // 重置全局變量（用戶縮放回到 1）
+            window.currentScale = 1;
+            window.translateX = 0;
+            window.translateY = 0;
+            window.mobileCurrentScale = 1;
+            window.mobileTranslateX = 0;
+            window.mobileTranslateY = 0;
+            
+            // 更新所有標籤位置
+            this.updateAllMobileLabelPositions();
         },
         
         // 關閉平面圖
@@ -2100,39 +2200,36 @@
                 console.log('🔍 PDF load: Using window dimensions as fallback:', { containerWidth, containerHeight });
             }
             
-            // 設置 canvas 尺寸 - 移動端優化
+            // 設置 canvas 尺寸 - 使用與桌面版本相同的設置
             const baseScale = 1.0;
             const viewport = page.getViewport({ scale: baseScale });
             
             // 計算適合容器的縮放比例，保持寬高比
-            // 考慮高解析度顯示，調整縮放計算
             const scaleX = containerWidth / viewport.width;
             const scaleY = containerHeight / viewport.height;
-            const mobileScale = Math.min(scaleX, scaleY) * 0.9; // 調整為90%以適應高解析度
+            const displayScale = Math.min(scaleX, scaleY); // 完整的縮放比例，不減0.9
             
-            const cssWidth = Math.floor(viewport.width * mobileScale);
-            const cssHeight = Math.floor(viewport.height * mobileScale);
+            // 設置 Canvas 的 CSS 尺寸（顯示尺寸）- 使用完整的 PDF 尺寸
+            const cssWidth = Math.floor(viewport.width);
+            const cssHeight = Math.floor(viewport.height);
             
             console.log('🔍 PDF load: Scale calculations:', {
                 viewportWidth: viewport.width,
                 viewportHeight: viewport.height,
-                scaleX, scaleY, mobileScale,
-                cssWidth, cssHeight
+                scaleX, scaleY, displayScale,
+                cssWidth, cssHeight,
+                displayScale: displayScale
             });
             
-            // 設置 Canvas 的 CSS 尺寸（顯示尺寸）
             mobileFloorPlanCanvas.style.width = cssWidth + 'px';
             mobileFloorPlanCanvas.style.height = cssHeight + 'px';
             mobileFloorPlanCanvas.style.position = 'relative';
-            mobileFloorPlanCanvas.style.display = 'block';
-            
-            // 顯示 Canvas（之前是隱藏的）
-            mobileFloorPlanCanvas.style.display = 'block';
             
             // 設置 Canvas 的實際尺寸（渲染尺寸）
-            // 大幅提高移動設備的渲染分辨率
+            // 移動端使用較低的解析度以確保流暢性
             const devicePixelRatio = window.devicePixelRatio || 1;
-            const outputScale = Math.max(3, Math.min(6, devicePixelRatio * 3)); // 大幅提高分辨率
+            // 為移動端優化：降低解析度以提高性能
+            const outputScale = devicePixelRatio > 2 ? 2 : Math.min(1.5, devicePixelRatio);
             
             // 存儲到全局變量，供其他函數使用
             window.outputScale = outputScale;
@@ -2140,9 +2237,12 @@
             mobileFloorPlanCanvas.width = Math.floor(cssWidth * outputScale);
             mobileFloorPlanCanvas.height = Math.floor(cssHeight * outputScale);
             
-            // 重置變換狀態
-            mobileFloorPlanCanvas.style.transform = 'translate(0px, 0px) scale(1)';
+            // 初始化變換狀態 - 使用 displayScale 來適配容器
+            mobileFloorPlanCanvas.style.transform = `translate(0px, 0px) scale(${displayScale})`;
             mobileFloorPlanCanvas.style.transformOrigin = '0 0';
+            
+            // 保存初始縮放狀態
+            window.initialDisplayScale = displayScale;
             
             console.log('🔍 PDF load: Canvas dimensions set:', {
                 cssWidth, cssHeight,
@@ -2151,38 +2251,53 @@
                 outputScale
             });
             
-            // 設置標籤層尺寸
+            // 設置標籤層尺寸 - 與桌面版本一致，完全與 PDF canvas 相同大小
             if (mobileLabelLayer) {
                 mobileLabelLayer.style.width = cssWidth + 'px';
                 mobileLabelLayer.style.height = cssHeight + 'px';
                 mobileLabelLayer.style.position = 'absolute';
                 mobileLabelLayer.style.top = '0';
                 mobileLabelLayer.style.left = '0';
-                console.log('🔍 PDF load: Label layer dimensions set');
+                mobileLabelLayer.style.zIndex = '10'; // 確保標籤層在 PDF canvas 前面
+                // 同步標籤層的變換
+                mobileLabelLayer.style.transform = `translate(0px, 0px) scale(${displayScale})`;
+                mobileLabelLayer.style.transformOrigin = '0 0';
+                console.log('🔍 PDF load: Label layer dimensions set:', {
+                    width: cssWidth,
+                    height: cssHeight,
+                    zIndex: '10',
+                    transform: `scale(${displayScale})`
+                });
             }
             
-            // 渲染 PDF 到 canvas
+            // 渲染 PDF 到 canvas - 使用與桌面版本相同的設置
             const context = mobileFloorPlanCanvas.getContext('2d');
+            
+            // 優化高解析度渲染 - 與桌面版本一致
             context.imageSmoothingEnabled = true;
             context.imageSmoothingQuality = 'high';
             
-            // 額外的渲染優化設置
-            context.textRenderingOptimization = 'optimizeQuality';
-            context.textBaseline = 'alphabetic';
-            context.textAlign = 'left';
-            
-            // 創建適合移動端的視口
-            const mobileViewport = page.getViewport({ scale: mobileScale });
-            
+            // 使用原始 viewport（scale = 1.0），與桌面版本一致
+            // CSS 縮放通過 transform 處理
             const renderContext = {
                 canvasContext: context,
-                viewport: mobileViewport,
+                viewport: viewport,
                 transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
             };
             
-            console.log('🔍 PDF load: Starting PDF render');
+            console.log('🔍 PDF load: Starting PDF render with outputScale:', outputScale);
             await page.render(renderContext).promise;
             console.log('🔍 PDF load: PDF render completed');
+            
+            // 顯示 canvas（在渲染完成後）
+            mobileFloorPlanCanvas.style.display = 'block';
+            console.log('🔍 PDF load: Canvas displayed');
+            
+            // 顯示標籤層
+            if (mobileLabelLayer) {
+                mobileLabelLayer.style.display = 'block';
+                console.log('🔍 PDF load: Label layer displayed');
+            }
             
             // 顯示 viewer 並隱藏 upload area（與桌面版一致）
             if (mobileFloorPlanUploadArea) {

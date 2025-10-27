@@ -3,9 +3,9 @@
   "short_name": "PNE",
   "description": "Extract numbers from photos and assign to categories for inspection data management",
   "version": "6.1.4",
-  "start_url": "./",
+  "start_url": "./mobile.html",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "theme_color": "#a67c52",
   "background_color": "#f6f1eb",
   "scope": "./",
@@ -133,7 +133,7 @@
   ],
   "file_handlers": [
     {
-      "action": "./",
+      "action": "./mobile.html",
       "accept": {
         "application/json": [".pne"],
         "text/csv": [".csv"],
@@ -144,11 +144,11 @@
   "protocol_handlers": [
     {
       "protocol": "web+pne",
-      "url": "./?protocol=%s"
+      "url": "./mobile.html?protocol=%s"
     }
   ],
   "share_target": {
-    "action": "./",
+    "action": "./mobile.html",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {

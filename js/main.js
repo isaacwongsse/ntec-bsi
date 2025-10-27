@@ -16480,6 +16480,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Double Command/Ctrl key shortcut to open Drawing mode (cross-platform)
     let commandKeyPressCount = 0;
     let commandKeyTimer = null;
+    let lastCtrlClickTime = 0;
     
     document.addEventListener('keydown', function(e) {
         // Check if Command key (Mac) or Ctrl key (Windows) is pressed
@@ -16491,6 +16492,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Don't interfere with copy/paste operations (Ctrl+C, Ctrl+V, Cmd+C, Cmd+V)
         if (e.key === 'c' || e.key === 'v' || e.key === 'C' || e.key === 'V') {
             return; // Allow normal copy/paste to work
+        }
+        
+        // Ignore if user is clicking on a photo (photo selection with Ctrl/Cmd)
+        const activeElement = document.activeElement;
+        const isPhotoClick = activeElement && activeElement.classList.contains('photo-item');
+        const timeSinceLastCtrlClick = Date.now() - lastCtrlClickTime;
+        
+        // If user recently clicked with Ctrl/Cmd on a photo, ignore this keydown event
+        if (isPhotoClick || timeSinceLastCtrlClick < 300) {
+            return;
         }
         
         if (isCommandKey || isCtrlKey || isWindowsKey) {
@@ -16533,6 +16544,20 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
     });
+    
+    // Track Ctrl/Cmd clicks on photos to prevent accidental drawing mode activation
+    document.addEventListener('click', function(e) {
+        // Check if Ctrl/Cmd is pressed and target is a photo
+        if ((e.ctrlKey || e.metaKey) && e.target.closest('.photo-item')) {
+            lastCtrlClickTime = Date.now();
+            // Reset the command key press count to prevent accidental drawing mode activation
+            commandKeyPressCount = 0;
+            if (commandKeyTimer) {
+                clearTimeout(commandKeyTimer);
+                commandKeyTimer = null;
+            }
+        }
+    }, true);
 
     // Add label shortcut key: Cmd+E (Mac) / Ctrl+E (Windows)
     document.addEventListener('keydown', function(e) {

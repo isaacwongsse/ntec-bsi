@@ -25,6 +25,9 @@
     <link rel="preload" href="css/mobile-only.css" as="style">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
     <!-- 移動端專用樣式 -->
     <link rel="stylesheet" href="css/mobile-only.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -61,8 +64,6 @@
         .mobile-container {
             height: 100vh;
             height: -webkit-fill-available;
-            display: flex;
-            flex-direction: column;
             position: relative;
             overflow: hidden;
         }
@@ -73,6 +74,9 @@
                 height: 100dvh;
             }
             .mobile-container {
+                height: 100dvh;
+            }
+            .mobile-main {
                 height: 100dvh;
             }
         }
@@ -126,12 +130,18 @@
         
         /* 移動端標題欄優化 */
         .mobile-header {
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
             z-index: 1000;
-            background: var(--mobile-primary, #a67c52) !important;
+            background: rgba(166, 124, 82, 0.15) !important; /* 15% 透明度 */
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             color: white !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         /* 確保標題欄內所有文字都是白色 */
@@ -152,28 +162,48 @@
         
         /* 移動端底部導航優化 */
         .mobile-bottom-nav {
-            position: sticky;
+            position: fixed;
             bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
             z-index: 1000;
-            background: #fff;
+            background: rgba(255, 255, 255, 0.15) !important; /* 15% 透明度 */
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
         }
         
         /* 移動端主內容區域 */
         .mobile-main {
-            flex: 1;
-            overflow: hidden;
             position: relative;
-            height: calc(100vh - 60px - 80px); /* 減去header和bottom-nav的高度 */
-            max-height: calc(100vh - 60px - 80px);
-            padding-bottom: 80px; /* 為底部導航留空間 */
+            height: 100vh;
+            height: -webkit-fill-available;
+            width: 100vw;
+            overflow: hidden;
+            padding: 0;
         }
         
         /* Drawing 區域特殊高度設置 */
         .mobile-drawing-section {
-            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            height: -webkit-fill-available;
             overflow: hidden;
-            position: relative;
+            z-index: 1;
+        }
+        
+        /* 確保在 PWA 模式下使用動態視口高度 */
+        @supports (height: 100dvh) {
+            .mobile-drawing-section {
+                height: 100dvh;
+            }
         }
         
         /* Drawing 區域的 floor-plan-container */
@@ -181,6 +211,8 @@
             height: 100%;
             display: flex;
             flex-direction: column;
+            border-radius: 0 !important;
+            border: none !important;
         }
         
         .floor-plan-content {
@@ -188,6 +220,15 @@
             height: 100%;
             position: relative;
             overflow: hidden;
+            border-radius: 0 !important;
+            border: none !important;
+        }
+        
+        /* 確保移動端繪圖區域無圓角 */
+        .mobile-drawing-section .floor-plan-container,
+        .mobile-drawing-section .floor-plan-content {
+            border-radius: 0 !important;
+            border: none !important;
         }
         
         /* PDF 查看器全高度 - 填滿整個屏幕，延伸到標題欄和底部導航 */
@@ -200,8 +241,12 @@
             height: 100vh;
             height: -webkit-fill-available;
             width: 100vw;
-            z-index: 1;
+            z-index: 10;
             overflow: hidden;
+            /* GPU 加速優化 */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            will-change: scroll-position;
         }
         
         /* 確保在 PWA 模式下使用動態視口高度 */
@@ -235,45 +280,46 @@
         }
         
         /* 當 PDF 查看器顯示時，調整其他元素的層級 */
-        .mobile-drawing-section .floor-plan-viewer[style*="display: flex"] {
-            z-index: 1;
+        .mobile-drawing-section .floor-plan-viewer[style*="display: flex"],
+        .mobile-drawing-section .floor-plan-viewer[style*="display: block"] {
+            z-index: 10;
         }
         
-        /* 響應式高度調整 */
-        @media (orientation: landscape) and (max-height: 500px) {
-            .mobile-main {
-                height: calc(100vh - 50px) !important;
-                max-height: calc(100vh - 50px) !important;
-                padding-bottom: 0 !important;
-            }
-        }
-        
-        @media (max-height: 600px) {
-            .mobile-main {
-                padding-bottom: 80px !important;
-            }
-        }
-        
-        /* 確保在 PWA 模式下正確計算高度 */
-        @supports (height: 100dvh) {
-            .mobile-main {
-                height: calc(100dvh - 60px - 80px);
-                max-height: calc(100dvh - 60px - 80px);
-            }
-            
-            @media (orientation: landscape) and (max-height: 500px) {
-                .mobile-main {
-                    height: calc(100dvh - 50px) !important;
-                    max-height: calc(100dvh - 50px) !important;
-                }
-            }
-        }
         
         /* 移動端區域樣式 */
         .mobile-section {
-            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            height: -webkit-fill-available;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+            padding: 0;
+            z-index: 1;
+        }
+        
+        /* 確保在 PWA 模式下使用動態視口高度 */
+        @supports (height: 100dvh) {
+            .mobile-section {
+                height: 100dvh;
+            }
+        }
+        
+        /* Home 區域特殊設置 - 為底部導航留出空間 */
+        .mobile-home-section {
+            padding-bottom: 100px !important; /* 為底部導航留出空間 */
+            box-sizing: border-box;
+        }
+        
+        /* Photo 和 Details 區域也需要底部間距 */
+        .mobile-photo-section,
+        .mobile-details-section {
+            padding-bottom: 100px !important;
+            box-sizing: border-box;
         }
         
         /* 隱藏滾動條但保持滾動功能 */
@@ -352,12 +398,63 @@
         .mobile-nav-details:active {
             background-color: rgba(0, 0, 0, 0.1);
         }
+        
+        /* 移動端導航按鈕圖標顏色 - 中灰色 */
+        .mobile-nav-home i,
+        .mobile-nav-drawing i,
+        .mobile-nav-photo i,
+        .mobile-nav-details i {
+            color: #888 !important;
+        }
+        
+        .mobile-nav-home span,
+        .mobile-nav-drawing span,
+        .mobile-nav-photo span,
+        .mobile-nav-details span {
+            color: #888 !important;
+        }
+        
+        /* 移除棕色高亮，改為大地色綠色 */
+        .mobile-nav-home.active,
+        .mobile-nav-drawing.active,
+        .mobile-nav-photo.active,
+        .mobile-nav-details.active {
+            background: transparent !important;
+        }
+        
+        /* 點擊時圖標變為大地色綠色 */
+        .mobile-nav-home.active i,
+        .mobile-nav-home.active span,
+        .mobile-nav-drawing.active i,
+        .mobile-nav-drawing.active span,
+        .mobile-nav-photo.active i,
+        .mobile-nav-photo.active span,
+        .mobile-nav-details.active i,
+        .mobile-nav-details.active span {
+            color: #6B8E6B !important; /* 大地色綠色 */
+        }
+        
+        /* 繪圖區域 header 改為大地色綠色 */
+        .mobile-header-drawing {
+            background: rgba(107, 142, 107, 0.15) !important;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        
+        /* 工具下拉選單 - 大地色灰色背景，毛玻璃效果 */
+        .mobile-tools-dropdown {
+            background: rgba(128, 128, 128, 0.2) !important; /* 大地色灰色，20% 透明度 */
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }
     </style>
     
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-    <link rel="icon" type="image/png" href="./favicon.ico">
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=6.1.4">
+    <link rel="icon" type="image/png" href="./favicon.ico?v=6.1.4">
+    <link rel="shortcut icon" href="./favicon.ico?v=6.1.4">
 </head>
 <body class="mobile-body">
     <!-- 移動端載入指示器 -->
@@ -373,8 +470,10 @@
     
     <!-- 移動端主容器 -->
     <div class="mobile-container">
-        <!-- 移動端標題欄 -->
-        <header class="mobile-header">
+        <!-- 移動端主內容 -->
+        <main class="mobile-main">
+            <!-- 移動端標題欄 -->
+            <header class="mobile-header">
             <!-- Home 區域的 Header -->
             <div class="mobile-header-content mobile-header-home active" data-section="home">
                 <div class="mobile-header-left">
@@ -409,7 +508,7 @@
                         <button id="mobileToolsBtn" class="mobile-tools-btn" aria-label="Tools">
                             <i class="fas fa-pencil-alt"></i>
                         </button>
-                        <div class="mobile-tools-dropdown" id="mobileToolsDropdown" style="position: fixed; top: 60px; left: 16px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 30000; min-width: 280px; padding: 8px 0; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s ease;">
+                        <div class="mobile-tools-dropdown" id="mobileToolsDropdown" style="position: fixed; top: 60px; left: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 30000; min-width: 280px; padding: 8px 0; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s ease;">
                             <!-- 添加標籤按鈕 -->
                             <div class="mobile-tools-item" data-action="add-label">
                                 <i class="fas fa-tag"></i> <span data-text="addLabel">Add Label (123)</span>
@@ -494,8 +593,7 @@
             </div>
         </header>
         
-        <!-- 移動端主內容 -->
-        <main class="mobile-main">
+        <!-- 移動端內容區域 -->
             <!-- Home 區域 -->
             <div class="mobile-section mobile-home-section" id="mobileHomeSection">
                 <!-- 任務信息將在這裡顯示 -->
@@ -511,9 +609,9 @@
                         <!-- PDF 查看器 -->
                         <div id="mobileFloorPlanViewer" class="floor-plan-viewer" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100vh; width: 100vw; z-index: 1;">
                             <!-- PDF顯示層 -->
-                            <canvas id="mobileFloorPlanCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+                            <canvas id="mobileFloorPlanCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; will-change: transform; transform: translateZ(0);"></canvas>
                             <!-- 標籤層 -->
-                            <div id="mobileLabelLayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                            <div id="mobileLabelLayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; will-change: transform; transform: translateZ(0);">
                                 <!-- 標籤元素將動態添加到這裡 -->
                             </div>
                             <!-- Quick Label Instruction Message - Floating -->
@@ -558,7 +656,6 @@
             <div class="mobile-section mobile-details-section" id="mobileDetailsSection" style="display: none;">
                 <!-- 詳細資料將在這裡顯示 -->
             </div>
-        </main>
         
         <!-- 移動端底部導航 -->
         <nav class="mobile-bottom-nav">
@@ -579,6 +676,7 @@
                 <span>Details</span>
             </div>
         </nav>
+        </main>
     </div>
     
     <!-- 引入桌面版繪圖核心 -->
@@ -669,9 +767,11 @@
                     navigator.serviceWorker.register('./sw.js')
                         .then((registration) => {
                             console.log('Service Worker registered successfully:', registration.scope);
+                            window.serviceWorkerReady = true;
                         })
                         .catch((error) => {
                             console.log('Service Worker registration failed:', error);
+                            window.serviceWorkerReady = false;
                         });
                 });
             }
