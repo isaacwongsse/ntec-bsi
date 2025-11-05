@@ -5658,30 +5658,26 @@ function resizeImage(file) {
                     
                     let newWidth = img.width;
                     let newHeight = img.height;
-                    let quality = 0.8;
+                    let quality = CONFIG.photo.quality || 0.8;
                     
-                    // For 360 photos, preserve full resolution and use higher quality
-                    if (is360Photo) {
-                        // Keep original dimensions
-                        quality = 0.95; // Higher quality for 360 photos
-                        window.logger.log(`🌐 Using full resolution for 360 photo: ${newWidth}x${newHeight}, quality: ${quality}`);
+                    // 所有照片（包括 360 照片）都壓縮到最大 1200px
+                    const maxWidth = CONFIG.photo.maxWidth || 1200;
+                    const maxHeight = CONFIG.photo.maxHeight || 1200;
+                    
+                    // 計算壓縮比例（保持寬高比）
+                    const ratio = Math.min(
+                        maxWidth / img.width,
+                        maxHeight / img.height,
+                        1.0 // 不放大，只縮小
+                    );
+                    
+                    if (ratio < 1.0) {
+                        newWidth = Math.round(img.width * ratio);
+                        newHeight = Math.round(img.height * ratio);
+                        window.logger.log(`Resizing ${file.name} from ${img.width}x${img.height} to ${newWidth}x${newHeight} (ratio: ${ratio.toFixed(2)})`);
                     } else {
-                        // For normal photos, apply size limit
-                        const longEdgeLimit = 1200;
-                        if (img.width >= img.height) {
-                            if (img.width > longEdgeLimit) {
-                                const scale = longEdgeLimit / img.width;
-                                newWidth = longEdgeLimit;
-                                newHeight = Math.round(img.height * scale);
-                            }
-                        } else {
-                            if (img.height > longEdgeLimit) {
-                                const scale = longEdgeLimit / img.height;
-                                newHeight = longEdgeLimit;
-                                newWidth = Math.round(img.width * scale);
-                            }
-                        }
-                        window.logger.log(`Resizing ${file.name} from ${img.width}x${img.height} to ${newWidth}x${newHeight}`);
+                        // 如果圖片已經小於最大尺寸，保持原尺寸
+                        window.logger.log(`Keeping original size for ${file.name}: ${newWidth}x${newHeight} (within limits)`);
                     }
                     
                     // Check if dimensions are reasonable
@@ -6112,6 +6108,19 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
                 photoItem.classList.remove('dragging');
                 window.logger.log('Photo drag ended:', file.name);
             });
+            
+            // 雙擊縮圖開啟原尺寸預覽（含動畫）
+            const imgEl = photoItem.querySelector('img');
+            if (imgEl) {
+                imgEl.addEventListener('dblclick', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await showPhotoPreviewPopup(file, photoItem);
+                    } catch (err) {
+                        console.error('Failed to open photo preview popup:', err);
+                    }
+                });
+            }
             
             // Add click event listener
             photoItem.addEventListener('click', (event) => {

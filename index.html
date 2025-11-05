@@ -12,9 +12,6 @@
     <link rel="preload" href="css/styles.css" as="style">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-    
     <!-- 關鍵CSS立即載入 -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
@@ -28,58 +25,6 @@
     <meta name="pne-auto-load-photos" content="true">
     <meta name="pne-photo-cache-enabled" content="true">
     <meta name="pne-photo-render-delay" content="500">
-    
-    <!-- PWA Manifest (僅在 HTTPS 或 localhost 環境下載入) -->
-    <script>
-        if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-            // 立即清理所有緩存
-            (async function() {
-                try {
-                    // 清理舊的 manifest
-                    const oldManifest = document.querySelector('link[rel="manifest"]');
-                    if (oldManifest) {
-                        oldManifest.remove();
-                    }
-                    
-                    // 清理 Service Worker 緩存
-                    if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (const registration of registrations) {
-                            await registration.unregister();
-                        }
-                        
-                        // 清理緩存
-                        const cacheNames = await caches.keys();
-                        for (const cacheName of cacheNames) {
-                            await caches.delete(cacheName);
-                        }
-                    }
-                    
-                    // 等待一小段時間確保清理完成
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    // 載入新的 manifest
-                    const manifestLink = document.createElement('link');
-                    manifestLink.rel = 'manifest';
-                    manifestLink.href = './manifest.json?v=' + Date.now();
-                    document.head.appendChild(manifestLink);
-                    
-                } catch (error) {
-                    console.warn('Cache cleanup failed:', error);
-                }
-            })();
-        }
-    </script>
-    
-    <!-- PWA Meta Tags -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Photo Number Extractor">
-    <meta name="application-name" content="PNE">
-    <meta name="msapplication-TileColor" content="#a67c52">
-    <meta name="msapplication-config" content="browserconfig.xml">
-    <meta name="theme-color" content="#a67c52">
     
     <!-- Apple Touch Icons -->
     <!-- <link rel="apple-touch-icon" sizes="152x152" href="assets/images/icon-152x152.png">
@@ -668,13 +613,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
     
-    <!-- 移動端檢測和重定向 -->
-    <script src="js/mobile-redirect.js" defer></script>
-    
     <!-- 核心配置和工具檔案 - 按依賴順序載入 -->
     <script src="js/config.js" defer></script>
-    <script src="js/mobile-detector.js" defer></script>
-    <script src="js/mobile-pwa-enhancer.js" defer></script>
     <script src="js/indexeddb-manager.js" defer></script>
     <script src="js/storage-error-handler.js" defer></script>
     <script src="js/storage-adapter.js" defer></script>
@@ -690,20 +630,15 @@
     <script src="js/keyboard-navigation.js" defer></script>
     <script src="js/virtual-scroll-enhanced.js" defer></script>
     
-    <!-- Service Worker 和 Web Worker 管理器 (僅在支援的環境下載入) -->
+    <!-- Web Worker 管理器 (僅在支援的環境下載入) -->
     <script>
         if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-            const serviceWorkerScript = document.createElement('script');
-            serviceWorkerScript.src = 'js/service-worker-manager.js';
-            serviceWorkerScript.defer = true;
-            document.head.appendChild(serviceWorkerScript);
-            
             const webWorkerScript = document.createElement('script');
             webWorkerScript.src = 'js/web-worker-manager.js';
             webWorkerScript.defer = true;
             document.head.appendChild(webWorkerScript);
         } else {
-            console.log('Service Worker 和 Web Worker 在 file:// 協議下不支援，已跳過載入');
+            console.log('Web Worker 在 file:// 協議下不支援，已跳過載入');
         }
     </script>
     

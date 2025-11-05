@@ -91,9 +91,9 @@ class PhotoOptimizer {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // 計算壓縮後的尺寸
-                    const maxWidth = CONFIG.photo.maxWidth || 1920;
-                    const maxHeight = CONFIG.photo.maxHeight || 1080;
+                    // 計算壓縮後的尺寸（最大寬度/高度 1200px）
+                    const maxWidth = CONFIG.photo.maxWidth || 1200;
+                    const maxHeight = CONFIG.photo.maxHeight || 1200;
                     const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
                     
                     canvas.width = img.width * ratio;
@@ -102,19 +102,14 @@ class PhotoOptimizer {
                     // 繪製壓縮後的圖片
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    // 轉換為 blob
-                    canvas.toBlob(
-                        (blob) => {
-                            if (blob) {
-                                const compressedUrl = URL.createObjectURL(blob);
-                                resolve(compressedUrl);
-                            } else {
-                                reject(new Error('Failed to compress image'));
-                            }
-                        },
-                        'image/jpeg',
-                        CONFIG.photo.quality || 0.8
-                    );
+                    // 轉換為 dataURL（用於保存到 indexedDB 和 .pne 文件）
+                    try {
+                        const dataURL = canvas.toDataURL('image/jpeg', CONFIG.photo.quality || 0.8);
+                        resolve(dataURL);
+                    } catch (error) {
+                        window.logger.error('Failed to convert canvas to dataURL:', error);
+                        reject(new Error('Failed to compress image'));
+                    }
                 } catch (error) {
                     window.logger.error('Error during image compression:', error);
                     reject(error);
@@ -212,8 +207,9 @@ class PhotoOptimizer {
                 return photo; // 在 file:// 協議下跳過壓縮
             }
             
-            // 如果照片需要壓縮
-            if (photo.size > CONFIG.photo.maxSize) {
+            // 所有照片都進行壓縮（壓縮到最大 1200px）
+            // 無論文件大小如何，都進行尺寸壓縮以確保一致性
+            try {
                 const compressedUrl = await this.compressImage(photo);
                 // 創建一個新的 File 對象，保留所有原始屬性
                 const compressedFile = new File([photo], photo.name, {
@@ -221,15 +217,16 @@ class PhotoOptimizer {
                     lastModified: photo.lastModified
                 });
                 
-                // 添加額外的屬性
-                compressedFile.compressedUrl = compressedUrl;
+                // 添加壓縮後的 dataURL 到 File 對象
+                compressedFile.dataURL = compressedUrl;
                 compressedFile.originalSize = photo.size;
                 compressedFile.compressedSize = null;
                 
                 return compressedFile;
+            } catch (error) {
+                window.logger.warn(`Compression failed for ${photo.name}, using original:`, error);
+                return photo; // 如果壓縮失敗，返回原始照片
             }
-            
-            return photo;
             
         } catch (error) {
             window.logger.error('Error processing photo:', photo.name, error);

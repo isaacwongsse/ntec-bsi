@@ -51,7 +51,7 @@ def start_server():
             print("="*60)
             print(f"\n📱 在手機上訪問：")
             print(f"   http://{local_ip}:{PORT}")
-            print(f"   http://{local_ip}:{PORT}/mobile.html")
+            print(f"   http://{local_ip}:{PORT}/index.html")
             print(f"\n💡 添加到主屏幕步驟：")
             print(f"   iOS: Safari → 分享 → 加入主畫面")
             print(f"   Android: Chrome → 選單 → 安裝應用程式")

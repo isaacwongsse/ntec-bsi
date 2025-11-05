@@ -6,9 +6,12 @@ const CONFIG = {
     // 照片處理配置
     photo: {
         maxSize: 5 * 1024 * 1024, // 5MB
+        maxWidth: 1200, // 最大寬度 1200px
+        maxHeight: 1200, // 最大高度 1200px
         allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
         batchSize: 20,
-        lazyLoadThreshold: 0.1
+        lazyLoadThreshold: 0.1,
+        quality: 0.8 // JPEG 壓縮品質
     },
     
     // 缺陷管理配置
