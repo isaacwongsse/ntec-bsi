@@ -5923,7 +5923,10 @@ async function selectPhotoFolder() {
             // Iterate files
             const imageFiles = [];
             for await (const [name, handle] of dirHandle.entries()) {
-                if (handle.kind === 'file' && /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
+                // Filter out macOS resource fork files (._* files) and only accept valid image files
+                if (handle.kind === 'file' && 
+                    !name.startsWith('._') && 
+                    /\.(jpe?g|png|gif|bmp|webp)$/i.test(name)) {
                     const file = await handle.getFile();
                     imageFiles.push(file);
                 }
@@ -6020,8 +6023,9 @@ async function selectPhotoFolder() {
                 const folder = path.split('/')[0];
                 folderNameDisplay.textContent = folder;
                 
-                // Filter only image files
+                // Filter only image files, excluding macOS resource fork files (._* files)
                 const imageFiles = Array.from(e.target.files).filter(file =>
+                    !file.name.startsWith('._') && 
                     /\.(jpe?g|png|gif|bmp|webp)$/i.test(file.name)
                 );
                 
@@ -9334,7 +9338,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 for (const file of files) {
                     window.logger.log('Add photos: Processing file:', file.name, 'Type:', file.type);
-                    if (file.type.startsWith('image/')) {
+                    // Filter out macOS resource fork files (._* files) and only accept valid image files
+                    if (!file.name.startsWith('._') && file.type.startsWith('image/')) {
                         // Extract photo number from filename
                         const numberMatch = file.name.match(/\d+/);
                         const photoNumber = numberMatch ? numberMatch[0] : '';
@@ -16776,7 +16781,10 @@ document.addEventListener('DOMContentLoaded', function() {
     input.style.display = 'none';
     input.addEventListener('change', function(e) {
       if (e.target.files.length > 0) {
-        quickSelectedFiles = Array.from(e.target.files).filter(file => /\.(jpe?g|png|gif|bmp|webp)$/i.test(file.name));
+        quickSelectedFiles = Array.from(e.target.files).filter(file => 
+            !file.name.startsWith('._') && 
+            /\.(jpe?g|png|gif|bmp|webp)$/i.test(file.name)
+        );
         // 取得資料夾路徑
         let folderPath = '';
         if (quickSelectedFiles.length > 0 && quickSelectedFiles[0].webkitRelativePath) {
