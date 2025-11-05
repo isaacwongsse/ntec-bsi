@@ -387,6 +387,7 @@ main {
     flex: 1;
     transition: var(--transition);
     position: relative;
+    overflow: hidden;
 }
 
 .preview-header {
@@ -1129,6 +1130,56 @@ footer {
     background: #8d6e42;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 照片上傳載入狀態樣式 */
+.photo-upload-loading-status {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100;
+    border-radius: var(--border-radius);
+}
+
+.photo-upload-status-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    text-align: center;
+    color: var(--text);
+    padding: 40px;
+}
+
+.photo-upload-status-content .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(166, 124, 82, 0.2);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.photo-upload-status-content h4 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin: 0;
+}
+
+.photo-upload-status-content p {
+    font-size: 1rem;
+    color: #666;
+    margin: 0;
 }
 
 .center-folder-btn:active {

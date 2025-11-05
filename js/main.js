@@ -5762,8 +5762,31 @@ function selectMultipleFiles() {
         if (e.target.files.length > 0) {
             window.logger.log('Files selected (Safari/Firefox):', e.target.files.length);
             
+            // Helper function to show photo upload loading
+            const showPhotoUploadLoading = (message = '正在處理照片，請稍候') => {
+                const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+                const statusTitle = document.getElementById('photoUploadStatusTitle');
+                const statusMessage = document.getElementById('photoUploadStatusMessage');
+                if (loadingStatus && statusTitle && statusMessage) {
+                    statusTitle.textContent = '上傳照片中...';
+                    statusMessage.textContent = message;
+                    loadingStatus.style.display = 'flex';
+                }
+            };
+            
+            // Helper function to hide photo upload loading
+            const hidePhotoUploadLoading = () => {
+                const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+                if (loadingStatus) {
+                    loadingStatus.style.display = 'none';
+                }
+            };
+            
             // Show processing notification
             showNotification('Processing photos...', 'info', 1000);
+            
+            // Show loading indicator
+            showPhotoUploadLoading('正在讀取照片檔案...');
             
             // Filter only image files
             const imageFiles = Array.from(e.target.files).filter(file =>
@@ -5773,6 +5796,7 @@ function selectMultipleFiles() {
             window.logger.log('Valid image files (Safari/Firefox):', imageFiles.length);
             
             if (imageFiles.length === 0) {
+                hidePhotoUploadLoading();
                 showNotification('No valid image files selected!', 'error');
                 return;
             }
@@ -5780,23 +5804,24 @@ function selectMultipleFiles() {
             // Set folder name to "Selected Files" for Safari/Firefox
             folderNameDisplay.textContent = `Selected Files (${imageFiles.length})`;
             
-            // Process files immediately without additional confirmation
-            allPhotos = imageFiles;
-            
-            // Sort photos by filename for sequential display
-            allPhotos.sort((a, b) => {
+            // Sort photos by filename
+            const sortedPhotos = imageFiles.sort((a, b) => {
                 return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
             });
             
-            window.logger.log('Starting to render photos (Safari/Firefox)...');
+            // Update loading message function
+            const updateMessage = (message) => {
+                showPhotoUploadLoading(message);
+            };
             
-            // Initialize lazy loading observer
-            const lazyObserver = initLazyLoading();
+            window.logger.log('Starting to process photos one by one (Safari/Firefox)...');
             
-            // Render photos
-            await renderPhotos(allPhotos, lazyObserver);
+            // Process photos one by one with immediate visual feedback
+            // IMPORTANT: Set allPhotos BEFORE processing to ensure index alignment
+            allPhotos = sortedPhotos;
+            await processAndRenderPhotosOneByOne(sortedPhotos, updateMessage);
             
-            window.logger.log('Photos rendered successfully (Safari/Firefox)');
+            window.logger.log('Photos processed and displayed successfully (Safari/Firefox)');
             
             updateFolderDisplay();
             
@@ -5804,6 +5829,7 @@ function selectMultipleFiles() {
             updateAddPhotosButtonVisibility();
             
             // 等待一小段時間確保所有 dataURL 都已經生成並附加到 File 對象上
+            showPhotoUploadLoading('正在儲存照片資料...');
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // 立即保存照片數據（包含 dataURL）到 IndexedDB
@@ -5812,6 +5838,9 @@ function selectMultipleFiles() {
             console.log(`📊 Photos with dataURL: ${photosWithDataURL} / ${allPhotos.length}`);
             await saveDataToStorage();
             console.log('✅ Photos saved to IndexedDB');
+            
+            // Hide loading indicator
+            hidePhotoUploadLoading();
             
             showNotification(`Successfully loaded ${imageFiles.length} images!`, 'success');
         } else {
@@ -5823,16 +5852,30 @@ function selectMultipleFiles() {
     window.logger.log('Appending input to body and clicking');
     document.body.appendChild(input);
     
-    // Use requestAnimationFrame for smoother experience
-    requestAnimationFrame(() => {
-        input.click();
+    // Directly trigger click in Chrome Windows - must be within user activation context
+    // Use setTimeout(0) instead of requestAnimationFrame to ensure user activation is preserved
+    setTimeout(() => {
+        try {
+            input.click();
+        } catch (error) {
+            window.logger.error('Error triggering file input click:', error);
+            // Fallback: try with requestAnimationFrame
+            requestAnimationFrame(() => {
+                try {
+                    input.click();
+                } catch (e) {
+                    window.logger.error('Error in requestAnimationFrame fallback:', e);
+                    showNotification('無法開啟檔案選擇對話框，請再試一次', 'error');
+                }
+            });
+        }
         // Clean up immediately after click
         setTimeout(() => {
             if (document.body.contains(input)) {
                 document.body.removeChild(input);
             }
         }, 100);
-    });
+    }, 0);
 }
 
 // Actual folder selection function
@@ -5845,6 +5888,26 @@ async function selectPhotoFolder() {
     // Show loading indicator
     showNotification('Please select a photo folder...', 'info', 2000);
     
+    // Helper function to show photo upload loading
+    const showPhotoUploadLoading = (message = '正在處理照片，請稍候') => {
+        const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+        const statusTitle = document.getElementById('photoUploadStatusTitle');
+        const statusMessage = document.getElementById('photoUploadStatusMessage');
+        if (loadingStatus && statusTitle && statusMessage) {
+            statusTitle.textContent = '上傳照片中...';
+            statusMessage.textContent = message;
+            loadingStatus.style.display = 'flex';
+        }
+    };
+    
+    // Helper function to hide photo upload loading
+    const hidePhotoUploadLoading = () => {
+        const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+        if (loadingStatus) {
+            loadingStatus.style.display = 'none';
+        }
+    };
+    
     // Check if webkitdirectory is supported
     if (window.showDirectoryPicker) {
         // Preferred: File System Access API
@@ -5853,6 +5916,10 @@ async function selectPhotoFolder() {
             // Persist handle
             try { await window.storageAdapter.setItem('pne_photos_dir_handle', dirHandle); } catch (e) {}
             folderNameDisplay.textContent = dirHandle.name || 'Selected Folder';
+            
+            // Show loading indicator
+            showPhotoUploadLoading('正在讀取照片檔案...');
+            
             // Iterate files
             const imageFiles = [];
             for await (const [name, handle] of dirHandle.entries()) {
@@ -5862,16 +5929,29 @@ async function selectPhotoFolder() {
                 }
             }
             if (imageFiles.length === 0) {
+                hidePhotoUploadLoading();
                 showNotification('No valid image files found in the selected folder!', 'error');
                 return;
             }
-            allPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
-            const lazyObserver = initLazyLoading();
-            await renderPhotos(allPhotos, lazyObserver);
+            
+            // Sort photos by filename
+            const sortedPhotos = imageFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+            
+            // Update loading message function
+            const updateMessage = (message) => {
+                showPhotoUploadLoading(message);
+            };
+            
+            // Process photos one by one with immediate visual feedback
+            // IMPORTANT: Set allPhotos BEFORE processing to ensure index alignment
+            allPhotos = sortedPhotos;
+            await processAndRenderPhotosOneByOne(sortedPhotos, updateMessage);
+            
             updateFolderDisplay();
             updateAddPhotosButtonVisibility();
             
             // 等待一小段時間確保所有 dataURL 都已經生成並附加到 File 對象上
+            showPhotoUploadLoading('正在儲存照片資料...');
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // 立即保存照片數據（包含 dataURL）到 IndexedDB
@@ -5881,9 +5961,13 @@ async function selectPhotoFolder() {
             await saveDataToStorage();
             console.log('✅ Photos saved to IndexedDB');
             
+            // Hide loading indicator
+            hidePhotoUploadLoading();
+            
             showNotification('Photos loaded from folder!', 'success');
             return;
         } catch (e) {
+            hidePhotoUploadLoading();
             // fallback to input method
         }
     }
@@ -5906,8 +5990,31 @@ async function selectPhotoFolder() {
             if (e.target.files.length > 0) {
                 window.logger.log('Files selected:', e.target.files.length);
                 
+                // Helper function to show photo upload loading
+                const showPhotoUploadLoading = (message = '正在處理照片，請稍候') => {
+                    const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+                    const statusTitle = document.getElementById('photoUploadStatusTitle');
+                    const statusMessage = document.getElementById('photoUploadStatusMessage');
+                    if (loadingStatus && statusTitle && statusMessage) {
+                        statusTitle.textContent = '上傳照片中...';
+                        statusMessage.textContent = message;
+                        loadingStatus.style.display = 'flex';
+                    }
+                };
+                
+                // Helper function to hide photo upload loading
+                const hidePhotoUploadLoading = () => {
+                    const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+                    if (loadingStatus) {
+                        loadingStatus.style.display = 'none';
+                    }
+                };
+                
                 // Show processing notification
                 showNotification('Processing photos...', 'info', 1000);
+                
+                // Show loading indicator
+                showPhotoUploadLoading('正在讀取照片檔案...');
                 
                 const path = e.target.files[0].webkitRelativePath;
                 const folder = path.split('/')[0];
@@ -5921,27 +6028,29 @@ async function selectPhotoFolder() {
                 window.logger.log('Valid image files:', imageFiles.length);
                 
                 if (imageFiles.length === 0) {
+                    hidePhotoUploadLoading();
                     showNotification('No valid image files found in the selected folder!', 'error');
                     return;
                 }
                 
-                // Process files immediately without additional confirmation
-                allPhotos = imageFiles;
-                
-                // Sort photos by filename for sequential display
-                allPhotos.sort((a, b) => {
+                // Sort photos by filename
+                const sortedPhotos = imageFiles.sort((a, b) => {
                     return a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'});
                 });
                 
-                window.logger.log('Starting to render photos...');
+                // Update loading message function
+                const updateMessage = (message) => {
+                    showPhotoUploadLoading(message);
+                };
                 
-                // Initialize lazy loading observer
-                const lazyObserver = initLazyLoading();
+                window.logger.log('Starting to process photos one by one...');
                 
-                // Render photos
-                await renderPhotos(allPhotos, lazyObserver);
+                // Process photos one by one with immediate visual feedback
+                // IMPORTANT: Set allPhotos BEFORE processing to ensure index alignment
+                allPhotos = sortedPhotos;
+                await processAndRenderPhotosOneByOne(sortedPhotos, updateMessage);
                 
-                window.logger.log('Photos rendered successfully');
+                window.logger.log('Photos processed and displayed successfully');
                 
                 updateFolderDisplay();
                 
@@ -5949,6 +6058,7 @@ async function selectPhotoFolder() {
                 updateAddPhotosButtonVisibility();
                 
                 // 等待一小段時間確保所有 dataURL 都已經生成並附加到 File 對象上
+                showPhotoUploadLoading('正在儲存照片資料...');
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
                 // 立即保存照片數據（包含 dataURL）到 IndexedDB
@@ -5957,6 +6067,9 @@ async function selectPhotoFolder() {
                 console.log(`📊 Photos with dataURL: ${photosWithDataURL} / ${allPhotos.length}`);
                 await saveDataToStorage();
                 console.log('✅ Photos saved to IndexedDB');
+                
+                // Hide loading indicator
+                hidePhotoUploadLoading();
                 
                 showNotification(`Successfully loaded ${imageFiles.length} images from folder: ${folder}`, 'success');
             } else {
@@ -5967,21 +6080,261 @@ async function selectPhotoFolder() {
         // Optimize file dialog trigger
         document.body.appendChild(input);
         
-        // Use requestAnimationFrame to ensure smooth user experience
-        requestAnimationFrame(() => {
-            input.click();
+        // Directly trigger click in Chrome Windows - must be within user activation context
+        // Use setTimeout(0) instead of requestAnimationFrame to ensure user activation is preserved
+        setTimeout(() => {
+            try {
+                input.click();
+            } catch (error) {
+                window.logger.error('Error triggering file input click:', error);
+                // Fallback: try with requestAnimationFrame
+                requestAnimationFrame(() => {
+                    try {
+                        input.click();
+                    } catch (e) {
+                        window.logger.error('Error in requestAnimationFrame fallback:', e);
+                        showNotification('無法開啟檔案選擇對話框，請再試一次', 'error');
+                    }
+                });
+            }
             // Clean up immediately after click
             setTimeout(() => {
                 if (document.body.contains(input)) {
                     document.body.removeChild(input);
                 }
             }, 100);
-        });
+        }, 0);
     } else {
         // Safari/Firefox - directly use multiple file selection
         window.logger.log('Browser does not support folder selection, using multiple file selection');
         selectMultipleFiles();
     }
+}
+
+// Process and render photos one by one with immediate visual feedback
+async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
+    window.logger.log('processAndRenderPhotosOneByOne called with', photos.length, 'photos');
+    
+    // Clear the grid first
+    photoGrid.innerHTML = '';
+    
+    if (photos.length === 0) {
+        window.logger.log('No photos to process');
+        return;
+    }
+    
+    // Initialize variables
+    selectedPhotos = [];
+    updateSelectedCount();
+    
+    // Process each photo one by one
+    for (let i = 0; i < photos.length; i++) {
+        const file = photos[i];
+        
+        try {
+            // Update loading message
+            if (updateLoadingMessage) {
+                updateLoadingMessage(`正在處理第 ${i + 1}/${photos.length} 張照片: ${file.name}`);
+            }
+            
+            window.logger.log(`Processing photo ${i + 1}/${photos.length}: ${file.name}`);
+            
+            // Resize/compress the image
+            let resizedImageURL;
+            if (file.dataURL && typeof file.dataURL === 'string' && file.dataURL.trim() !== '') {
+                resizedImageURL = file.dataURL;
+                window.logger.log(`Using existing dataURL for: ${file.name}`);
+            } else {
+                // Compress and resize the image
+                window.logger.log(`Compressing and resizing: ${file.name}`);
+                resizedImageURL = await resizeImage(file);
+                file.dataURL = resizedImageURL; // Save for future use
+            }
+            
+            // Create photo item element
+            const photoItem = document.createElement('div');
+            photoItem.className = 'photo-item';
+            photoItem.dataset.index = i;
+            photoItem.dataset.filename = file.name;
+            photoItem.setAttribute('role', 'gridcell');
+            photoItem.setAttribute('aria-label', `Photo ${i + 1}`);
+            photoItem.draggable = true;
+            
+            // Check if this photo is already assigned to any category
+            let isAssigned = false;
+            for (const cat in assignedPhotos) {
+                if (assignedPhotos[cat].has(file.name)) {
+                    isAssigned = true;
+                    photoItem.classList.add('assigned');
+                    break;
+                }
+            }
+            
+            // Check if this photo has been submitted
+            let isSubmitted = false;
+            if (submittedFilenames && submittedFilenames.has(file.name)) {
+                isSubmitted = true;
+            } else if (window.labels && Array.isArray(window.labels)) {
+                for (const label of window.labels) {
+                    if (label.submitted && label.photoFilenames && label.photoFilenames.includes(file.name)) {
+                        isSubmitted = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (isSubmitted) {
+                photoItem.classList.add('submitted');
+            }
+            
+            // Extract number from filename
+            const numberMatch = file.name.match(/\d+/);
+            const number = numberMatch ? numberMatch[0] : 'N/A';
+            
+            // Add "new" icon for newly added photos
+            const newIconHtml = file.isNewlyAdded ? '<div class="new-icon">new</div>' : '';
+            
+            photoItem.innerHTML = `
+                <img src="${resizedImageURL}" alt="${file.name}">
+                <div class="photo-number">${number}</div>
+                <div class="photo-status" id="status-${i}"></div>
+                ${newIconHtml}
+            `;
+            
+            // Save webkitRelativePath if available
+            if (file.webkitRelativePath) {
+                photoItem.dataset.webkitRelativePath = file.webkitRelativePath;
+            }
+            
+            // Set status text if submitted
+            if (isSubmitted) {
+                const statusDiv = photoItem.querySelector('.photo-status');
+                if (statusDiv) {
+                    let locationId = null;
+                    if (submittedData && submittedData.length > 0) {
+                        for (const row of submittedData) {
+                            if (row.photoFilenames && row.photoFilenames.includes(file.name)) {
+                                locationId = row.locationId;
+                                break;
+                            }
+                        }
+                    }
+                    if (!locationId && window.labels && Array.isArray(window.labels)) {
+                        for (const label of window.labels) {
+                            if (label.submitted && label.photoFilenames && label.photoFilenames.includes(file.name)) {
+                                locationId = label.inspectionNo || label.locationId;
+                                break;
+                            }
+                        }
+                    }
+                    if (locationId) {
+                        statusDiv.textContent = `${locationId}`;
+                        statusDiv.style.display = 'flex';
+                    }
+                }
+            }
+            
+            // Set status text if assigned to category
+            if (isAssigned && !isSubmitted) {
+                const statusDiv = photoItem.querySelector('.photo-status');
+                if (statusDiv) {
+                    for (const cat in assignedPhotos) {
+                        if (assignedPhotos[cat].has(file.name)) {
+                            const categoryName = categories.find(catObj => catObj.id === cat)?.name || cat.toUpperCase();
+                            statusDiv.textContent = `Assigned to ${categoryName}`;
+                            statusDiv.style.display = 'flex';
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Add drag event listeners
+            photoItem.addEventListener('dragstart', (event) => {
+                event.dataTransfer.setData('text/plain', JSON.stringify({
+                    type: 'photo',
+                    index: i,
+                    filename: file.name,
+                    file: file
+                }));
+                photoItem.classList.add('dragging');
+            });
+            
+            photoItem.addEventListener('dragend', (event) => {
+                photoItem.classList.remove('dragging');
+            });
+            
+            // Double-click to preview
+            const imgEl = photoItem.querySelector('img');
+            if (imgEl) {
+                imgEl.addEventListener('dblclick', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await showPhotoPreviewPopup(file, photoItem);
+                    } catch (err) {
+                        console.error('Failed to open photo preview popup:', err);
+                    }
+                });
+            }
+            
+            // Add click event listener
+            photoItem.addEventListener('click', (event) => {
+                if (photoItem.classList.contains('assigned') || photoItem.classList.contains('submitted')) {
+                    return;
+                }
+                
+                if (event.shiftKey && selectedPhotos.length > 0) {
+                    const lastIndex = selectedPhotos[selectedPhotos.length - 1];
+                    const currentIndex = parseInt(photoItem.dataset.index);
+                    const start = Math.min(lastIndex, currentIndex);
+                    const end = Math.max(lastIndex, currentIndex);
+                    
+                    for (let j = start; j <= end; j++) {
+                        const item = photoGrid.querySelector(`[data-index="${j}"]`);
+                        if (item && !item.classList.contains('assigned') && !item.classList.contains('submitted')) {
+                            item.classList.add('selected');
+                            if (!selectedPhotos.includes(j)) {
+                                selectedPhotos.push(j);
+                            }
+                        }
+                    }
+                } else {
+                    photoItem.classList.toggle('selected');
+                    if (photoItem.classList.contains('selected')) {
+                        selectedPhotos.push(i);
+                    } else {
+                        const index = selectedPhotos.indexOf(i);
+                        if (index > -1) {
+                            selectedPhotos.splice(index, 1);
+                        }
+                    }
+                }
+                
+                updateSelectedCount();
+            });
+            
+            // Immediately append to grid for visual feedback
+            photoGrid.appendChild(photoItem);
+            
+            // Use requestAnimationFrame to allow UI to update
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            
+            window.logger.log(`Photo ${i + 1}/${photos.length} processed and displayed: ${file.name}`);
+            
+        } catch (error) {
+            window.logger.error(`Error processing photo ${file.name}:`, error);
+            // Continue with next photo even if one fails
+        }
+    }
+    
+    // Initialize lazy loading observer after all photos are added
+    const lazyObserver = initLazyLoading();
+    if (lazyObserver && photoGrid) {
+        const images = photoGrid.querySelectorAll('img[data-lazy]');
+        images.forEach(img => lazyObserver.observe(img));
+    }
+    
+    window.logger.log('All photos processed and displayed');
 }
 
 // Render only new photos without re-rendering existing ones
@@ -6820,7 +7173,18 @@ function assignToCategory(categoryId) {
     let addedCount = 0;
     
     selectedPhotos.forEach(index => {
+        // Check if index is valid and file exists
+        if (!allPhotos || index >= allPhotos.length || !allPhotos[index]) {
+            window.logger.warn(`Invalid photo index: ${index}, allPhotos length: ${allPhotos ? allPhotos.length : 0}`);
+            return; // Skip this photo
+        }
+        
         const file = allPhotos[index];
+        if (!file || !file.name) {
+            window.logger.warn(`Invalid file at index ${index}:`, file);
+            return; // Skip this photo
+        }
+        
         const fileName = file.name;
         
         // Extract numbers from filename
@@ -8927,8 +9291,31 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
             
+            // Helper function to show photo upload loading
+            const showPhotoUploadLoading = (message = '正在處理照片，請稍候') => {
+                const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+                const statusTitle = document.getElementById('photoUploadStatusTitle');
+                const statusMessage = document.getElementById('photoUploadStatusMessage');
+                if (loadingStatus && statusTitle && statusMessage) {
+                    statusTitle.textContent = '新增照片中...';
+                    statusMessage.textContent = message;
+                    loadingStatus.style.display = 'flex';
+                }
+            };
+            
+            // Helper function to hide photo upload loading
+            const hidePhotoUploadLoading = () => {
+                const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+                if (loadingStatus) {
+                    loadingStatus.style.display = 'none';
+                }
+            };
+            
             // Show processing notification
             showNotification('Processing additional photos...', 'info', 1000);
+            
+            // Show loading indicator
+            showPhotoUploadLoading('正在處理新增的照片...');
             
             try {
                 // Check for duplicate photos by name and photo number
@@ -8962,21 +9349,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                             window.logger.log('Add photos: Duplicate photo number found:', photoNumber, 'in file:', file.name);
                             duplicatePhotoNumbers.push({ filename: file.name, number: photoNumber });
                         }
-                        // Photo is new and unique
+                        // Photo is new and unique - add to newPhotos without compressing yet
+                        // Compression will happen during one-by-one processing
                         else {
-                            window.logger.log('Add photos: Resizing new photo:', file.name, 'Number:', photoNumber);
-                            const resizedDataURL = await resizeImage(file);
-                            window.logger.log('Add photos: Resize completed for:', file.name);
-                            
-                            // Create a new file object with the resized data
-                            const resizedFile = {
-                                name: file.name,
-                                size: file.size,
-                                type: file.type,
-                                lastModified: file.lastModified || Date.now(),
-                                dataURL: resizedDataURL
-                            };
-                            newPhotos.push(resizedFile);
+                            window.logger.log('Add photos: New photo added to queue:', file.name, 'Number:', photoNumber);
+                            newPhotos.push(file);
                         }
                     } else {
                         window.logger.log('Add photos: Skipping non-image file:', file.name);
@@ -8987,20 +9364,154 @@ document.addEventListener('DOMContentLoaded', async function() {
                 if (newPhotos.length > 0) {
                     window.logger.log('Add photos: Adding', newPhotos.length, 'new photos to allPhotos');
                     
-                    // Mark new photos with a flag before adding to allPhotos
-                    const newPhotoNames = new Set(newPhotos.map(photo => photo.name));
+                    // Mark new photos with a flag
                     newPhotos.forEach(photo => {
                         photo.isNewlyAdded = true;
                     });
                     
-                    allPhotos.push(...newPhotos);
-                    window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
+                    // Update loading message function
+                    const updateMessage = (message) => {
+                        showPhotoUploadLoading(message);
+                    };
                     
-                    // Update photo grid with new photos only (don't re-render existing ones)
-                    window.logger.log('Add photos: Starting renderNewPhotosOnly...');
-                    const lazyObserver = initLazyLoading();
-                    await renderNewPhotosOnly(newPhotos, lazyObserver);
-                    window.logger.log('Add photos: renderNewPhotosOnly completed');
+                    // Get current photo count for indexing
+                    const currentPhotoCount = allPhotos.length;
+                    
+                    // Process new photos one by one with immediate visual feedback
+                    // Note: We need to compress photos that haven't been compressed yet
+                    const photosToProcess = [];
+                    for (const photo of newPhotos) {
+                        if (!photo.dataURL) {
+                            // Need to compress this photo
+                            try {
+                                const compressedDataURL = await resizeImage(photo);
+                                photo.dataURL = compressedDataURL;
+                            } catch (error) {
+                                window.logger.error(`Error compressing photo ${photo.name}:`, error);
+                                continue; // Skip this photo
+                            }
+                        }
+                        photosToProcess.push(photo);
+                    }
+                    
+                    // Process and render new photos one by one
+                    for (let i = 0; i < photosToProcess.length; i++) {
+                        const photo = photosToProcess[i];
+                        const index = currentPhotoCount + i;
+                        
+                        try {
+                            // Update loading message
+                            updateMessage(`正在處理第 ${i + 1}/${photosToProcess.length} 張新照片: ${photo.name}`);
+                            
+                            // Create photo item element
+                            const photoItem = document.createElement('div');
+                            photoItem.className = 'photo-item';
+                            photoItem.dataset.index = index;
+                            photoItem.dataset.filename = photo.name;
+                            photoItem.setAttribute('role', 'gridcell');
+                            photoItem.setAttribute('aria-label', `Photo ${index + 1}`);
+                            photoItem.draggable = true;
+                            
+                            // Check if this photo is already assigned
+                            let isAssigned = false;
+                            for (const cat in assignedPhotos) {
+                                if (assignedPhotos[cat].has(photo.name)) {
+                                    isAssigned = true;
+                                    photoItem.classList.add('assigned');
+                                    break;
+                                }
+                            }
+                            
+                            // Extract number from filename
+                            const numberMatch = photo.name.match(/\d+/);
+                            const number = numberMatch ? numberMatch[0] : 'N/A';
+                            
+                            // Add "new" icon
+                            const newIconHtml = '<div class="new-icon">new</div>';
+                            
+                            photoItem.innerHTML = `
+                                <img src="${photo.dataURL}" alt="${photo.name}">
+                                <div class="photo-number">${number}</div>
+                                <div class="photo-status" id="status-${index}"></div>
+                                ${newIconHtml}
+                            `;
+                            
+                            // Add event listeners (similar to processAndRenderPhotosOneByOne)
+                            photoItem.addEventListener('dragstart', (event) => {
+                                event.dataTransfer.setData('text/plain', JSON.stringify({
+                                    type: 'photo',
+                                    index: index,
+                                    filename: photo.name,
+                                    file: photo
+                                }));
+                                photoItem.classList.add('dragging');
+                            });
+                            
+                            photoItem.addEventListener('dragend', (event) => {
+                                photoItem.classList.remove('dragging');
+                            });
+                            
+                            const imgEl = photoItem.querySelector('img');
+                            if (imgEl) {
+                                imgEl.addEventListener('dblclick', async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                        await showPhotoPreviewPopup(photo, photoItem);
+                                    } catch (err) {
+                                        console.error('Failed to open photo preview popup:', err);
+                                    }
+                                });
+                            }
+                            
+                            photoItem.addEventListener('click', (event) => {
+                                if (photoItem.classList.contains('assigned') || photoItem.classList.contains('submitted')) {
+                                    return;
+                                }
+                                
+                                if (event.shiftKey && selectedPhotos.length > 0) {
+                                    const lastIndex = selectedPhotos[selectedPhotos.length - 1];
+                                    const currentIndex = parseInt(photoItem.dataset.index);
+                                    const start = Math.min(lastIndex, currentIndex);
+                                    const end = Math.max(lastIndex, currentIndex);
+                                    
+                                    for (let j = start; j <= end; j++) {
+                                        const item = photoGrid.querySelector(`[data-index="${j}"]`);
+                                        if (item && !item.classList.contains('assigned') && !item.classList.contains('submitted')) {
+                                            item.classList.add('selected');
+                                            if (!selectedPhotos.includes(j)) {
+                                                selectedPhotos.push(j);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    photoItem.classList.toggle('selected');
+                                    if (photoItem.classList.contains('selected')) {
+                                        selectedPhotos.push(index);
+                                    } else {
+                                        const idx = selectedPhotos.indexOf(index);
+                                        if (idx > -1) {
+                                            selectedPhotos.splice(idx, 1);
+                                        }
+                                    }
+                                }
+                                
+                                updateSelectedCount();
+                            });
+                            
+                            // Immediately append to grid for visual feedback
+                            photoGrid.appendChild(photoItem);
+                            
+                            // Use requestAnimationFrame to allow UI to update
+                            await new Promise(resolve => requestAnimationFrame(resolve));
+                            
+                        } catch (error) {
+                            window.logger.error(`Error processing new photo ${photo.name}:`, error);
+                        }
+                    }
+                    
+                    // Add processed photos to allPhotos array
+                    allPhotos.push(...photosToProcess);
+                    window.logger.log('Add photos: Total photos after adding:', allPhotos.length);
                     
                     // Update folder display
                     updateFolderDisplay();
@@ -9009,11 +9520,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                     updateAddPhotosButtonVisibility();
                     
                     // Save data to storage to persist the newly added photos
+                    showPhotoUploadLoading('正在儲存照片資料...');
                     window.logger.log('Add photos: Saving data to storage...');
                     await saveDataToStorage();
                     window.logger.log('Add photos: Data saved successfully');
+                    
+                    // Hide loading indicator
+                    hidePhotoUploadLoading();
                 } else {
                     window.logger.log('Add photos: No new photos to add');
+                    hidePhotoUploadLoading();
                 }
                 
                 window.logger.log('DEBUG: defectEntries after photo upload:', window.defectEntries ? window.defectEntries.length : 'undefined');
@@ -9046,6 +9562,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
             } catch (error) {
                 window.logger.error('Error adding photos:', error);
+                hidePhotoUploadLoading();
                 showNotification(`Error adding photos: ${error.message}`, 'error');
             }
             
