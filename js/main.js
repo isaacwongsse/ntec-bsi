@@ -6287,9 +6287,11 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
                     return;
                 }
                 
+                const currentIndex = parseInt(photoItem.dataset.index);
+                
+                // Handle selection with shift key (range selection)
                 if (event.shiftKey && selectedPhotos.length > 0) {
                     const lastIndex = selectedPhotos[selectedPhotos.length - 1];
-                    const currentIndex = parseInt(photoItem.dataset.index);
                     const start = Math.min(lastIndex, currentIndex);
                     const end = Math.max(lastIndex, currentIndex);
                     
@@ -6302,16 +6304,27 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
                             }
                         }
                     }
-                } else {
-                    photoItem.classList.toggle('selected');
-                    if (photoItem.classList.contains('selected')) {
-                        selectedPhotos.push(i);
+                }
+                // Handle selection with ctrl/cmd key (multi-select)
+                else if (event.ctrlKey || event.metaKey) {
+                    if (selectedPhotos.includes(currentIndex)) {
+                        // Deselect if already selected
+                        selectedPhotos = selectedPhotos.filter(idx => idx !== currentIndex);
+                        photoItem.classList.remove('selected');
                     } else {
-                        const index = selectedPhotos.indexOf(i);
-                        if (index > -1) {
-                            selectedPhotos.splice(index, 1);
-                        }
+                        // Add to selection
+                        selectedPhotos.push(currentIndex);
+                        photoItem.classList.add('selected');
                     }
+                }
+                // Normal single selection (clear others)
+                else {
+                    // Clear all previous selections
+                    document.querySelectorAll('.photo-item.selected').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    selectedPhotos = [currentIndex];
+                    photoItem.classList.add('selected');
                 }
                 
                 updateSelectedCount();
@@ -6901,6 +6914,7 @@ class PhotoDragSelector {
         this.startPhoto = null;
         this.endPhoto = null;
         this.dragStartPosition = null;
+        this.potentialStartPhoto = null;
         this.selectedPhotos = new Set();
         this.globalEventsAttached = false;
         this.dragIndicator = null;
@@ -6933,17 +6947,37 @@ class PhotoDragSelector {
         });
         
         photoGrid.addEventListener('mousemove', (e) => {
-            const photoItem = e.target.closest('.photo-item');
-            if (photoItem && photoItem.closest('#photoGrid') === photoGrid && this.isDragging) {
-                this.handleMouseMove(e, photoItem);
+            // 如果已經在拖拽中，繼續處理拖拽
+            if (this.isDragging) {
+                const photoItem = e.target.closest('.photo-item');
+                if (photoItem && photoItem.closest('#photoGrid') === photoGrid) {
+                    this.handleMouseMove(e, photoItem);
+                }
+            }
+            // 如果還沒有開始拖拽，但記錄了 mousedown 位置，檢查是否應該開始拖拽
+            else if (this.dragStartPosition && this.potentialStartPhoto) {
+                const moveDistance = Math.sqrt(
+                    Math.pow(e.clientX - this.dragStartPosition.x, 2) + 
+                    Math.pow(e.clientY - this.dragStartPosition.y, 2)
+                );
+                // 如果移動距離超過 5 像素，認為是拖拽而不是點擊
+                if (moveDistance > 5) {
+                    this.startDragSelection(e, this.potentialStartPhoto);
+                }
             }
         });
         
         photoGrid.addEventListener('mouseup', (e) => {
-            const photoItem = e.target.closest('.photo-item');
-            if (photoItem && photoItem.closest('#photoGrid') === photoGrid && this.isDragging) {
-                this.handleMouseUp(e, photoItem);
+            // 如果正在拖拽，處理拖拽結束
+            if (this.isDragging) {
+                const photoItem = e.target.closest('.photo-item');
+                if (photoItem && photoItem.closest('#photoGrid') === photoGrid) {
+                    this.handleMouseUp(e, photoItem);
+                }
             }
+            // 清除拖拽開始位置，允許正常的點擊事件處理
+            this.dragStartPosition = null;
+            this.potentialStartPhoto = null;
         });
         
         // 防止默認的文本選擇行為
@@ -6985,8 +7019,15 @@ class PhotoDragSelector {
             return; // 讓現有的範圍選擇邏輯處理
         }
         
-        // 立即開始拖拽選擇
-        this.startDragSelection(e, photoItem);
+        // 記錄 mousedown 位置，用於區分點擊和拖拽
+        this.dragStartPosition = {
+            x: e.clientX,
+            y: e.clientY
+        };
+        this.potentialStartPhoto = photoItem;
+        
+        // 不立即阻止事件，讓點擊事件先處理
+        // 只有在 mousemove 檢測到拖拽時才開始拖拽選擇
     }
     
     handleMouseMove(e, photoItem) {
@@ -7019,8 +7060,12 @@ class PhotoDragSelector {
     }
     
     handleGlobalMouseUp(e) {
-        if (!this.isDragging) return;
-        this.finishSelection();
+        if (this.isDragging) {
+            this.finishSelection();
+        }
+        // 清除拖拽開始位置
+        this.dragStartPosition = null;
+        this.potentialStartPhoto = null;
     }
     
     // 開始拖拽選擇
@@ -9473,9 +9518,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     return;
                                 }
                                 
+                                const currentIndex = parseInt(photoItem.dataset.index);
+                                
+                                // Handle selection with shift key (range selection)
                                 if (event.shiftKey && selectedPhotos.length > 0) {
                                     const lastIndex = selectedPhotos[selectedPhotos.length - 1];
-                                    const currentIndex = parseInt(photoItem.dataset.index);
                                     const start = Math.min(lastIndex, currentIndex);
                                     const end = Math.max(lastIndex, currentIndex);
                                     
@@ -9488,16 +9535,27 @@ document.addEventListener('DOMContentLoaded', async function() {
                                             }
                                         }
                                     }
-                                } else {
-                                    photoItem.classList.toggle('selected');
-                                    if (photoItem.classList.contains('selected')) {
-                                        selectedPhotos.push(index);
+                                }
+                                // Handle selection with ctrl/cmd key (multi-select)
+                                else if (event.ctrlKey || event.metaKey) {
+                                    if (selectedPhotos.includes(currentIndex)) {
+                                        // Deselect if already selected
+                                        selectedPhotos = selectedPhotos.filter(idx => idx !== currentIndex);
+                                        photoItem.classList.remove('selected');
                                     } else {
-                                        const idx = selectedPhotos.indexOf(index);
-                                        if (idx > -1) {
-                                            selectedPhotos.splice(idx, 1);
-                                        }
+                                        // Add to selection
+                                        selectedPhotos.push(currentIndex);
+                                        photoItem.classList.add('selected');
                                     }
+                                }
+                                // Normal single selection (clear others)
+                                else {
+                                    // Clear all previous selections
+                                    document.querySelectorAll('.photo-item.selected').forEach(item => {
+                                        item.classList.remove('selected');
+                                    });
+                                    selectedPhotos = [currentIndex];
+                                    photoItem.classList.add('selected');
                                 }
                                 
                                 updateSelectedCount();
@@ -17011,17 +17069,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
-    // Double Command/Ctrl key shortcut to open Drawing mode (cross-platform)
-    let commandKeyPressCount = 0;
-    let commandKeyTimer = null;
+    // Double Alt/Command key shortcut to open Drawing mode (cross-platform)
+    let altKeyPressCount = 0;
+    let altKeyTimer = null;
     let lastCtrlClickTime = 0;
     
     document.addEventListener('keydown', function(e) {
-        // Check if Command key (Mac) or Ctrl key (Windows) is pressed
-        // Also check for Windows key (e.metaKey on Windows)
+        // Check if Alt key (Windows) or Command key (Mac) is pressed
+        const isAltKey = e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey; // Alt key (Windows)
         const isCommandKey = e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey; // Mac Command key
-        const isCtrlKey = e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey; // Windows Ctrl key
-        const isWindowsKey = e.metaKey && e.ctrlKey && !e.altKey && !e.shiftKey; // Windows key
         
         // Don't interfere with copy/paste operations (Ctrl+C, Ctrl+V, Cmd+C, Cmd+V)
         if (e.key === 'c' || e.key === 'v' || e.key === 'C' || e.key === 'V') {
@@ -17038,23 +17094,23 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        if (isCommandKey || isCtrlKey || isWindowsKey) {
-            commandKeyPressCount++;
+        if (isAltKey || isCommandKey) {
+            altKeyPressCount++;
             
             // Clear any existing timer
-            if (commandKeyTimer) {
-                clearTimeout(commandKeyTimer);
+            if (altKeyTimer) {
+                clearTimeout(altKeyTimer);
             }
             
             // Set a timer to reset the count after 500ms
-            commandKeyTimer = setTimeout(() => {
-                commandKeyPressCount = 0;
+            altKeyTimer = setTimeout(() => {
+                altKeyPressCount = 0;
             }, 500);
             
             // If double click detected (count >= 2)
-            if (commandKeyPressCount >= 2) {
+            if (altKeyPressCount >= 2) {
                 e.preventDefault();
-                commandKeyPressCount = 0;
+                altKeyPressCount = 0;
                 
                 // Open Drawing mode
                 if (floorPlanOverlay.style.zIndex === '-3' || !floorPlanOverlay.style.zIndex) {
@@ -17072,7 +17128,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     }, 100);
                     
                     // Show appropriate notification based on platform
-                    const keyName = isCommandKey ? 'Command' : (isCtrlKey ? 'Ctrl' : 'Windows');
+                    const keyName = isCommandKey ? 'Command' : 'Alt';
                     showNotification(`Drawing mode opened (Double ${keyName} key)`, 'info');
                 }
             }
@@ -17084,11 +17140,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Check if Ctrl/Cmd is pressed and target is a photo
         if ((e.ctrlKey || e.metaKey) && e.target.closest('.photo-item')) {
             lastCtrlClickTime = Date.now();
-            // Reset the command key press count to prevent accidental drawing mode activation
-            commandKeyPressCount = 0;
-            if (commandKeyTimer) {
-                clearTimeout(commandKeyTimer);
-                commandKeyTimer = null;
+            // Reset the alt key press count to prevent accidental drawing mode activation
+            altKeyPressCount = 0;
+            if (altKeyTimer) {
+                clearTimeout(altKeyTimer);
+                altKeyTimer = null;
             }
         }
     }, true);
