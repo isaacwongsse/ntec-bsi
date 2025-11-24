@@ -6162,7 +6162,7 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
             photoItem.dataset.filename = file.name;
             photoItem.setAttribute('role', 'gridcell');
             photoItem.setAttribute('aria-label', `Photo ${i + 1}`);
-            // Disable native drag to allow drag selection instead
+            // Disable native drag and drop to allow custom drag selection
             photoItem.draggable = false;
             
             // Check if this photo is already assigned to any category
@@ -6254,9 +6254,7 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
                 }
             }
             
-            // Drag event listeners removed - using drag selection instead
-            // Native drag is disabled to prevent photo dragging behavior
-            
+            // Native drag and drop disabled to allow custom drag selection
             // Double-click to preview
             const imgEl = photoItem.querySelector('img');
             if (imgEl) {
@@ -6373,7 +6371,7 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
             photoItem.dataset.filename = file.name;
             photoItem.setAttribute('role', 'gridcell');
             photoItem.setAttribute('aria-label', `Photo ${index + 1}`);
-            // Disable native drag to allow drag selection instead
+            // Disable native drag and drop to allow custom drag selection
             photoItem.draggable = false;
             
             // Check if this photo is already assigned to any category
@@ -6452,9 +6450,7 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
                 }
             }
             
-            // Drag event listeners removed - using drag selection instead
-            // Native drag is disabled to prevent photo dragging behavior
-            
+            // Native drag and drop disabled to allow custom drag selection
             // 雙擊縮圖開啟原尺寸預覽（含動畫）
             const imgEl = photoItem.querySelector('img');
             if (imgEl) {
@@ -6622,7 +6618,7 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                 photoItem.dataset.filename = file.name;
                 photoItem.setAttribute('role', 'gridcell');
                 photoItem.setAttribute('aria-label', `Photo ${index + 1}`);
-                // Disable native drag to allow drag selection instead
+                // Disable native drag and drop to allow custom drag selection
                 photoItem.draggable = false;
                 
                 // Check if this photo is already assigned to any category
@@ -6926,7 +6922,6 @@ class PhotoDragSelector {
         photoGrid.addEventListener('mousemove', (e) => {
             // 如果已經在拖拽中，繼續處理拖拽
             if (this.isDragging) {
-                e.preventDefault(); // 阻止默認行為，防止照片被拖動
                 const photoItem = e.target.closest('.photo-item');
                 if (photoItem && photoItem.closest('#photoGrid') === photoGrid) {
                     this.handleMouseMove(e, photoItem);
@@ -6940,7 +6935,6 @@ class PhotoDragSelector {
                 );
                 // 如果移動距離超過 5 像素，認為是拖拽而不是點擊
                 if (moveDistance > 5) {
-                    e.preventDefault(); // 阻止默認行為，防止照片被拖動
                     this.startDragSelection(e, this.potentialStartPhoto);
                 }
             }
@@ -7022,8 +7016,6 @@ class PhotoDragSelector {
     
     handleGlobalMouseMove(e) {
         if (!this.isDragging || !this.startPhoto) return;
-        
-        e.preventDefault(); // 阻止默認行為，防止照片被拖動
         
         // 找到鼠標位置下的照片
         const elementBelow = document.elementFromPoint(e.clientX, e.clientY);
@@ -9441,7 +9433,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             photoItem.dataset.filename = photo.name;
                             photoItem.setAttribute('role', 'gridcell');
                             photoItem.setAttribute('aria-label', `Photo ${index + 1}`);
-                            // Disable native drag to allow drag selection instead
+                            // Disable native drag and drop to allow custom drag selection
                             photoItem.draggable = false;
                             
                             // Check if this photo is already assigned
@@ -9468,21 +9460,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 ${newIconHtml}
                             `;
                             
-                            // Add event listeners (similar to processAndRenderPhotosOneByOne)
-                            photoItem.addEventListener('dragstart', (event) => {
-                                event.dataTransfer.setData('text/plain', JSON.stringify({
-                                    type: 'photo',
-                                    index: index,
-                                    filename: photo.name,
-                                    file: photo
-                                }));
-                                photoItem.classList.add('dragging');
-                            });
-                            
-                            photoItem.addEventListener('dragend', (event) => {
-                                photoItem.classList.remove('dragging');
-                            });
-                            
+                            // Native drag and drop disabled to allow custom drag selection
                             const imgEl = photoItem.querySelector('img');
                             if (imgEl) {
                                 imgEl.addEventListener('dblclick', async (e) => {
