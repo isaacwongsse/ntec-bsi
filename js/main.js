@@ -6206,6 +6206,14 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
                 ${newIconHtml}
             `;
             
+            // Disable image dragging to prevent native drag behavior
+            const imgEl = photoItem.querySelector('img');
+            if (imgEl) {
+                imgEl.draggable = false;
+                imgEl.style.userSelect = 'none';
+                imgEl.style.webkitUserDrag = 'none';
+            }
+            
             // Save webkitRelativePath if available
             if (file.webkitRelativePath) {
                 photoItem.dataset.webkitRelativePath = file.webkitRelativePath;
@@ -6254,9 +6262,7 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
                 }
             }
             
-            // Native drag and drop disabled to allow custom drag selection
             // Double-click to preview
-            const imgEl = photoItem.querySelector('img');
             if (imgEl) {
                 imgEl.addEventListener('dblclick', async (e) => {
                     e.stopPropagation();
@@ -6418,6 +6424,14 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
                 ${newIconHtml}
             `;
             
+            // Disable image dragging to prevent native drag behavior
+            const imgEl = photoItem.querySelector('img');
+            if (imgEl) {
+                imgEl.draggable = false;
+                imgEl.style.userSelect = 'none';
+                imgEl.style.webkitUserDrag = 'none';
+            }
+            
             // Set status text if submitted
             if (isSubmitted) {
                 const statusDiv = photoItem.querySelector('.photo-status');
@@ -6450,9 +6464,7 @@ async function renderNewPhotosOnly(newPhotos, lazyObserver) {
                 }
             }
             
-            // Native drag and drop disabled to allow custom drag selection
             // 雙擊縮圖開啟原尺寸預覽（含動畫）
-            const imgEl = photoItem.querySelector('img');
             if (imgEl) {
                 imgEl.addEventListener('dblclick', async (e) => {
                     e.stopPropagation();
@@ -6668,13 +6680,20 @@ async function renderPhotos(photos, lazyObserver, isNewPhotos = false) {
                     ${newIconHtml}
                 `;
                 
+                // Disable image dragging to prevent native drag behavior
+                const imgEl = photoItem.querySelector('img');
+                if (imgEl) {
+                    imgEl.draggable = false;
+                    imgEl.style.userSelect = 'none';
+                    imgEl.style.webkitUserDrag = 'none';
+                }
+                
                 // 保存相對路徑以便預覽時嘗試讀原始檔
                 if (file.webkitRelativePath) {
                     photoItem.dataset.webkitRelativePath = file.webkitRelativePath;
                 }
                 
                 // 雙擊縮圖開啟原尺寸預覽（含動畫）
-                const imgEl = photoItem.querySelector('img');
                 if (imgEl) {
                     imgEl.addEventListener('dblclick', async (e) => {
                         e.stopPropagation();
@@ -6935,6 +6954,9 @@ class PhotoDragSelector {
                 );
                 // 如果移動距離超過 5 像素，認為是拖拽而不是點擊
                 if (moveDistance > 5) {
+                    // 立即阻止默認行為，防止照片被拖動
+                    e.preventDefault();
+                    e.stopPropagation();
                     this.startDragSelection(e, this.potentialStartPhoto);
                 }
             }
@@ -6999,14 +7021,19 @@ class PhotoDragSelector {
         };
         this.potentialStartPhoto = photoItem;
         
-        // 不立即阻止事件，讓點擊事件先處理
+        // 阻止默認的拖動行為，防止照片被拖動出去
+        e.preventDefault();
+        
+        // 不立即阻止事件傳播，讓點擊事件先處理
         // 只有在 mousemove 檢測到拖拽時才開始拖拽選擇
     }
     
     handleMouseMove(e, photoItem) {
         if (!this.isDragging || !this.startPhoto) return;
         
+        // 阻止默認行為，防止照片被拖動
         e.preventDefault();
+        e.stopPropagation();
         
         this.endPhoto = photoItem;
         
@@ -9460,9 +9487,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 ${newIconHtml}
                             `;
                             
-                            // Native drag and drop disabled to allow custom drag selection
+                            // Disable image dragging to prevent native drag behavior
                             const imgEl = photoItem.querySelector('img');
                             if (imgEl) {
+                                imgEl.draggable = false;
+                                imgEl.style.userSelect = 'none';
+                                imgEl.style.webkitUserDrag = 'none';
+                                
                                 imgEl.addEventListener('dblclick', async (e) => {
                                     e.stopPropagation();
                                     try {
