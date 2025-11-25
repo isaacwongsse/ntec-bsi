@@ -3135,6 +3135,41 @@ let autoCreateDefectMarkMode = false;
 
 let allPhotos = [];
 
+// Photo hash storage: Map<filename, contentHash>
+// Used to detect duplicate photos based on content hash
+let photoHashStorage = new Map();
+
+/**
+ * Calculate content hash for a file using SHA-256
+ * @param {File} file - The file to calculate hash for
+ * @returns {Promise<string>} - The hexadecimal hash string
+ */
+async function calculateFileHash(file) {
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    } catch (error) {
+        window.logger.error('Error calculating file hash:', error);
+        // Fallback: use file name and size as hash if crypto API fails
+        return `${file.name}_${file.size}_${file.lastModified}`;
+    }
+}
+
+/**
+ * Check if a photo is a duplicate based on filename and content hash
+ * @param {string} filename - The filename to check
+ * @param {string} contentHash - The content hash to check
+ * @returns {boolean} - True if duplicate (same filename AND same hash), false otherwise
+ */
+function isDuplicatePhoto(filename, contentHash) {
+    const existingHash = photoHashStorage.get(filename);
+    // Only block if filename is same AND content hash is same
+    return existingHash === contentHash;
+}
+
 // Store folders for export
 let photoFolders = [];
 
@@ -6142,6 +6177,21 @@ async function processAndRenderPhotosOneByOne(photos, updateLoadingMessage) {
             }
             
             window.logger.log(`Processing photo ${i + 1}/${photos.length}: ${file.name}`);
+            
+            // Calculate and store content hash for duplicate detection
+            if (!file.contentHash) {
+                try {
+                    file.contentHash = await calculateFileHash(file);
+                    // Store hash for future duplicate detection
+                    photoHashStorage.set(file.name, file.contentHash);
+                    window.logger.log(`Calculated hash for ${file.name}: ${file.contentHash.substring(0, 16)}...`);
+                } catch (error) {
+                    window.logger.error(`Error calculating hash for ${file.name}:`, error);
+                }
+            } else {
+                // Hash already exists, just store it
+                photoHashStorage.set(file.name, file.contentHash);
+            }
             
             // Resize/compress the image
             let resizedImageURL;
@@ -9367,46 +9417,50 @@ document.addEventListener('DOMContentLoaded', async function() {
             showPhotoUploadLoading('正在處理新增的照片...');
             
             try {
-                // Check for duplicate photos by name and photo number
-                const existingPhotoNames = new Set(allPhotos.map(photo => photo.name));
-                const existingPhotoNumbers = new Set(allPhotos.map(photo => {
-                    const numberMatch = photo.name.match(/\d+/);
-                    return numberMatch ? numberMatch[0] : '';
-                }).filter(num => num !== ''));
+                // Check for duplicate photos by name and content hash
+                // Rules:
+                // 1. If filename is same AND content hash is same -> block upload
+                // 2. If filename is same BUT content hash is different -> allow upload
+                // 3. If filename is different BUT content hash is same -> allow upload
                 
                 window.logger.log('Add photos: Existing photos count:', allPhotos.length);
-                window.logger.log('Add photos: Existing photo numbers:', Array.from(existingPhotoNumbers));
+                window.logger.log('Add photos: Photo hash storage size:', photoHashStorage.size);
                 
-                const duplicatePhotos = [];
-                const duplicatePhotoNumbers = [];
+                const duplicatePhotos = []; // Photos blocked due to same filename AND same hash
                 const newPhotos = [];
+                const filesToCheck = [];
                 
+                // First, filter valid image files
                 for (const file of files) {
                     window.logger.log('Add photos: Processing file:', file.name, 'Type:', file.type);
                     // Filter out macOS resource fork files (._* files) and only accept valid image files
                     if (!file.name.startsWith('._') && file.type.startsWith('image/')) {
-                        // Extract photo number from filename
-                        const numberMatch = file.name.match(/\d+/);
-                        const photoNumber = numberMatch ? numberMatch[0] : '';
-                        
-                        // Check for duplicate filename
-                        if (existingPhotoNames.has(file.name)) {
-                            window.logger.log('Add photos: Duplicate filename found:', file.name);
-                            duplicatePhotos.push(file.name);
-                        }
-                        // Check for duplicate photo number
-                        else if (photoNumber && existingPhotoNumbers.has(photoNumber)) {
-                            window.logger.log('Add photos: Duplicate photo number found:', photoNumber, 'in file:', file.name);
-                            duplicatePhotoNumbers.push({ filename: file.name, number: photoNumber });
-                        }
-                        // Photo is new and unique - add to newPhotos without compressing yet
-                        // Compression will happen during one-by-one processing
-                        else {
-                            window.logger.log('Add photos: New photo added to queue:', file.name, 'Number:', photoNumber);
-                            newPhotos.push(file);
-                        }
+                        filesToCheck.push(file);
                     } else {
                         window.logger.log('Add photos: Skipping non-image file:', file.name);
+                    }
+                }
+                
+                // Calculate hashes for all files in parallel
+                const fileHashPromises = filesToCheck.map(async (file) => {
+                    const hash = await calculateFileHash(file);
+                    return { file, hash };
+                });
+                
+                const fileHashResults = await Promise.all(fileHashPromises);
+                
+                // Check each file against hash storage
+                for (const { file, hash } of fileHashResults) {
+                    // Check if duplicate (same filename AND same hash)
+                    if (isDuplicatePhoto(file.name, hash)) {
+                        window.logger.log('Add photos: Duplicate photo blocked (same filename and hash):', file.name, 'Hash:', hash.substring(0, 16) + '...');
+                        duplicatePhotos.push(file.name);
+                    } else {
+                        // Allow upload: either different filename or different hash
+                        window.logger.log('Add photos: New photo added to queue:', file.name, 'Hash:', hash.substring(0, 16) + '...');
+                        newPhotos.push(file);
+                        // Store the hash for future duplicate detection
+                        photoHashStorage.set(file.name, hash);
                     }
                 }
                 
@@ -9589,29 +9643,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                 window.logger.log('DEBUG: defectEntries after photo upload:', window.defectEntries ? window.defectEntries.length : 'undefined');
                 
                 // Show appropriate notification
-                const totalDuplicates = duplicatePhotos.length + duplicatePhotoNumbers.length;
-                
-                if (totalDuplicates > 0 && newPhotos.length > 0) {
-                    let message = `Added ${newPhotos.length} new photos. `;
-                    if (duplicatePhotos.length > 0) {
-                        message += `${duplicatePhotos.length} duplicate filenames were skipped. `;
-                    }
-                    if (duplicatePhotoNumbers.length > 0) {
-                        message += `${duplicatePhotoNumbers.length} photos with duplicate numbers were skipped.`;
-                    }
-                    showNotification(message, 'warning');
-                } else if (totalDuplicates > 0 && newPhotos.length === 0) {
-                    let message = '';
-                    if (duplicatePhotos.length > 0) {
-                        message += `${duplicatePhotos.length} duplicate filenames were not uploaded. `;
-                    }
-                    if (duplicatePhotoNumbers.length > 0) {
-                        message += `${duplicatePhotoNumbers.length} photos with duplicate numbers were not uploaded. `;
-                    }
-                    message += 'Please select different photos.';
-                    showNotification(message, 'warning');
+                if (duplicatePhotos.length > 0 && newPhotos.length > 0) {
+                    const message = `Added ${newPhotos.length} new photo(s). ${duplicatePhotos.length} duplicate photo(s) were blocked (same filename and content hash): ${duplicatePhotos.slice(0, 3).join(', ')}${duplicatePhotos.length > 3 ? '...' : ''}`;
+                    showNotification(message, 'warning', 5000);
+                } else if (duplicatePhotos.length > 0 && newPhotos.length === 0) {
+                    const message = `${duplicatePhotos.length} duplicate photo(s) were blocked (same filename and content hash): ${duplicatePhotos.slice(0, 3).join(', ')}${duplicatePhotos.length > 3 ? '...' : ''}. Please select different photos.`;
+                    showNotification(message, 'warning', 5000);
                 } else if (newPhotos.length > 0) {
-                    showNotification(`Added ${newPhotos.length} new photos`, 'success');
+                    showNotification(`Added ${newPhotos.length} new photo(s)`, 'success');
                 }
                 
             } catch (error) {
