@@ -23,24 +23,15 @@ self.addEventListener('message', function(e) {
         // 嘗試序列化數據
         let jsonString;
         try {
-            // 對於非常大的數據，使用分批處理策略
-            const dataSize = estimateDataSize(data);
+            // 直接使用 JSON.stringify（在 Worker 中不會阻塞主線程）
+            self.postMessage({
+                type: 'progress',
+                message: '正在序列化數據，請稍候...',
+                progress: 30,
+                taskId: taskId
+            });
             
-            if (dataSize > 50 * 1024 * 1024) { // 如果數據超過 50MB
-                // 使用分批序列化
-                self.postMessage({
-                    type: 'progress',
-                    message: '數據較大，正在分批處理...',
-                    progress: 20,
-                    taskId: taskId
-                });
-                
-                // 使用遞歸序列化，允許瀏覽器在處理過程中響應
-                jsonString = stringifyWithProgress(data, taskId);
-            } else {
-                // 直接序列化
-                jsonString = JSON.stringify(data, null, 2);
-            }
+            jsonString = JSON.stringify(data, null, 2);
             
             const endTime = Date.now();
             const duration = endTime - startTime;
@@ -55,27 +46,30 @@ self.addEventListener('message', function(e) {
             });
             
         } catch (stringifyError) {
-            // 如果 JSON.stringify 失敗，嘗試使用替代方法
-            self.postMessage({
-                type: 'progress',
-                message: '標準序列化失敗，嘗試替代方法...',
-                progress: 50,
-                taskId: taskId
-            });
-            
-            // 嘗試使用替代序列化方法
-            jsonString = stringifyWithProgress(data, taskId);
-            
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            
-            self.postMessage({
-                type: 'success',
-                result: jsonString,
-                duration: duration,
-                size: jsonString.length,
-                taskId: taskId
-            });
+            // 處理序列化錯誤
+            if (stringifyError.name === 'RangeError' && stringifyError.message.includes('string length')) {
+                // 數據太大，無法序列化
+                self.postMessage({
+                    type: 'error',
+                    error: {
+                        message: '數據過大無法序列化。照片數量過多時，系統已自動移除照片數據以減少文件大小。如果仍然失敗，請減少照片數量。',
+                        name: 'RangeError',
+                        stack: stringifyError.stack
+                    },
+                    taskId: taskId
+                });
+            } else {
+                // 其他序列化錯誤
+                self.postMessage({
+                    type: 'error',
+                    error: {
+                        message: stringifyError.message || '序列化失敗',
+                        name: stringifyError.name || 'Error',
+                        stack: stringifyError.stack
+                    },
+                    taskId: taskId
+                });
+            }
         }
         
     } catch (error) {

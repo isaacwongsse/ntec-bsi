@@ -13370,7 +13370,7 @@ saveAsPNEBtn.addEventListener('click', async function() {
                     }
                 }
                 
-                // 添加照片文件引用
+                // 添加照片文件引用（不包含 dataURL 以減少文件大小）
                 allPhotos.forEach((photo, index) => {
                     files.push({
                         id: `photo_${index}`,
@@ -13380,8 +13380,9 @@ saveAsPNEBtn.addEventListener('click', async function() {
                         description: `檢查照片 - ${photo.name}`,
                         uploadDate: new Date(photo.lastModified).toISOString(),
                         size: `${(photo.size / 1024 / 1024).toFixed(2)} MB`,
-                        dataURL: photo.dataURL || '',
-                        webkitRelativePath: photo.webkitRelativePath || ''
+                        webkitRelativePath: photo.webkitRelativePath || '',
+                        // 不保存 dataURL，從原始文件夾重新讀取
+                        hasDataURL: !!(photo.dataURL)
                     });
                 });
                 
@@ -13391,29 +13392,45 @@ saveAsPNEBtn.addEventListener('click', async function() {
             // 照片基本與指派統計
             totalPhotos: allPhotos.length,
             totalAssignments: Object.values(assignedPhotos).reduce((sum, photos) => sum + photos.size, 0),
-            photoMetadata: allPhotos.map(file => {
-                // 如果沒有 dataURL，嘗試從 DOM 中獲取
-                let dataURL = file.dataURL || '';
-                if (!dataURL) {
-                    // 使用正確的 selector: data-filename 而不是 data-photo-name
-                    const photoItem = document.querySelector(`[data-filename="${file.name}"]`);
-                    if (photoItem) {
-                        const img = photoItem.querySelector('img');
-                        if (img && img.src && img.src.startsWith('data:')) {
-                            dataURL = img.src;
-                        }
-                    }
+            // 對於大量照片，不保存 dataURL 以避免超過字符串長度限制
+            photoMetadata: (() => {
+                const PHOTO_LIMIT_FOR_DATAURL = 500; // 超過 500 張照片時不保存 dataURL
+                const shouldSaveDataURL = allPhotos.length <= PHOTO_LIMIT_FOR_DATAURL;
+                
+                if (!shouldSaveDataURL) {
+                    window.logger.log(`照片數量 (${allPhotos.length}) 超過限制 (${PHOTO_LIMIT_FOR_DATAURL})，不保存 dataURL 以減少文件大小`);
                 }
                 
-                return {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                    lastModified: file.lastModified || Date.now(),
-                    webkitRelativePath: file.webkitRelativePath || '',
-                    dataURL: dataURL // 保存照片的 dataURL 以便恢復
-                };
-            }),
+                return allPhotos.map(file => {
+                    let dataURL = '';
+                    
+                    // 只有在照片數量較少時才保存 dataURL
+                    if (shouldSaveDataURL) {
+                        // 如果沒有 dataURL，嘗試從 DOM 中獲取
+                        dataURL = file.dataURL || '';
+                        if (!dataURL) {
+                            // 使用正確的 selector: data-filename 而不是 data-photo-name
+                            const photoItem = document.querySelector(`[data-filename="${file.name}"]`);
+                            if (photoItem) {
+                                const img = photoItem.querySelector('img');
+                                if (img && img.src && img.src.startsWith('data:')) {
+                                    dataURL = img.src;
+                                }
+                            }
+                        }
+                    }
+                    
+                    return {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        lastModified: file.lastModified || Date.now(),
+                        webkitRelativePath: file.webkitRelativePath || '',
+                        dataURL: dataURL, // 大量照片時為空字符串
+                        hasDataURL: !!dataURL // 標記是否有 dataURL
+                    };
+                });
+            })(),
 
             // 主資料表
             inspectionRecords: submittedData,
@@ -13521,7 +13538,10 @@ saveAsPNEBtn.addEventListener('click', async function() {
                             } else if (type === 'error') {
                                 // 序列化失敗
                                 window.logger.error('PNE serialization error:', error);
-                                reject(new Error(error.message || '序列化失敗'));
+                                const errorMessage = error && error.message 
+                                    ? error.message 
+                                    : (error && typeof error === 'string' ? error : '序列化失敗');
+                                reject(new Error(errorMessage));
                             }
                         };
                         
@@ -13549,7 +13569,18 @@ saveAsPNEBtn.addEventListener('click', async function() {
                     window.logger.warn('Web Worker not available, falling back to direct serialization:', workerError);
                     // 如果 Worker 不可用，使用直接序列化（但會阻塞）
                     showPNESaveLoading('使用直接序列化（可能會暫時無響應）...');
-                    jsonString = JSON.stringify(data, null, 2);
+                    try {
+                        jsonString = JSON.stringify(data, null, 2);
+                    } catch (stringifyError) {
+                        if (stringifyError.name === 'RangeError' && stringifyError.message.includes('string length')) {
+                            // 數據太大，無法序列化
+                            hidePNESaveLoading();
+                            showNotification('數據過大無法保存。照片數量過多時，請減少照片數量或聯繫開發者。', 'error');
+                            window.logger.error('Data too large to serialize. Photo count:', allPhotos.length);
+                            return;
+                        }
+                        throw stringifyError;
+                    }
                 } finally {
                     // 清理 Worker
                     if (worker) {
