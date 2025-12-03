@@ -13253,13 +13253,36 @@ function dataURLToBlob(dataURL) {
 
 // Save as PNE file
 const saveAsPNEBtn = document.querySelector('.pne-dropdown-item[data-action="saveas"]');
-saveAsPNEBtn.addEventListener('click', function() {
+saveAsPNEBtn.addEventListener('click', async function() {
     // 關閉下拉選單
     const pneDropdown = document.querySelector('.pne-dropdown');
     if (pneDropdown) {
         pneDropdown.style.display = 'none';
     }
+    
+    // 顯示進度指示器
+    const showPNESaveLoading = (message = '正在準備數據...') => {
+        const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+        const statusTitle = document.getElementById('photoUploadStatusTitle');
+        const statusMessage = document.getElementById('photoUploadStatusMessage');
+        if (loadingStatus && statusTitle && statusMessage) {
+            statusTitle.textContent = '正在保存 PNE 文件...';
+            statusMessage.textContent = message;
+            loadingStatus.style.display = 'flex';
+        }
+    };
+    
+    const hidePNESaveLoading = () => {
+        const loadingStatus = document.getElementById('photoUploadLoadingStatus');
+        if (loadingStatus) {
+            loadingStatus.style.display = 'none';
+        }
+    };
+    
     try {
+        showPNESaveLoading('正在收集數據...');
+        window.logger.log('Starting PNE file save process...');
+        window.logger.log('Total photos:', allPhotos.length);
         // 收集 localStorage 內容（避免 {...localStorage} 在部分瀏覽器取不到資料）
         const localStorageData = {};
         for (let i = 0; i < localStorage.length; i++) {
@@ -13467,76 +13490,147 @@ saveAsPNEBtn.addEventListener('click', function() {
             currentTask: currentTask
         };
 
-        // 下載JSON，使用任務名稱和當前日期時間作為文件名
-        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        // 使用 Web Worker 進行異步 JSON 序列化，避免阻塞主線程
+        showPNESaveLoading('正在序列化數據（這可能需要一些時間）...');
         
-        // 生成文件名：任務名稱 _ 日期 _ 時間
-        let fileName = '';
-        
-        // 獲取任務名稱
-        if (currentTask && currentTask.name && currentTask.name.trim()) {
-            // 清理任務名稱中的非法字符
-            const cleanTaskName = currentTask.name.trim().replace(/[\\/:*?"<>|]/g, '_');
-            fileName = cleanTaskName;
-        } else {
-            // 如果沒有任務名稱，使用默認名稱
-            let folderName = folderNameDisplay.textContent.trim() || 'unknown';
-            folderName = folderName.replace(/[^a-zA-Z0-9_-]/g, '_');
-            fileName = `PNE_${folderName}`;
-        }
-        
-        // 獲取當前日期和時間
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        
-        // 組合文件名：任務名稱 _ 日期 _ 時間
-        const dateStr = `${year}${month}${day}`;
-        const timeStr = `${hours}${minutes}`;
-        fileName = `${fileName} _ ${dateStr} _ ${timeStr}`;
-        
-        // 添加 .pne 副檔名
-        if (!fileName.toLowerCase().endsWith('.pne')) {
-            fileName += '.pne';
-        }
-        
-        // 清理最終文件名中的非法字符
-        fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
-        
-        a.download = fileName;
-        a.href = url;
-        a.style.display = 'none';
-        document.body.appendChild(a);
+        const taskId = 'pne-save-' + Date.now();
+        let worker = null;
+        let jsonString = null;
         
         try {
+            // 檢查是否支持 Web Worker
+            if (typeof Worker !== 'undefined') {
+                // 創建 Web Worker
+                try {
+                    worker = new Worker('js/workers/pne-saver.worker.js');
+                    
+                    // 監聽 Worker 消息
+                    const workerPromise = new Promise((resolve, reject) => {
+                        worker.onmessage = function(e) {
+                            const { type, message, progress, result, error, duration, size } = e.data;
+                            
+                            if (type === 'progress') {
+                                // 更新進度
+                                showPNESaveLoading(message || `處理中... ${progress}%`);
+                                window.logger.log('PNE save progress:', message, progress + '%');
+                            } else if (type === 'success') {
+                                // 序列化成功
+                                window.logger.log('PNE file serialized successfully. Duration:', duration, 'ms, Size:', size, 'bytes');
+                                jsonString = result;
+                                resolve(result);
+                            } else if (type === 'error') {
+                                // 序列化失敗
+                                window.logger.error('PNE serialization error:', error);
+                                reject(new Error(error.message || '序列化失敗'));
+                            }
+                        };
+                        
+                        worker.onerror = function(error) {
+                            window.logger.error('Worker error:', error);
+                            reject(new Error('Worker 執行錯誤: ' + error.message));
+                        };
+                        
+                        // 設置超時（5分鐘）
+                        setTimeout(() => {
+                            if (jsonString === null) {
+                                reject(new Error('序列化超時，數據可能過大'));
+                            }
+                        }, 5 * 60 * 1000);
+                    });
+                    
+                    // 發送數據到 Worker
+                    showPNESaveLoading('正在準備序列化任務...');
+                    worker.postMessage({ data: data, taskId: taskId });
+                    
+                    // 等待 Worker 完成
+                    await workerPromise;
+                    
+                } catch (workerError) {
+                    window.logger.warn('Web Worker not available, falling back to direct serialization:', workerError);
+                    // 如果 Worker 不可用，使用直接序列化（但會阻塞）
+                    showPNESaveLoading('使用直接序列化（可能會暫時無響應）...');
+                    jsonString = JSON.stringify(data, null, 2);
+                } finally {
+                    // 清理 Worker
+                    if (worker) {
+                        worker.terminate();
+                        worker = null;
+                    }
+                }
+            } else {
+                // 瀏覽器不支持 Web Worker，使用直接序列化
+                window.logger.warn('Web Worker not supported, using direct serialization');
+                showPNESaveLoading('使用直接序列化（可能會暫時無響應）...');
+                jsonString = JSON.stringify(data, null, 2);
+            }
+            
+        } catch (serializeError) {
+            window.logger.error('Serialization error:', serializeError);
+            hidePNESaveLoading();
+            showNotification('序列化數據失敗: ' + serializeError.message, 'error');
+            return;
+        }
+        
+        if (!jsonString) {
+            hidePNESaveLoading();
+            showNotification('序列化失敗：未生成數據', 'error');
+            return;
+        }
+        
+        // 創建 Blob 和下載
+        showPNESaveLoading('正在創建文件...');
+        
+        try {
+            const blob = new Blob([jsonString], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            // 生成文件名：任務名稱 _ 日期 _ 時間
+            let fileName = '';
+            
+            // 獲取任務名稱
+            if (currentTask && currentTask.name && currentTask.name.trim()) {
+                // 清理任務名稱中的非法字符
+                const cleanTaskName = currentTask.name.trim().replace(/[\\/:*?"<>|]/g, '_');
+                fileName = cleanTaskName;
+            } else {
+                // 如果沒有任務名稱，使用默認名稱
+                let folderName = folderNameDisplay.textContent.trim() || 'unknown';
+                folderName = folderName.replace(/[^a-zA-Z0-9_-]/g, '_');
+                fileName = `PNE_${folderName}`;
+            }
+            
+            // 獲取當前日期和時間
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            // 組合文件名：任務名稱 _ 日期 _ 時間
+            const dateStr = `${year}${month}${day}`;
+            const timeStr = `${hours}${minutes}`;
+            fileName = `${fileName} _ ${dateStr} _ ${timeStr}`;
+            
+            // 添加 .pne 副檔名
+            if (!fileName.toLowerCase().endsWith('.pne')) {
+                fileName += '.pne';
+            }
+            
+            // 清理最終文件名中的非法字符
+            fileName = fileName.replace(/[\\/:*?"<>|]/g, '_');
+            
+            a.download = fileName;
+            a.href = url;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            
             // 嘗試觸發下載
             a.click();
+            hidePNESaveLoading();
             showNotification('PNE 檔案已匯出，包含完整資料！', 'success');
-        } catch (downloadError) {
-            window.logger.error('Download failed:', downloadError);
-            // 如果下載失敗，嘗試在新窗口中打開
-            try {
-                window.open(url, '_blank');
-                showNotification('PNE 檔案已在新窗口中打開，請手動保存！', 'info');
-            } catch (openError) {
-                window.logger.error('Open in new window failed:', openError);
-                // 最後的備用方案：複製到剪貼板
-                try {
-                    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
-                        showNotification('PNE 資料已複製到剪貼板，請貼到文字編輯器中保存！', 'info');
-                    }).catch(() => {
-                        showNotification('無法下載檔案，請檢查瀏覽器設定或嘗試在其他瀏覽器中打開！', 'error');
-                    });
-                } catch (clipboardError) {
-                    showNotification('無法下載檔案，請檢查瀏覽器設定或嘗試在其他瀏覽器中打開！', 'error');
-                }
-            }
-        } finally {
+            
             // 清理資源
             setTimeout(() => {
                 if (document.body.contains(a)) {
@@ -13544,9 +13638,26 @@ saveAsPNEBtn.addEventListener('click', function() {
                 }
                 URL.revokeObjectURL(url);
             }, 1000);
+            
+        } catch (downloadError) {
+            window.logger.error('Download failed:', downloadError);
+            hidePNESaveLoading();
+            
+            // 如果下載失敗，嘗試在新窗口中打開
+            try {
+                const blob = new Blob([jsonString], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+                showNotification('PNE 檔案已在新窗口中打開，請手動保存！', 'info');
+            } catch (openError) {
+                window.logger.error('Open in new window failed:', openError);
+                showNotification('無法下載檔案，請檢查瀏覽器設定或嘗試在其他瀏覽器中打開！', 'error');
+            }
         }
     } catch (err) {
-        showNotification('匯出 PNE 檔案失敗: ' + err.message, 'error');
+        window.logger.error('PNE file save error:', err);
+        hidePNESaveLoading();
+        showNotification('匯出 PNE 檔案失敗: ' + (err.message || err.toString()), 'error');
     }
 });
 // 清理PDF數據存儲的函數（已更新：系統不再保存PDF base64數據）
