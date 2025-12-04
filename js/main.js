@@ -11776,7 +11776,7 @@ window.saveDataToStorage = async function() {
 
 // 生成 Inspection Records CSV
 function generateInspectionRecordsCSV() {
-    let csv = 'Inspection no.,Inspection Date,Location (Floor, Area name and Room no. in sequence),A: Exposed structural metalwork,B: Structural elements,C: External building elements,D: Suspended objects,E: High level internal finishes,F: Heavy metal gates/doors,G: Window and glass louvers,H: Drainage and Plumbing systems,I: Fire safety elements,J: Defects,Imminent Danger\n';
+    let csv = 'Inspection no.,Inspection Date,"Location (Floor, Area name and Room no. in sequence)",A: Exposed structural metalwork,B: Structural elements,C: External building elements,D: Suspended objects,E: High level internal finishes,F: Heavy metal gates/doors,G: Window and glass louvers,H: Drainage and Plumbing systems,I: Fire safety elements,J: Defects,Imminent Danger\n';
     
     submittedData.forEach(row => {
         // 組合位置信息：floor, Area name, Room no.
