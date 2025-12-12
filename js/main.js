@@ -12802,11 +12802,12 @@ async function exportFloorPlanToZip(zip) {
 
                     // 獲取頁面
                     const pages = pdfDoc.getPages();
+                    const originalPage = pages[0];
                     const [firstPage] = await newPdfDoc.copyPages(pdfDoc, [0]);
                     newPdfDoc.addPage(firstPage);
 
                     // 獲取頁面尺寸
-                    const { width, height } = firstPage.getSize();
+                    let { width, height } = firstPage.getSize();
                     
                     // 獲取Canvas尺寸用於坐標轉換
                     const floorPlanCanvas = document.getElementById('floorPlanCanvas');
@@ -12846,10 +12847,12 @@ async function exportFloorPlanToZip(zip) {
                     window.logger.log('Is rotated 90 degrees:', isRotated90Degrees);
                     window.logger.log('Floor plan data:', floorPlanData);
                     
-                    // 如果檢測到 90 度旋轉，交換 Canvas 的寬高
+                    // 如果檢測到 90 度旋轉，交換 PDF 的寬高（而不是 Canvas 的寬高）
+                    // 因為 Canvas 的尺寸已經通過 getViewport() 考慮了旋轉，所以是正確的
+                    // 而 PDF 的 getSize() 返回的是原始尺寸，需要根據旋轉調整
                     if (isRotated90Degrees) {
-                        window.logger.warn('Canvas appears to be rotated 90 degrees relative to PDF - swapping dimensions');
-                        [canvasWidth, canvasHeight] = [canvasHeight, canvasWidth];
+                        window.logger.warn('PDF appears to be rotated 90 degrees relative to Canvas - swapping PDF dimensions');
+                        [width, height] = [height, width];
                     } else if (aspectRatioDiff > 0.1) {
                         window.logger.warn('Canvas and PDF aspect ratios differ significantly, coordinate conversion may be inaccurate');
                     }
@@ -13787,12 +13790,12 @@ async function generateAnnotatedPDF() {
 
                 // 獲取頁面
                 const pages = pdfDoc.getPages();
+                const originalPage = pages[0];
                 const [firstPage] = await newPdfDoc.copyPages(pdfDoc, [0]);
                 newPdfDoc.addPage(firstPage);
 
                 // 獲取頁面尺寸
-                const { width, height } = firstPage.getSize();
-                window.logger.log('PDF page size:', width, height);
+                let { width, height } = firstPage.getSize();
 
                 // 獲取Canvas尺寸（用於坐標轉換）
                 const floorPlanCanvas = document.getElementById('floorPlanCanvas');
@@ -13800,9 +13803,28 @@ async function generateAnnotatedPDF() {
                 // 使用 CSS 尺寸，因為 canvasPosition 是基於 CSS 尺寸計算的
                 const canvasWidth = parseFloat(floorPlanCanvas.style.width) || floorPlanCanvas.width / (window.outputScale || 1);
                 const canvasHeight = parseFloat(floorPlanCanvas.style.height) || floorPlanCanvas.height / (window.outputScale || 1);
+
+                // 檢測是否需要交換寬高（處理 PDF 旋轉問題）
+                const canvasAspectRatio = canvasWidth / canvasHeight;
+                const pdfAspectRatio = width / height;
+                const aspectRatioDiff = Math.abs(canvasAspectRatio - pdfAspectRatio);
                 
+                let shouldSwapDimensions = false;
+                if (aspectRatioDiff > 0.5) {
+                    const canvasIsLandscape = canvasWidth > canvasHeight;
+                    const pdfIsLandscape = width > height;
+                    if (canvasIsLandscape !== pdfIsLandscape) {
+                        shouldSwapDimensions = true;
+                        [width, height] = [height, width];
+                        window.logger.log('Detected PDF rotation - swapped width and height for coordinate conversion');
+                    }
+                }
+                
+                window.logger.log('PDF page size:', width, height);
                 window.logger.log('Canvas CSS size:', canvasWidth, canvasHeight);
                 window.logger.log('Canvas actual size:', floorPlanCanvas.width, floorPlanCanvas.height);
+                window.logger.log('Aspect ratios - Canvas:', canvasAspectRatio, 'PDF:', pdfAspectRatio, 'Diff:', aspectRatioDiff);
+                window.logger.log('Should swap dimensions:', shouldSwapDimensions);
                 // 提高 PDF 導出的解析度
                 const exportScale = Math.max(2, Math.min(4, (window.devicePixelRatio || 1) * 1.5));
                 window.logger.log('Output scale:', exportScale);
@@ -21573,12 +21595,28 @@ if (typeof window.updateAllLabelPositions === 'function') {
                         newPdfDoc.addPage(firstPage);
 
                         // 獲取頁面尺寸
-                        const { width, height } = firstPage.getSize();
+                        let { width, height } = firstPage.getSize();
                         
                         // 獲取Canvas尺寸用於坐標轉換
                         // 使用 CSS 尺寸而不是實際 canvas 尺寸，因為標籤位置是基於 CSS 尺寸計算的
                         const canvasWidth = parseFloat(floorPlanCanvas.style.width) || floorPlanCanvas.width;
                         const canvasHeight = parseFloat(floorPlanCanvas.style.height) || floorPlanCanvas.height;
+
+                        // 檢測是否需要交換寬高（處理 PDF 旋轉問題）
+                        const canvasAspectRatio = canvasWidth / canvasHeight;
+                        const pdfAspectRatio = width / height;
+                        const aspectRatioDiff = Math.abs(canvasAspectRatio - pdfAspectRatio);
+                        
+                        let shouldSwapDimensions = false;
+                        if (aspectRatioDiff > 0.5) {
+                            const canvasIsLandscape = canvasWidth > canvasHeight;
+                            const pdfIsLandscape = width > height;
+                            if (canvasIsLandscape !== pdfIsLandscape) {
+                                shouldSwapDimensions = true;
+                                [width, height] = [height, width];
+                                window.logger.log('Detected PDF rotation - swapped width and height for coordinate conversion');
+                            }
+                        }
 
                         // 初始化標籤和缺陷標記數組（如果不存在）
                         if (!window.labels) {
@@ -21901,19 +21939,42 @@ if (typeof window.updateAllLabelPositions === 'function') {
 
                     // 獲取頁面
                     const pages = pdfDoc.getPages();
+                    const originalPage = pages[0];
                     const [firstPage] = await newPdfDoc.copyPages(pdfDoc, [0]);
                     newPdfDoc.addPage(firstPage);
 
                     // 獲取頁面尺寸
-                    const { width, height } = firstPage.getSize();
+                    let { width, height } = firstPage.getSize();
                     
                     // 獲取Canvas尺寸用於坐標轉換
                     // 使用 CSS 尺寸，因為 canvasPosition 是基於 CSS 尺寸計算的
                     const canvasWidth = parseFloat(floorPlanCanvas.style.width) || floorPlanCanvas.width / (window.outputScale || 1);
                     const canvasHeight = parseFloat(floorPlanCanvas.style.height) || floorPlanCanvas.height / (window.outputScale || 1);
 
+                    // 檢測是否需要交換寬高（處理 PDF 旋轉問題）
+                    // 如果 canvas 的寬高比與 PDF 的寬高比不匹配，可能需要交換
+                    const canvasAspectRatio = canvasWidth / canvasHeight;
+                    const pdfAspectRatio = width / height;
+                    const aspectRatioDiff = Math.abs(canvasAspectRatio - pdfAspectRatio);
+                    
+                    // 如果寬高比差異很大（> 0.5），且 canvas 和 PDF 的寬高比相反，則交換 PDF 的寬高
+                    // 這通常表示 PDF 頁面有 90 度或 270 度的旋轉
+                    let shouldSwapDimensions = false;
+                    if (aspectRatioDiff > 0.5) {
+                        // 檢查是否應該交換：如果 canvas 是橫向但 PDF 是縱向（或相反）
+                        const canvasIsLandscape = canvasWidth > canvasHeight;
+                        const pdfIsLandscape = width > height;
+                        if (canvasIsLandscape !== pdfIsLandscape) {
+                            shouldSwapDimensions = true;
+                            [width, height] = [height, width];
+                            window.logger.log('Detected PDF rotation - swapped width and height for coordinate conversion');
+                        }
+                    }
+
                     window.logger.log('PDF page size:', width, height);
                     window.logger.log('Canvas size:', canvasWidth, canvasHeight);
+                    window.logger.log('Aspect ratios - Canvas:', canvasAspectRatio, 'PDF:', pdfAspectRatio, 'Diff:', aspectRatioDiff);
+                    window.logger.log('Should swap dimensions:', shouldSwapDimensions);
                     window.logger.log('Current scale:', window.currentScale, 'Translate:', window.translateX, window.translateY);
 
                     // 初始化標籤和缺陷標記數組（如果不存在）
@@ -22036,16 +22097,33 @@ if (typeof window.updateAllLabelPositions === 'function') {
 
                             // 獲取頁面
                             const pages = pdfDoc.getPages();
+                            const originalPage = pages[0];
                             const [firstPage] = await newPdfDoc.copyPages(pdfDoc, [0]);
                             newPdfDoc.addPage(firstPage);
 
                             // 獲取頁面尺寸
-                            const { width, height } = firstPage.getSize();
+                            let { width, height } = firstPage.getSize();
                             
                             // 獲取Canvas尺寸用於坐標轉換
                             // 使用 CSS 尺寸而不是實際 canvas 尺寸，因為標籤位置是基於 CSS 尺寸計算的
                             const canvasWidth = parseFloat(floorPlanCanvas.style.width) || floorPlanCanvas.width;
                             const canvasHeight = parseFloat(floorPlanCanvas.style.height) || floorPlanCanvas.height;
+
+                            // 檢測是否需要交換寬高（處理 PDF 旋轉問題）
+                            const canvasAspectRatio = canvasWidth / canvasHeight;
+                            const pdfAspectRatio = width / height;
+                            const aspectRatioDiff = Math.abs(canvasAspectRatio - pdfAspectRatio);
+                            
+                            let shouldSwapDimensions = false;
+                            if (aspectRatioDiff > 0.5) {
+                                const canvasIsLandscape = canvasWidth > canvasHeight;
+                                const pdfIsLandscape = width > height;
+                                if (canvasIsLandscape !== pdfIsLandscape) {
+                                    shouldSwapDimensions = true;
+                                    [width, height] = [height, width];
+                                    window.logger.log('Detected PDF rotation - swapped width and height for coordinate conversion');
+                                }
+                            }
 
                             window.logger.log('PDF page size:', width, height);
                             window.logger.log('Canvas size:', canvasWidth, canvasHeight);
