@@ -790,7 +790,7 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
     // 若已有開啟中的彈窗，先忽略
     if (document.getElementById('photoPreviewOverlay')) return;
     
-    const thumbRect = thumbnailEl.getBoundingClientRect();
+    let thumbRect = thumbnailEl.getBoundingClientRect();
     
     // 嘗試原始檔，否則使用 dataURL/縮圖
     let imgSrc = '';
@@ -849,6 +849,13 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
     showOriginalPhotoPreview();
     
     function showOriginalPhotoPreview() {
+        // 獲取當前照片索引
+        const currentIndex = parseInt(thumbnailEl.dataset.index) || 0;
+        const totalPhotos = allPhotos.length;
+        
+        // 使用可變變量存儲當前縮圖元素
+        let currentThumbnailEl = thumbnailEl;
+        
         // 建立覆蓋層
         const overlay = document.createElement('div');
         overlay.id = 'photoPreviewOverlay';
@@ -867,11 +874,192 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
             position: fixed; top: ${thumbRect.top}px; left: ${thumbRect.left}px;
             width: ${thumbRect.width}px; height: ${thumbRect.height}px;
             object-fit: contain; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-            transition: top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease, border-radius 300ms ease;
+            transition: top 300ms ease, left 300ms ease, width 300ms ease, height 300ms ease, border-radius 300ms ease, opacity 300ms ease;
             will-change: top, left, width, height;
             background: #111;
         `;
         overlay.appendChild(animImg);
+        
+        // 創建左右箭頭按鈕
+        const leftArrow = document.createElement('button');
+        leftArrow.className = 'photo-preview-arrow photo-preview-arrow-left';
+        leftArrow.innerHTML = '&#8249;';
+        leftArrow.setAttribute('aria-label', 'Previous photo');
+        leftArrow.style.cssText = `
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            z-index: 7001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            opacity: ${currentIndex > 0 ? '1' : '0.3'};
+            pointer-events: ${currentIndex > 0 ? 'auto' : 'none'};
+        `;
+        overlay.appendChild(leftArrow);
+        
+        const rightArrow = document.createElement('button');
+        rightArrow.className = 'photo-preview-arrow photo-preview-arrow-right';
+        rightArrow.innerHTML = '&#8250;';
+        rightArrow.setAttribute('aria-label', 'Next photo');
+        rightArrow.style.cssText = `
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            z-index: 7001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            opacity: ${currentIndex < totalPhotos - 1 ? '1' : '0.3'};
+            pointer-events: ${currentIndex < totalPhotos - 1 ? 'auto' : 'none'};
+        `;
+        overlay.appendChild(rightArrow);
+        
+        // 添加懸停效果
+        const addHoverEffect = (btn) => {
+            btn.addEventListener('mouseenter', () => {
+                if (btn.style.opacity !== '0.3') {
+                    btn.style.background = 'rgba(255, 255, 255, 0.3)';
+                    btn.style.transform = 'translateY(-50%) scale(1.1)';
+                }
+            });
+            btn.addEventListener('mouseleave', () => {
+                if (btn.style.opacity !== '0.3') {
+                    btn.style.background = 'rgba(255, 255, 255, 0.2)';
+                    btn.style.transform = 'translateY(-50%) scale(1)';
+                }
+            });
+        };
+        addHoverEffect(leftArrow);
+        addHoverEffect(rightArrow);
+        
+        // 當前照片索引（可變）
+        let currentPhotoIndex = currentIndex;
+        let currentObjectUrl = objectUrl;
+        
+        // 切換照片的函數
+        const switchPhoto = async (direction) => {
+            const newIndex = direction === 'next' ? currentPhotoIndex + 1 : currentPhotoIndex - 1;
+            
+            if (newIndex < 0 || newIndex >= totalPhotos) return;
+            
+            const newFile = allPhotos[newIndex];
+            if (!newFile) return;
+            
+            // 獲取新照片的縮圖元素
+            const newThumbnailEl = document.querySelector(`.photo-item[data-index="${newIndex}"]`);
+            if (!newThumbnailEl) return;
+            
+            // 淡出當前圖片
+            animImg.style.opacity = '0';
+            
+            // 等待淡出動畫完成
+            await new Promise(resolve => setTimeout(resolve, 150));
+            
+            // 獲取新照片的圖片源
+            let newImgSrc = '';
+            const newOriginalBlob = await tryGetOriginalImageBlob(newFile);
+            let newObjectUrl = '';
+            
+            if (newOriginalBlob) {
+                newObjectUrl = URL.createObjectURL(newOriginalBlob);
+                newImgSrc = newObjectUrl;
+            } else if (newFile && typeof newFile.dataURL === 'string' && newFile.dataURL) {
+                newImgSrc = newFile.dataURL;
+            } else {
+                const img = newThumbnailEl.querySelector('img');
+                newImgSrc = img ? img.src : '';
+            }
+            
+            if (!newImgSrc) return;
+            
+            // 清理舊的 objectUrl
+            if (currentObjectUrl) {
+                URL.revokeObjectURL(currentObjectUrl);
+            }
+            
+            // 更新圖片源
+            animImg.src = newImgSrc;
+            animImg.alt = newFile.name || '';
+            currentObjectUrl = newObjectUrl;
+            currentPhotoIndex = newIndex;
+            
+            // 更新縮圖矩形（用於關閉動畫）
+            const newThumbRect = newThumbnailEl.getBoundingClientRect();
+            currentThumbnailEl = newThumbnailEl;
+            thumbRect = newThumbRect;
+            
+            // 等待新圖片載入後重新計算尺寸和位置
+            await new Promise((resolve) => {
+                if (animImg.complete) return resolve();
+                animImg.onload = () => resolve();
+                animImg.onerror = () => resolve();
+            });
+            
+            // 重新計算最終尺寸和位置
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const maxW = Math.floor(vw * 0.9);
+            const maxH = Math.floor(vh * 0.9);
+            const naturalW = animImg.naturalWidth || thumbRect.width;
+            const naturalH = animImg.naturalHeight || thumbRect.height;
+            
+            let finalW = naturalW;
+            let finalH = naturalH;
+            const scale = Math.min(maxW / naturalW, maxH / naturalH, 1);
+            finalW = Math.round(naturalW * scale);
+            finalH = Math.round(naturalH * scale);
+            const finalLeft = Math.round((vw - finalW) / 2);
+            const finalTop = Math.round((vh - finalH) / 2);
+            
+            // 更新圖片位置和尺寸
+            animImg.style.top = `${finalTop}px`;
+            animImg.style.left = `${finalLeft}px`;
+            animImg.style.width = `${finalW}px`;
+            animImg.style.height = `${finalH}px`;
+            
+            // 淡入新圖片
+            animImg.style.opacity = '1';
+            
+            // 更新箭頭狀態
+            leftArrow.style.opacity = currentPhotoIndex > 0 ? '1' : '0.3';
+            leftArrow.style.pointerEvents = currentPhotoIndex > 0 ? 'auto' : 'none';
+            rightArrow.style.opacity = currentPhotoIndex < totalPhotos - 1 ? '1' : '0.3';
+            rightArrow.style.pointerEvents = currentPhotoIndex < totalPhotos - 1 ? 'auto' : 'none';
+        };
+        
+        // 箭頭按鈕點擊事件
+        leftArrow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            switchPhoto('prev');
+        });
+        
+        rightArrow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            switchPhoto('next');
+        });
         
         // 載入完成後計算最終尺寸（90vw/90vh 內等比顯示）
         const loadAndAnimate = async () => {
@@ -910,7 +1098,7 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
         
         // 雙擊彈窗影像，收合回縮圖並關閉
         let closePopup = () => {
-            const currentRect = thumbnailEl.getBoundingClientRect();
+            const currentRect = currentThumbnailEl.getBoundingClientRect();
             animImg.style.top = `${currentRect.top}px`;
             animImg.style.left = `${currentRect.left}px`;
             animImg.style.width = `${currentRect.width}px`;
@@ -919,7 +1107,7 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
             
             const onTransitionEnd = () => {
                 animImg.removeEventListener('transitionend', onTransitionEnd);
-                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
                 overlay.remove();
             };
             animImg.addEventListener('transitionend', onTransitionEnd);
@@ -933,11 +1121,24 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 closePopup();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                e.stopPropagation();
+                switchPhoto('prev');
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                e.stopPropagation();
+                switchPhoto('next');
             }
         };
         document.addEventListener('keydown', onKeyDown);
         
         const onOverlayClick = (e) => {
+            // 如果點擊的是箭頭按鈕，不關閉
+            if (e.target === leftArrow || e.target === rightArrow || 
+                leftArrow.contains(e.target) || rightArrow.contains(e.target)) {
+                return;
+            }
             if (e.target === overlay) {
                 closePopup();
             }
@@ -947,7 +1148,7 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
         // 關閉時清理監聽器
         const originalClose = closePopup;
         closePopup = () => {
-            const currentRect = thumbnailEl.getBoundingClientRect();
+            const currentRect = currentThumbnailEl.getBoundingClientRect();
             animImg.style.top = `${currentRect.top}px`;
             animImg.style.left = `${currentRect.left}px`;
             animImg.style.width = `${currentRect.width}px`;
@@ -955,7 +1156,7 @@ async function showPhotoPreviewPopup(file, thumbnailEl) {
             animImg.style.borderRadius = '8px';
             const onTransitionEnd = () => {
                 animImg.removeEventListener('transitionend', onTransitionEnd);
-                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
                 overlay.removeEventListener('dblclick', onDblClick);
                 overlay.removeEventListener('click', onOverlayClick, true);
                 document.removeEventListener('keydown', onKeyDown);
